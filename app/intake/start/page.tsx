@@ -87,7 +87,7 @@ export default function LandingPage() {
             {theme === "light" ? "🌙 Dark" : "☀️ Light"}
           </button>
           <Link
-            href="/intake/start"
+            href="/intake/profile"
             className="btn btn-primary"
             style={{ minHeight: 46, padding: "10px 22px", fontSize: "0.95rem" }}
           >
