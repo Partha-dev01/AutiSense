@@ -1,0 +1,642 @@
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap");
+
+/* ── Theme: AI-Enabled Early Autism Screening, Diagnosis Support & Post-Diagnosis Care ─
+   Autism-Friendly Design Principles:
+   1. Soft, muted palette — no harsh contrasts or aggressive colors
+   2. Rounded corners everywhere — sharp edges feel aggressive
+   3. Generous white space — visual breathing room reduces overwhelm
+   4. Slow, gentle transitions only — fast motion is distressing
+   5. One focal point per screen — no cognitive overload
+   6. Large tap targets (min 56px) — motor + touch accessibility
+   7. Predictable layout — same structure on every screen
+   8. No flashing, no urgent red, no sensory overload
+   9. Full dark / light theme via [data-theme] on <html>
+──────────────────────────────────────────────────────────────── */
+
+/* ══════════════════════════════════════════
+   LIGHT THEME (default)
+══════════════════════════════════════════ */
+:root,
+[data-theme="light"] {
+  --sage-50: #f4f8f5;
+  --sage-100: #e3ede6;
+  --sage-200: #c4d9c9;
+  --sage-300: #98bea0;
+  --sage-400: #6b9e76;
+  --sage-500: #4d8058;
+  --sage-600: #3a6344;
+  --sage-700: #2a4a32;
+
+  --sky-100: #e8f0fb;
+  --sky-300: #93b8ef;
+  --peach-100: #fce8df;
+  --peach-300: #f0a882;
+  --lavender-100: #ede8f8;
+
+  --feature-green: #e3ede6;
+  --feature-blue: #e8f0fb;
+  --feature-peach: #fce8df;
+  --feature-lavender: #ede8f8;
+
+  --bg: #fdf9f3;
+  --bg-secondary: #f4f8f5;
+  --card: #ffffff;
+  --border: #e3ede6;
+  --border-focus: #98bea0;
+
+  --text-primary: #2d3a30;
+  --text-secondary: #5a7060;
+  --text-muted: #9ab09f;
+
+  --nav-bg: rgba(253, 249, 243, 0.94);
+  --shadow-sm: 0 2px 10px rgba(45, 58, 48, 0.06);
+  --shadow-md: 0 6px 24px rgba(45, 58, 48, 0.09);
+
+  --orb-bg: linear-gradient(135deg, #e3ede6, #e8f0fb);
+  --orb-glow: rgba(107, 158, 118, 0.18);
+  --orb-ring: rgba(107, 158, 118, 0.22);
+}
+
+/* ══════════════════════════════════════════
+   DARK THEME
+══════════════════════════════════════════ */
+[data-theme="dark"] {
+  --sage-50: #0d1f12;
+  --sage-100: #152a1a;
+  --sage-200: #1f3d26;
+  --sage-300: #2d5e38;
+  --sage-400: #4a8a5a;
+  --sage-500: #60a870;
+  --sage-600: #7dc48e;
+  --sage-700: #a4d4b0;
+
+  --sky-100: #0f1e2e;
+  --sky-300: #4a7eb5;
+  --peach-100: #2a1510;
+  --peach-300: #c4754a;
+  --lavender-100: #1a152a;
+
+  --feature-green: #152a1a;
+  --feature-blue: #0f1e2e;
+  --feature-peach: #2a1510;
+  --feature-lavender: #1a152a;
+
+  --bg: #0a120d;
+  --bg-secondary: #0d1710;
+  --card: #101a13;
+  --border: #1e3024;
+  --border-focus: #4a8a5a;
+
+  --text-primary: #d4e8da;
+  --text-secondary: #7aaa86;
+  --text-muted: #3d6047;
+
+  --nav-bg: rgba(10, 18, 13, 0.95);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.4);
+
+  --orb-bg: linear-gradient(135deg, #152a1a, #0f1e2e);
+  --orb-glow: rgba(96, 168, 112, 0.22);
+  --orb-ring: rgba(96, 168, 112, 0.18);
+}
+
+/* ══════════════════════════════════════════
+   BASE — shared across both themes
+══════════════════════════════════════════ */
+:root {
+  --r-sm: 10px;
+  --r-md: 18px;
+  --r-lg: 26px;
+  --r-xl: 36px;
+  --r-full: 9999px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Nunito", sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  line-height: 1.65;
+  transition:
+    background 400ms var(--ease),
+    color 400ms var(--ease);
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 15%, var(--orb-glow) 0%, transparent 55%),
+    radial-gradient(
+      circle at 85% 85%,
+      rgba(147, 184, 239, 0.04) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+  z-index: 0;
+  transition: background 400ms var(--ease);
+}
+.page > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Nav ── */
+.nav {
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 2px solid var(--border);
+  transition:
+    background 400ms var(--ease),
+    border-color 400ms var(--ease);
+}
+.logo {
+  font-family: "Fredoka", sans-serif;
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: var(--sage-600);
+  letter-spacing: 0.4px;
+  transition: color 400ms var(--ease);
+}
+.logo em {
+  color: var(--sage-500);
+  font-style: normal;
+}
+
+/* ── Step progress ── */
+.progress-wrap {
+  background: var(--card);
+  border-bottom: 2px solid var(--border);
+  padding: 18px 32px 16px;
+  transition:
+    background 400ms var(--ease),
+    border-color 400ms var(--ease);
+}
+.progress-steps {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.progress-steps::-webkit-scrollbar {
+  display: none;
+}
+
+.step-dot {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Fredoka", sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all 500ms var(--ease);
+}
+.step-dot.done {
+  background: var(--sage-400);
+  color: white;
+}
+.step-dot.active {
+  background: var(--sage-600);
+  color: white;
+  box-shadow: 0 0 0 5px var(--orb-ring);
+}
+.step-dot.upcoming {
+  background: var(--sage-100);
+  color: var(--text-muted);
+}
+
+.step-line {
+  flex: 1;
+  height: 3px;
+  min-width: 14px;
+  background: var(--sage-100);
+  transition: background 500ms var(--ease);
+}
+.step-line.done {
+  background: var(--sage-300);
+}
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  max-width: 620px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 52px 28px 80px;
+}
+
+/* ── Typography ── */
+.page-title {
+  font-family: "Fredoka", sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.9rem, 5vw, 2.5rem);
+  color: var(--text-primary);
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+.page-title em {
+  color: var(--sage-500);
+  font-style: normal;
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-bottom: 40px;
+  font-weight: 500;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 14px 30px;
+  border-radius: var(--r-xl);
+  font-family: "Fredoka", sans-serif;
+  font-weight: 600;
+  font-size: 1.08rem;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  transition:
+    transform 350ms var(--ease),
+    box-shadow 350ms var(--ease),
+    background 350ms var(--ease),
+    color 350ms var(--ease),
+    border-color 350ms var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary {
+  background: var(--sage-500);
+  color: white;
+  box-shadow: 0 4px 16px rgba(77, 128, 88, 0.28);
+}
+.btn-primary:hover {
+  background: var(--sage-600);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(77, 128, 88, 0.32);
+}
+.btn-secondary {
+  background: var(--sage-100);
+  color: var(--sage-600);
+}
+.btn-secondary:hover {
+  background: var(--sage-200);
+}
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 2.5px solid var(--border);
+}
+.btn-outline:hover {
+  border-color: var(--sage-400);
+  color: var(--sage-500);
+  background: var(--sage-50);
+}
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.btn-full {
+  width: 100%;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 400ms var(--ease),
+    border-color 400ms var(--ease),
+    box-shadow 350ms var(--ease);
+}
+
+/* ── Choice cards ── */
+.choice-card {
+  background: var(--card);
+  border: 2.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 350ms var(--ease);
+  min-height: 72px;
+  -webkit-tap-highlight-color: transparent;
+}
+.choice-card:hover {
+  border-color: var(--sage-400);
+  background: var(--sage-50);
+  transform: translateY(-1px);
+}
+.choice-card.selected {
+  border-color: var(--sage-400);
+  background: var(--sage-50);
+  box-shadow: 0 0 0 4px var(--orb-ring);
+}
+.choice-card .radio-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2.5px solid var(--sage-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 350ms var(--ease);
+}
+.choice-card.selected .radio-dot {
+  background: var(--sage-500);
+  border-color: var(--sage-500);
+  color: white;
+  font-size: 0.8rem;
+}
+
+/* ── Form ── */
+.label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 9px;
+}
+.input {
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 20px;
+  border: 2.5px solid var(--border);
+  border-radius: var(--r-md);
+  font-family: "Nunito", sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--card);
+  outline: none;
+  transition:
+    border-color 350ms var(--ease),
+    box-shadow 350ms var(--ease),
+    background 400ms var(--ease),
+    color 400ms var(--ease);
+  appearance: none;
+}
+.input:focus {
+  border-color: var(--sage-400);
+  box-shadow: 0 0 0 4px var(--orb-ring);
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+.input.error {
+  border-color: var(--peach-300);
+}
+.error-msg {
+  font-size: 0.85rem;
+  color: var(--peach-300);
+  margin-top: 7px;
+  font-weight: 600;
+}
+
+/* ── Chip ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: var(--r-full);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  background: var(--sage-100);
+  color: var(--sage-600);
+  border: 1.5px solid var(--sage-200);
+  margin-bottom: 22px;
+  transition:
+    background 400ms var(--ease),
+    color 400ms var(--ease),
+    border-color 400ms var(--ease);
+}
+
+/* ── Device check rows ── */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-lg);
+  transition: all 350ms var(--ease);
+  min-height: 76px;
+}
+.check-row.pass {
+  border-color: var(--sage-300);
+  background: var(--sage-50);
+}
+.check-row.fail {
+  border-color: var(--peach-300);
+  background: var(--peach-100);
+}
+.check-row.checking {
+  border-color: var(--sky-300);
+  background: var(--sky-100);
+}
+
+.check-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: all 400ms var(--ease);
+}
+.check-icon.idle {
+  background: var(--sage-100);
+}
+.check-icon.pass {
+  background: var(--sage-400);
+  color: white;
+}
+.check-icon.fail {
+  background: var(--peach-300);
+  color: white;
+}
+.check-icon.checking {
+  background: transparent;
+  border: 3px solid var(--sky-300);
+  border-top-color: transparent;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Fade-in ── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade {
+  opacity: 0;
+  animation: fadeUp 500ms var(--ease) both;
+}
+.fade-1 {
+  animation-delay: 0s;
+}
+.fade-2 {
+  animation-delay: 0.1s;
+}
+.fade-3 {
+  animation-delay: 0.2s;
+}
+.fade-4 {
+  animation-delay: 0.32s;
+}
+.fade-5 {
+  animation-delay: 0.44s;
+}
+
+/* ── Breathing Orb ────────────────────────────────────────────────────
+   Replaces the old float animation.
+   Inspired by breathing exercises used in autism therapy.
+   The core gently expands ("breathe in") then contracts ("breathe out").
+   Two concentric rings ripple outward and fade, creating calm depth.
+   Full cycle: 4 seconds — slow enough to follow with the eye.
+─────────────────────────────────────────────────────────────────── */
+.breathe-orb {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Outer ripple ring */
+.breathe-orb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--orb-ring);
+  animation: breathe-ring 4s ease-in-out infinite;
+}
+
+/* Second delayed ring for layered depth */
+.breathe-orb::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 2px solid var(--orb-ring);
+  animation: breathe-ring 4s ease-in-out infinite 1s;
+}
+
+/* Core circle */
+.breathe-inner {
+  position: relative;
+  z-index: 1;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--orb-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  animation: breathe-core 4s ease-in-out infinite;
+  box-shadow: 0 8px 32px var(--orb-glow);
+  transition:
+    background 400ms var(--ease),
+    box-shadow 400ms var(--ease);
+}
+
+@keyframes breathe-core {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 8px 32px var(--orb-glow);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 14px 48px var(--orb-glow);
+  }
+}
+@keyframes breathe-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  60% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .nav {
+    padding: 16px 20px;
+  }
+  .main {
+    padding: 36px 18px 64px;
+  }
+  .progress-wrap {
+    padding: 14px 20px 0;
+  }
+}
