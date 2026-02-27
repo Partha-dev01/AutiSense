@@ -9,6 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.999.0",
+    "@aws-sdk/client-s3": "^3.999.0",
+    "@aws-sdk/lib-dynamodb": "^3.999.0",
+    "@aws-sdk/s3-request-presigner": "^3.999.0",
     "dexie": "^4.3.0",
     "next": "16.1.6",
     "onnxruntime-web": "^1.24.2",
