@@ -4,16 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const STEPS = [
-  "Welcome",
-  "Profile",
-  "Device",
-  "Task 1",
-  "Task 2",
-  "Task 3",
-  "Task 4",
-  "Task 5",
-  "Summary",
-  "Report",
+  "Welcome", "Profile", "Device", "Communicate", "Visual", "Behavior",
+  "Prepare", "Motor", "Audio", "Video", "Summary", "Report",
 ];
 
 export default function IntakeStartPage() {
@@ -80,7 +72,7 @@ export default function IntakeStartPage() {
               fontWeight: 600,
             }}
           >
-            Step 1 of 10
+            Step 1 of 12
           </span>
         </div>
       </nav>
@@ -258,7 +250,7 @@ export default function IntakeStartPage() {
           <button
             className="btn btn-primary btn-full"
             disabled={!agreed}
-            onClick={() => router.push("/intake/device-check")}
+            onClick={() => router.push("/intake/child-profile")}
           >
             Continue →
           </button>

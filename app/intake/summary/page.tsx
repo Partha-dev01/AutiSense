@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { aggregateBiomarkers } from "../../lib/db/biomarker.repository";
@@ -10,16 +10,8 @@ import type { BiomarkerAggregate } from "../../types/biomarker";
 import type { Session } from "../../types/session";
 
 const STEPS = [
-  "Welcome",
-  "Profile",
-  "Device",
-  "Task 1",
-  "Task 2",
-  "Task 3",
-  "Task 4",
-  "Task 5",
-  "Summary",
-  "Report",
+  "Welcome", "Profile", "Device", "Communicate", "Visual", "Behavior",
+  "Prepare", "Motor", "Audio", "Video", "Summary", "Report",
 ];
 
 function scoreLabel(score: number): { label: string; color: string } {
@@ -32,10 +24,18 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-export default function SummaryPage() {
+export default function SummaryPageWrapper() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading summary...</div>}>
+      <SummaryPage />
+    </Suspense>
+  );
+}
+
+function SummaryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get("sessionId");
+  const sessionId = searchParams.get("sessionId") || (typeof window !== "undefined" ? localStorage.getItem("autisense-current-session-id") : null);
 
   const [session, setSession] = useState<Session | null>(null);
   const [aggregate, setAggregate] = useState<BiomarkerAggregate | null>(null);
@@ -174,7 +174,7 @@ export default function SummaryPage() {
               fontWeight: 600,
             }}
           >
-            Step 9 of 10
+            Step 11 of 12
           </span>
         </div>
       </nav>
@@ -192,13 +192,13 @@ export default function SummaryPage() {
               }}
             >
               <div
-                className={`step-dot ${i < 8 ? "done" : i === 8 ? "active" : "upcoming"}`}
+                className={`step-dot ${i < 10 ? "done" : i === 10 ? "active" : "upcoming"}`}
                 title={s}
               >
-                {i < 8 ? "✓" : i + 1}
+                {i < 10 ? "✓" : i + 1}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`step-line ${i < 8 ? "done" : ""}`} />
+                <div className={`step-line ${i < 10 ? "done" : ""}`} />
               )}
             </div>
           ))}
@@ -254,7 +254,7 @@ export default function SummaryPage() {
           </div>
         )}
 
-        <div className="chip fade fade-1">Step 9 — Your Results</div>
+        <div className="chip fade fade-1">Step 11 — Your Results</div>
         <h1 className="page-title fade fade-2">
           {session.childName}&apos;s <em>screening summary</em>
         </h1>
@@ -545,6 +545,39 @@ export default function SummaryPage() {
                 >
                   {aggregate.avgResponseLatencyMs}ms
                 </span>
+              </div>
+            )}
+
+            {/* AI Video Analysis (Stage 10 detector data) */}
+            {aggregate.avgAsdRisk != null && (
+              <div className="card" style={{ padding: "20px 22px", background: "var(--sage-50)", borderColor: "var(--sage-300)" }}>
+                <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.05rem", marginBottom: 14 }}>
+                  📹 AI Video Analysis
+                </h2>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
+                  <div style={{ textAlign: "center", flex: "1 1 80px" }}>
+                    <div style={{ fontSize: "1.4rem", fontWeight: 700, fontFamily: "'Fredoka',sans-serif", color: aggregate.avgAsdRisk >= 0.7 ? "var(--peach-300)" : aggregate.avgAsdRisk >= 0.4 ? "#c48a30" : "var(--sage-500)" }}>
+                      {Math.round(aggregate.avgAsdRisk * 100)}%
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>ASD Risk</div>
+                  </div>
+                  {aggregate.dominantBodyBehavior && (
+                    <div style={{ textAlign: "center", flex: "1 1 100px" }}>
+                      <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                        {aggregate.dominantBodyBehavior.replace(/_/g, " ")}
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Body behavior</div>
+                    </div>
+                  )}
+                  {aggregate.dominantFaceBehavior && (
+                    <div style={{ textAlign: "center", flex: "1 1 100px" }}>
+                      <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                        {aggregate.dominantFaceBehavior.replace(/_/g, " ")}
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Face behavior</div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

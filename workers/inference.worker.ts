@@ -1,55 +1,97 @@
 /**
- 
- * ⚠️NOT YET IMPLEMENTED
+ * InferenceWorker — Web Worker that runs the full multimodal autism detector
+ * inference pipeline off the main thread so that the UI remains responsive.
  *
- * This worker will:
- *   1. Load an ONNX model via onnxruntime-web (fetched from /api/models?model=pose_estimator)
- *   2. Receive raw camera frames from the main thread via postMessage
- *   3. Run inference to extract 17 pose keypoints per frame
- *   4. Sample microphone amplitude via Web Audio API
- *   5. Emit a biomarker object every ~500ms:
- *        { gazeScore, motorScore, vocalizationScore, responseLatencyMs, timestamp }
- *   6. Zero out all typed arrays after each inference pass (privacy contract)
+ * Ported from the standalone detector (Autism_code/web/src/workers/InferenceWorker.ts)
+ * and adapted for the AutiSense Next.js app.
  *
- * Biomarker scores are currently mocked in the task screen components.
+ * Protocol:
+ *   Main  -> Worker:  { type: "init" }
+ *   Worker -> Main:   { type: "initialized" }
  *
- * When implementing:
- *   npm install onnxruntime-web
- *   Reference: https://onnxruntime.ai/docs/get-started/with-javascript/web.html
+ *   Main  -> Worker:  { type: "processFrame", imageData: ImageData }
+ *   Worker -> Main:   { type: "result", data: PipelineResult }
+ *
+ *   Main  -> Worker:  { type: "toggleFace", enabled: boolean }
+ *   Main  -> Worker:  { type: "setModality", modality: Modality }
+ *   Main  -> Worker:  { type: "reset" }
+ *
+ *   Worker -> Main:   { type: "error", message: string }
+ *
+ * Privacy: Raw video frames are processed and immediately discarded.
+ * Only numerical scores (PipelineResult) are emitted back to the main thread.
  */
 
-// Minimal scaffolding so TypeScript doesn't complain
+import { MultimodalOrchestrator } from "../app/lib/inference/MultimodalOrchestrator";
+import type { WorkerInMessage, WorkerOutMessage, PipelineResult } from "../app/types/inference";
 
-self.onmessage = (event: MessageEvent) => {
-  const { type } = event.data as { type: string };
+const pipeline = new MultimodalOrchestrator();
+let isProcessing = false;
 
-  switch (type) {
-    case "START":
-      // TODO : initialise ONNX session, start camera + mic capture
-      console.warn("[InferenceWorker] Not yet implemented — using mock scores");
-      emitMockBiomarker();
-      break;
+/** Post a typed message to the main thread. */
+function post(msg: WorkerOutMessage): void {
+  self.postMessage(msg);
+}
 
-    case "STOP":
-      // TODO : stop all streams, zero typed arrays, close ONNX session
-      break;
+self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
+  const msg = event.data;
 
-    default:
-      console.warn("[InferenceWorker] Unknown message type:", type);
+  try {
+    switch (msg.type) {
+      case "init": {
+        console.log("[Worker] Loading ONNX models...");
+        const t0 = performance.now();
+        await pipeline.init();
+        console.log(`[Worker] Models loaded in ${(performance.now() - t0).toFixed(0)}ms`);
+        post({ type: "initialized" });
+        break;
+      }
+
+      case "toggleFace": {
+        await pipeline.setFaceEnabled(msg.enabled);
+        break;
+      }
+
+      case "setModality": {
+        await pipeline.setModality(msg.modality);
+        break;
+      }
+
+      case "reset": {
+        pipeline.reset();
+        break;
+      }
+
+      case "processFrame": {
+        // Drop frames if the previous inference is still running.
+        if (isProcessing) return;
+        isProcessing = true;
+
+        const t0 = performance.now();
+        const result: PipelineResult = await pipeline.processFrame(msg.imageData);
+        const elapsed = performance.now() - t0;
+        if (elapsed > 1000) {
+          console.log(`[Worker] Frame processed in ${elapsed.toFixed(0)}ms (first frame is slow due to WASM compilation)`);
+        }
+
+        // Transfer typed arrays for zero-copy posting.
+        const transferable: Transferable[] = [];
+        if (result.keypoints) transferable.push(result.keypoints.buffer);
+        if (result.confidence) transferable.push(result.confidence.buffer);
+        if (result.behavior) transferable.push(result.behavior.probabilities.buffer);
+
+        self.postMessage({ type: "result", data: result }, { transfer: transferable });
+
+        isProcessing = false;
+        break;
+      }
+    }
+  } catch (err) {
+    isProcessing = false;
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[Worker] Error:", message);
+    post({ type: "error", message });
   }
 };
-function emitMockBiomarker() {
-  const mock = {
-    type: "BIOMARKER",
-    payload: {
-      gazeScore: Math.random() * 0.5 + 0.3, // 0.3–0.8
-      motorScore: Math.random() * 0.5 + 0.3,
-      vocalizationScore: Math.random() * 0.5 + 0.2,
-      responseLatencyMs: Math.floor(Math.random() * 2000) + 500,
-      timestamp: Date.now(),
-    },
-  };
-  self.postMessage(mock);
-}
 
 export {};

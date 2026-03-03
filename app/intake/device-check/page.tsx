@@ -1,46 +1,54 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 const STEPS = [
-  "Welcome",
-  "Profile",
-  "Device",
-  "Task 1",
-  "Task 2",
-  "Task 3",
-  "Task 4",
-  "Task 5",
-  "Summary",
-  "Report",
+  "Welcome", "Profile", "Device", "Communicate", "Visual", "Behavior",
+  "Prepare", "Motor", "Audio", "Video", "Summary", "Report",
 ];
 
-const LANGUAGES = [
-  "English",
-  "Hindi",
-  "Bengali",
-  "Tamil",
-  "Telugu",
-  "Marathi",
-  "Kannada",
-  "Gujarati",
-  "Punjabi",
-  "Malayalam",
-  "Urdu",
-  "Odia",
-  "Spanish",
-  "Portuguese",
-  "French",
-  "Arabic",
-  "Other",
-];
+type CheckStatus = "idle" | "checking" | "pass" | "fail";
 
-type Gender = "boy" | "girl" | "other" | "";
+interface DeviceCheck {
+  id: string;
+  label: string;
+  emoji: string;
+  description: string;
+  status: CheckStatus;
+  errorMsg?: string;
+}
 
-export default function ProfilePage() {
+export default function DeviceCheckPage() {
   const router = useRouter();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [checks, setChecks] = useState<DeviceCheck[]>([
+    {
+      id: "camera",
+      label: "Camera access",
+      emoji: "📷",
+      description: "Needed to observe movement and facial expressions",
+      status: "idle",
+    },
+    {
+      id: "microphone",
+      label: "Microphone access",
+      emoji: "🎙️",
+      description: "Used for audio-based screening tasks",
+      status: "idle",
+    },
+    {
+      id: "browser",
+      label: "Browser compatibility",
+      emoji: "🌐",
+      description: "Checking for required features (WebAssembly, etc.)",
+      status: "idle",
+    },
+  ]);
+  const [started, setStarted] = useState(false);
+  const allPassed = checks.every((c) => c.status === "pass");
+  const anyFailed = checks.some((c) => c.status === "fail");
+  const isChecking = checks.some((c) => c.status === "checking");
 
   useEffect(() => {
     const saved = document.documentElement.getAttribute("data-theme") as
@@ -56,48 +64,60 @@ export default function ProfilePage() {
     document.documentElement.setAttribute("data-theme", next);
   };
 
-  const [childName, setChildName] = useState("");
-  const [dob, setDob] = useState("");
-  const [gender, setGender] = useState<Gender>("");
-  const [language, setLanguage] = useState("");
-  const [parentName, setParentName] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const updateCheck = useCallback(
+    (id: string, updates: Partial<DeviceCheck>) => {
+      setChecks((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+      );
+    },
+    []
+  );
 
-  const getAge = () => {
-    if (!dob) return null;
-    const d = new Date(dob),
-      now = new Date();
-    const months =
-      (now.getFullYear() - d.getFullYear()) * 12 +
-      (now.getMonth() - d.getMonth());
-    if (months < 0 || months > 216) return null;
-    if (months < 24) return `${months} months old`;
-    const y = Math.floor(months / 12),
-      m = months % 12;
-    return m > 0 ? `${y} years and ${m} months old` : `${y} years old`;
-  };
+  const runChecks = useCallback(async () => {
+    setStarted(true);
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!childName.trim()) e.childName = "Please enter your child's name";
-    if (!dob) e.dob = "Please enter a date of birth";
-    if (!language) e.language = "Please choose a language";
-    if (!parentName.trim()) e.parentName = "Please enter your name";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
+    // Reset all to checking
+    setChecks((prev) => prev.map((c) => ({ ...c, status: "checking" as const, errorMsg: undefined })));
 
-  const submit = () => {
-    if (validate()) router.push("/intake/device-check");
-  };
-  const age = getAge();
-  const name = childName || "your child";
+    // Check camera
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((t) => t.stop());
+      updateCheck("camera", { status: "pass" });
+    } catch {
+      updateCheck("camera", {
+        status: "fail",
+        errorMsg:
+          "Camera not available. Please allow camera access in your browser settings.",
+      });
+    }
 
-  const genderOpts: { value: Gender; label: string; emoji: string }[] = [
-    { value: "boy", label: "Boy", emoji: "👦" },
-    { value: "girl", label: "Girl", emoji: "👧" },
-    { value: "other", label: "Other", emoji: "🌟" },
-  ];
+    // Check microphone
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      updateCheck("microphone", { status: "pass" });
+    } catch {
+      updateCheck("microphone", {
+        status: "fail",
+        errorMsg:
+          "Microphone not available. Please allow microphone access in your browser settings.",
+      });
+    }
+
+    // Check browser compatibility
+    const hasWasm = typeof WebAssembly !== "undefined";
+    const hasMedia = typeof navigator.mediaDevices !== "undefined";
+    if (hasWasm && hasMedia) {
+      updateCheck("browser", { status: "pass" });
+    } else {
+      updateCheck("browser", {
+        status: "fail",
+        errorMsg:
+          "Your browser is missing required features. Please use Chrome, Edge, or Firefox.",
+      });
+    }
+  }, [updateCheck]);
 
   return (
     <div className="page">
@@ -120,7 +140,7 @@ export default function ProfilePage() {
               fontWeight: 600,
             }}
           >
-            Step 2 of 10
+            Step 3 of 12
           </span>
         </div>
       </nav>
@@ -137,13 +157,13 @@ export default function ProfilePage() {
               }}
             >
               <div
-                className={`step-dot ${i < 1 ? "done" : i === 1 ? "active" : "upcoming"}`}
+                className={`step-dot ${i < 2 ? "done" : i === 2 ? "active" : "upcoming"}`}
                 title={s}
               >
-                {i < 1 ? "✓" : i + 1}
+                {i < 2 ? "✓" : i + 1}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`step-line ${i < 1 ? "done" : ""}`} />
+                <div className={`step-line ${i < 2 ? "done" : ""}`} />
               )}
             </div>
           ))}
@@ -156,194 +176,153 @@ export default function ProfilePage() {
           style={{ textAlign: "center", marginBottom: 28 }}
         >
           <div className="breathe-orb" style={{ margin: "0 auto" }}>
-            <div className="breathe-inner">👶</div>
+            <div className="breathe-inner">📱</div>
           </div>
         </div>
 
-        <div className="chip fade fade-1">Step 2 — Child Profile</div>
+        <div className="chip fade fade-1">Step 3 — Device Check</div>
         <h1 className="page-title fade fade-2">
-          Tell us about <em>{childName || "your child"}</em>
+          Let's check <em>your device</em>
         </h1>
         <p className="subtitle fade fade-2">
-          This helps the autism screening adjust to {name}'s age, language, and
-          background.
+          We need camera and microphone access to run the autism screening.
+          Everything stays on your phone — nothing is recorded or uploaded.
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
-          {/* Child name */}
-          <div className="fade fade-3">
-            <label className="label" htmlFor="childName">
-              What is your child's first name?
-            </label>
-            <input
-              id="childName"
-              className={`input ${errors.childName ? "error" : ""}`}
-              type="text"
-              placeholder="e.g. Arjun"
-              value={childName}
-              onChange={(e) => {
-                setChildName(e.target.value);
-                setErrors((p) => ({ ...p, childName: "" }));
-              }}
-            />
-            {errors.childName && (
-              <p className="error-msg">⚠ {errors.childName}</p>
-            )}
-          </div>
-
-          {/* Date of birth */}
-          <div className="fade fade-3">
-            <label className="label" htmlFor="dob">
-              When was {name} born?
-            </label>
-            <input
-              id="dob"
-              className={`input ${errors.dob ? "error" : ""}`}
-              type="date"
-              max={new Date().toISOString().split("T")[0]}
-              value={dob}
-              onChange={(e) => {
-                setDob(e.target.value);
-                setErrors((p) => ({ ...p, dob: "" }));
-              }}
-            />
-            {age && (
-              <p
-                style={{
-                  color: "var(--sage-500)",
-                  fontSize: "0.9rem",
-                  marginTop: 8,
-                  fontWeight: 700,
-                }}
-              >
-                ✓ {name} is {age}
-              </p>
-            )}
-            {errors.dob && <p className="error-msg">⚠ {errors.dob}</p>}
-          </div>
-
-          {/* Gender */}
-          <div className="fade fade-3">
-            <label className="label">
-              Is {name} a boy or a girl?{" "}
-              <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
-                (optional)
-              </span>
-            </label>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {genderOpts.map((opt) => (
+        {/* Check rows */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            marginBottom: 28,
+          }}
+        >
+          {checks.map((check) => (
+            <div key={check.id} className={`check-row ${check.status}`}>
+              <div className={`check-icon ${check.status}`}>
+                {check.status === "idle" && check.emoji}
+                {check.status === "checking" && ""}
+                {check.status === "pass" && "✓"}
+                {check.status === "fail" && "✕"}
+              </div>
+              <div style={{ flex: 1 }}>
                 <div
-                  key={opt.value}
-                  className={`choice-card ${gender === opt.value ? "selected" : ""}`}
-                  style={{ flex: "1 1 130px" }}
-                  onClick={() =>
-                    setGender(gender === opt.value ? "" : opt.value)
-                  }
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" &&
-                    setGender(gender === opt.value ? "" : opt.value)
-                  }
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                    color: "var(--text-primary)",
+                  }}
                 >
-                  <span style={{ fontSize: "1.6rem" }}>{opt.emoji}</span>
-                  <span style={{ fontWeight: 700, fontSize: "1rem" }}>
-                    {opt.label}
-                  </span>
-                  <div className="radio-dot" style={{ marginLeft: "auto" }}>
-                    {gender === opt.value ? "✓" : ""}
-                  </div>
+                  {check.label}
                 </div>
-              ))}
+                <div
+                  style={{
+                    fontSize: "0.88rem",
+                    color:
+                      check.status === "fail"
+                        ? "var(--peach-300)"
+                        : "var(--text-secondary)",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {check.errorMsg || check.description}
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Language */}
-          <div className="fade fade-4">
-            <label className="label" htmlFor="language">
-              What language does {name} hear most at home?
-            </label>
-            <select
-              id="language"
-              className={`input ${errors.language ? "error" : ""}`}
-              value={language}
-              onChange={(e) => {
-                setLanguage(e.target.value);
-                setErrors((p) => ({ ...p, language: "" }));
-              }}
+        {/* Status message */}
+        {allPassed && (
+          <div
+            className="card"
+            style={{
+              padding: "20px 24px",
+              marginBottom: 28,
+              background: "var(--sage-50)",
+              borderColor: "var(--sage-300)",
+              textAlign: "center",
+            }}
+          >
+            <p
               style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a7060' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 16px center",
-                paddingRight: 48,
-                color: language ? "var(--text-primary)" : "var(--text-muted)",
+                fontWeight: 700,
+                color: "var(--sage-600)",
+                fontSize: "1rem",
               }}
             >
-              <option value="" disabled>
-                Choose a language…
-              </option>
-              {LANGUAGES.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-            {errors.language && (
-              <p className="error-msg">⚠ {errors.language}</p>
-            )}
+              All checks passed! Your device is ready for the screening.
+            </p>
           </div>
+        )}
 
-          {/* Previous autism-related history */}
-          <div className="fade fade-4">
-            <label className="label" htmlFor="history">
-              Has {name} ever been assessed or diagnosed for autism?{" "}
-              <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
-                (optional)
-              </span>
-            </label>
-            <input
-              id="history"
-              className="input"
-              type="text"
-              placeholder="e.g. Speech delay, previous ADOS assessment — or leave blank"
-            />
-          </div>
-
-          {/* Parent name */}
-          <div className="fade fade-4">
-            <label className="label" htmlFor="parentName">
-              Your name (parent or caregiver)
-            </label>
-            <input
-              id="parentName"
-              className={`input ${errors.parentName ? "error" : ""}`}
-              type="text"
-              placeholder="e.g. Priya Sharma"
-              value={parentName}
-              onChange={(e) => {
-                setParentName(e.target.value);
-                setErrors((p) => ({ ...p, parentName: "" }));
+        {anyFailed && !isChecking && (
+          <div
+            className="card"
+            style={{
+              padding: "20px 24px",
+              marginBottom: 28,
+              background: "var(--peach-100)",
+              borderColor: "var(--peach-300)",
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                fontWeight: 700,
+                color: "var(--peach-300)",
+                fontSize: "0.95rem",
+                lineHeight: 1.6,
               }}
-            />
-            {errors.parentName && (
-              <p className="error-msg">⚠ {errors.parentName}</p>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="fade fade-5" style={{ display: "flex", gap: 12 }}>
-            <Link
-              href="/intake/start"
-              className="btn btn-outline"
-              style={{ minWidth: 100 }}
             >
-              ← Back
-            </Link>
-            <button className="btn btn-primary btn-full" onClick={submit}>
+              Some checks failed. You can still continue, but the screening may
+              be limited.
+            </p>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="fade fade-4" style={{ display: "flex", gap: 12 }}>
+          <Link
+            href="/intake/child-profile"
+            className="btn btn-outline"
+            style={{ minWidth: 100 }}
+          >
+            ← Back
+          </Link>
+          {!started ? (
+            <button className="btn btn-primary btn-full" onClick={runChecks}>
+              Check My Device
+            </button>
+          ) : isChecking ? (
+            <button className="btn btn-primary btn-full" disabled>
+              Checking...
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary btn-full"
+              onClick={() => router.push("/intake/communication")}
+            >
               Continue →
             </button>
-          </div>
+          )}
         </div>
+
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: 22,
+            fontSize: "0.8rem",
+            color: "var(--text-muted)",
+            lineHeight: 1.6,
+          }}
+        >
+          Camera and microphone access is required for the autism screening
+          tasks.
+          <br />
+          No video or audio is ever stored, transmitted, or uploaded.
+        </p>
       </main>
     </div>
   );

@@ -71,6 +71,41 @@ export async function aggregateBiomarkers(
     (avgGaze * 0.4 + avgMotor * 0.3 + avgVocal * 0.3) * 100,
   );
 
+  // Extended fields from Stage 10 detector data
+  const videoRows = rows.filter((r) => r.taskId === "behavioral_video");
+  let avgAsdRisk: number | undefined;
+  let dominantBodyBehavior: string | undefined;
+  let dominantFaceBehavior: string | undefined;
+  let behaviorClassDistribution: Record<string, number> | undefined;
+
+  if (videoRows.length > 0) {
+    const riskScores = videoRows.filter((r) => r.asdRiskScore != null).map((r) => r.asdRiskScore!);
+    if (riskScores.length > 0) avgAsdRisk = round(avg(riskScores));
+
+    // Count body behavior classes
+    const bodyCounts: Record<string, number> = {};
+    for (const r of videoRows) {
+      if (r.bodyBehaviorClass) {
+        bodyCounts[r.bodyBehaviorClass] = (bodyCounts[r.bodyBehaviorClass] || 0) + 1;
+      }
+    }
+    if (Object.keys(bodyCounts).length > 0) {
+      dominantBodyBehavior = Object.entries(bodyCounts).sort((a, b) => b[1] - a[1])[0][0];
+      behaviorClassDistribution = bodyCounts;
+    }
+
+    // Count face behavior classes
+    const faceCounts: Record<string, number> = {};
+    for (const r of videoRows) {
+      if (r.faceBehaviorClass) {
+        faceCounts[r.faceBehaviorClass] = (faceCounts[r.faceBehaviorClass] || 0) + 1;
+      }
+    }
+    if (Object.keys(faceCounts).length > 0) {
+      dominantFaceBehavior = Object.entries(faceCounts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+  }
+
   return {
     sessionId,
     avgGazeScore: round(avgGaze),
@@ -86,6 +121,10 @@ export async function aggregateBiomarkers(
       restrictedBehavior:
         avgMotor < 0.35 || (avgLatency !== null && avgLatency > 3000),
     },
+    avgAsdRisk,
+    dominantBodyBehavior,
+    dominantFaceBehavior,
+    behaviorClassDistribution,
   };
 }
 

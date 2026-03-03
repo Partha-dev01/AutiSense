@@ -1,7 +1,7 @@
 /**
  * ENDPOINT: /
  * Landing page — public-facing marketing + entry point
- * Routes to: /intake/start
+ * Routes to: /intake/profile (start of screening flow)
  */
 "use client";
 import Link from "next/link";
@@ -92,7 +92,7 @@ export default function LandingPage() {
             {theme === "light" ? "🌙 Dark" : "☀️ Light"}
           </button>
           <Link
-            href="/intake/start"
+            href="/intake/profile"
             className="btn btn-primary"
             style={{ minHeight: 46, padding: "10px 22px", fontSize: "0.95rem" }}
           >
@@ -162,7 +162,7 @@ export default function LandingPage() {
           }}
         >
           <Link
-            href="/intake/start"
+            href="/intake/profile"
             className="btn btn-primary btn-full"
             style={{ maxWidth: 340 }}
           >
@@ -444,7 +444,7 @@ export default function LandingPage() {
             quality as a specialist clinic — for free.
           </p>
           <Link
-            href="/intake/start"
+            href="/intake/profile"
             className="btn"
             style={{
               background: "white",
