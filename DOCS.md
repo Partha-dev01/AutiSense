@@ -389,6 +389,17 @@ npx playwright test    # Run all 30 tests
 | 6 | Feed posts are local-only (IndexedDB) | Low | Open | DynamoDB sync for feed posts not yet implemented |
 | 7 | Dashboard charts show empty state for new users | Low | Open | No sample/demo data — charts appear blank until user completes at least one screening |
 
+### Resolved Issues
+
+| # | Issue | Resolution |
+|---|-------|-----------|
+| R1 | **Amplify SSR env vars undefined at runtime** | Amplify WEB_COMPUTE injects env vars into the build container but NOT the Lambda runtime. Fixed by listing all non-AWS vars in `next.config.ts` `env` block so they're inlined at build time. See SETUP_GUIDE.md for details. |
+| R2 | **Google OAuth "not configured" on deployed site** | Caused by R1 — `GOOGLE_CLIENT_ID` was undefined in Lambda. Fixed by build-time env inlining. |
+| R3 | **AWS SDK auth failures on Amplify Lambda** | API routes passed explicit `credentials: { accessKeyId, secretAccessKey }` without `sessionToken`. Lambda IAM roles provide temporary STS credentials. Fixed by removing explicit credentials — SDK auto-detects. |
+| R4 | **ONNX worker fails on mobile browsers** | WebGPU unavailable on mobile; WASM sub-worker couldn't load from Next.js static media. Fixed: CDN WASM paths in `backendDetector.ts`, mobile WebGPU skip, single-thread when SharedArrayBuffer unavailable. |
+| R5 | **ESLint CI failures with React 19 strict rules** | `eslint-config-next` introduced strict `react-hooks/*` rules. Fixed: moved hooks before conditional returns, added ref patterns for recursive callbacks, configured rule overrides in `eslint.config.mjs`. |
+| R6 | **Mobile layout overflow** | 12 step-dots (38px each) + fixed grid layout overflowed phone screens. Fixed: responsive breakpoints at 768px/480px, `.video-capture-grid` CSS class, safe-area padding. |
+
 ---
 
 ## Changelog
@@ -416,3 +427,25 @@ npx playwright test    # Run all 30 tests
 - Live at https://main.d2n7pu2vtgi8yc.amplifyapp.com
 - Auto-deploy from GitHub `main` branch
 - Amplify service role for production AWS access
+
+### v1.1.0 — 2026-03-03 (Bug Fixes & Production Hardening)
+
+**Fixed:**
+- ONNX Runtime worker loading on mobile/some browsers (CDN WASM paths, mobile WebGPU skip)
+- Mobile layout overflow (responsive breakpoints at 768px/480px, safe-area padding)
+- Mic retry buttons on communication/audio/device-check pages
+- PDF report quality (visual score bars, risk indicators, page numbers, professional layout)
+- Removed "AI-generated" references from reports and UI (now "computer-assisted")
+- ESLint CI failures with React 19 strict rules (hooks ordering, ref patterns, config overrides)
+- **Amplify SSR env vars** — inlined via `next.config.ts` `env` (Amplify doesn't inject into Lambda runtime)
+- **Google OAuth on deployed site** — caused by missing env vars in Lambda
+- **AWS SDK credential handling** — removed explicit credentials, using IAM role auto-detection
+
+**Added:**
+- Auth-aware homepage navigation (sign in button, dashboard links, user chip)
+- Game improvements (animations, sound effects, progressive difficulty, explanations)
+- Comprehensive deployment documentation (SETUP_GUIDE.md)
+
+**Infrastructure:**
+- Environment variables set at both app-level and branch-level in Amplify
+- Build-time env var inlining prevents future runtime env var issues
