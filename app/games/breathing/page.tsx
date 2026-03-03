@@ -55,6 +55,7 @@ export default function BreathingGamePage() {
   const animRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cycleRef = useRef(0);
   const ambientRef = useRef<{ stop: () => void } | null>(null);
+  const runPhaseRef = useRef<((phaseIndex: number) => void) | null>(null);
 
   useEffect(() => {
     const saved =
@@ -83,7 +84,7 @@ export default function BreathingGamePage() {
         }
 
         // Start next cycle
-        runPhase(0);
+        runPhaseRef.current?.(0);
         return;
       }
 
@@ -98,11 +99,12 @@ export default function BreathingGamePage() {
       else setCircleScale(1);
 
       animRef.current = setTimeout(() => {
-        runPhase(phaseIndex + 1);
+        runPhaseRef.current?.(phaseIndex + 1);
       }, duration);
     },
     [totalCycles],
   );
+  runPhaseRef.current = runPhase;
 
   const startGame = useCallback(() => {
     cycleRef.current = 0;

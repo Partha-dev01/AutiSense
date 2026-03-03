@@ -29,7 +29,7 @@ export default function VideoCapturePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { result, isModelLoaded, error, modelError, backend, modality, setModality, resetPipeline } =
+  const { result, isModelLoaded, error, modelError, backend, modality, setModality } =
     useDetectorInference(videoRef, canvasRef, camReady && started);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export default function VideoCapturePage() {
               AI <em>behavioral screening</em>
             </h1>
             <p className="subtitle fade fade-2">
-              The camera will observe your child's movements and expressions for 2 minutes.
+              The camera will observe your child&apos;s movements and expressions for 2 minutes.
               Our AI analyzes body pose, facial expressions, and behavioral patterns — all
               processed on your device. <strong>No video is recorded, stored, or uploaded.</strong>
             </p>

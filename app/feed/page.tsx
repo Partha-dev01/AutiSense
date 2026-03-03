@@ -35,14 +35,6 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
 
-  if (authLoading || !isAuthenticated) {
-    return (
-      <div className="page" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <p style={{ color: "var(--text-secondary)" }}>Checking authentication...</p>
-      </div>
-    );
-  }
-
   useEffect(() => {
     const saved =
       (typeof window !== "undefined" && localStorage.getItem("autisense-theme")) || "light";
@@ -71,6 +63,14 @@ export default function FeedPage() {
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="page" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <p style={{ color: "var(--text-secondary)" }}>Checking authentication...</p>
+      </div>
+    );
+  }
 
   const handlePost = async () => {
     if (!content.trim() || posting) return;

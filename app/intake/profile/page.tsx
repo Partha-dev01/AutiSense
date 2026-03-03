@@ -136,7 +136,7 @@ export default function IntakeStartPage() {
               color: "var(--text-primary)",
             }}
           >
-            🔐 How we protect your child's privacy
+            🔐 How we protect your child&apos;s privacy
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {privacyPoints.map((p) => (

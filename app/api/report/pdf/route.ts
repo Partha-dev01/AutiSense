@@ -41,7 +41,7 @@ interface PdfRequestBody {
 const SAGE_600 = rgb(55 / 255, 102 / 255, 65 / 255);
 const SAGE_500 = rgb(77 / 255, 128 / 255, 88 / 255);
 const SAGE_300 = rgb(140 / 255, 180 / 255, 148 / 255);
-const SAGE_100 = rgb(227 / 255, 237 / 255, 230 / 255);
+const _SAGE_100 = rgb(227 / 255, 237 / 255, 230 / 255);
 const SAGE_50 = rgb(240 / 255, 247 / 255, 242 / 255);
 const TEXT_PRIMARY = rgb(45 / 255, 58 / 255, 48 / 255);
 const TEXT_SECONDARY = rgb(90 / 255, 112 / 255, 96 / 255);

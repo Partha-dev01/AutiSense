@@ -60,14 +60,6 @@ export default function GamesHubPage() {
   const { loading: authLoading, isAuthenticated } = useAuthGuard();
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  if (authLoading || !isAuthenticated) {
-    return (
-      <div className="page" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <p style={{ color: "var(--text-secondary)" }}>Checking authentication...</p>
-      </div>
-    );
-  }
-
   useEffect(() => {
     const saved =
       (typeof window !== "undefined" && localStorage.getItem("autisense-theme")) || "light";
@@ -78,6 +70,14 @@ export default function GamesHubPage() {
     document.documentElement.setAttribute("data-theme", theme);
     if (typeof window !== "undefined") localStorage.setItem("autisense-theme", theme);
   }, [theme]);
+
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="page" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <p style={{ color: "var(--text-secondary)" }}>Checking authentication...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { Suspense } from "react";
 
 /** Error messages mapped from OAuth error codes */
 const ERROR_MESSAGES: Record<string, string> = {

@@ -28,6 +28,7 @@ export default function PreparationPage() {
   const [phase, setPhase] = useState<"speaking" | "waiting" | "done">("speaking");
   const [results, setResults] = useState<("completed" | "skipped")[]>([]);
   const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleResponseRef = useRef<((result: "completed" | "skipped") => void) | null>(null);
 
   useEffect(() => {
     const saved = document.documentElement.getAttribute("data-theme") as "light" | "dark" | null;
@@ -52,7 +53,7 @@ export default function PreparationPage() {
         setPhase("waiting");
         // Give 8 seconds for child to respond
         waitTimerRef.current = setTimeout(() => {
-          handleResponse("skipped");
+          handleResponseRef.current?.("skipped");
         }, 8000);
       };
       window.speechSynthesis.speak(utterance);
@@ -60,7 +61,7 @@ export default function PreparationPage() {
       // Fallback: just show text and wait
       setTimeout(() => {
         setPhase("waiting");
-        waitTimerRef.current = setTimeout(() => handleResponse("skipped"), 8000);
+        waitTimerRef.current = setTimeout(() => handleResponseRef.current?.("skipped"), 8000);
       }, 2000);
     }
   }, []);
@@ -78,6 +79,7 @@ export default function PreparationPage() {
       setPhase("speaking");
     }
   }, [currentIdx]);
+  handleResponseRef.current = handleResponse;
 
   // Speak instruction when index changes
   useEffect(() => {
@@ -133,8 +135,8 @@ export default function PreparationPage() {
           Can they <em>follow along?</em>
         </h1>
         <p className="subtitle fade fade-2">
-          We'll say simple instructions out loud. Watch if your child follows
-          them, then tap "Did it!" or "Skip" for each one.
+          We&apos;ll say simple instructions out loud. Watch if your child follows
+          them, then tap &quot;Did it!&quot; or &quot;Skip&quot; for each one.
         </p>
 
         {!started ? (
@@ -157,7 +159,7 @@ export default function PreparationPage() {
               fontFamily: "'Fredoka',sans-serif", fontWeight: 600,
               fontSize: "1.5rem", marginBottom: 8, color: "var(--text-primary)",
             }}>
-              "{instruction.text}"
+              &quot;{instruction.text}&quot;
             </h2>
 
             {phase === "speaking" && (

@@ -8,7 +8,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_CONFIG } from "./config";
-import { getAuthSession, getUserById, type AuthUser } from "./dynamodb";
+import { getAuthSession, getUserById } from "./dynamodb";
 
 export interface SessionUser {
   id: string;

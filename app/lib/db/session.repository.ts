@@ -92,7 +92,7 @@ export async function buildSyncPayload(
   if (!session) return null;
 
   // Destructure out childName — it must not be sent
-  const { childName, ...payload } = session;
+  const { childName: _childName, ...payload } = session;
   return payload;
 }
 

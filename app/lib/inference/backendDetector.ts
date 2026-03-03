@@ -43,7 +43,6 @@ export async function detectBestBackend(): Promise<"webgpu" | "wasm"> {
   if (!isMobileDevice()) {
     try {
       if (typeof navigator !== "undefined" && "gpu" in navigator) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const gpu = (navigator as any).gpu;
         if (gpu) {
           const adapter = await gpu.requestAdapter({
