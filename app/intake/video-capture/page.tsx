@@ -7,6 +7,7 @@ import DetectorResultsPanel from "../../components/DetectorResultsPanel";
 import { useDetectorInference } from "../../hooks/useDetectorInference";
 import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
+import type { PipelineResult } from "../../types/inference";
 
 const STEPS = [
   "Welcome", "Profile", "Device", "Communicate", "Visual", "Behavior",
@@ -14,6 +15,7 @@ const STEPS = [
 ];
 const STEP_IDX = 9;
 const ASSESSMENT_SECONDS = 120; // 2 minutes
+const BIOMARKER_SAVE_INTERVAL = 5_000; // save a snapshot every 5 seconds
 
 export default function VideoCapturePage() {
   const router = useRouter();
@@ -23,14 +25,23 @@ export default function VideoCapturePage() {
   const [timeLeft, setTimeLeft] = useState(ASSESSMENT_SECONDS);
   const [camReady, setCamReady] = useState(false);
   const [camError, setCamError] = useState<string | null>(null);
+  const [consentToSync, setConsentToSync] = useState(true);
+  const [samplesCollected, setSamplesCollected] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const biomarkerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const latestResultRef = useRef<PipelineResult | null>(null);
 
   const { result, isModelLoaded, error, modelError, backend, modality, setModality } =
     useDetectorInference(videoRef, canvasRef, camReady && started);
+
+  // Keep latestResultRef in sync
+  useEffect(() => {
+    latestResultRef.current = result;
+  }, [result]);
 
   useEffect(() => {
     const saved = document.documentElement.getAttribute("data-theme") as "light" | "dark" | null;
@@ -43,6 +54,39 @@ export default function VideoCapturePage() {
     document.documentElement.setAttribute("data-theme", next);
   };
 
+  // Save a biomarker snapshot from the current inference result
+  const saveBiomarkerSnapshot = useCallback(async () => {
+    const r = latestResultRef.current;
+    if (!r?.multimodal) return;
+
+    const sid = getCurrentSessionId();
+    if (!sid) return;
+
+    try {
+      await addBiomarker(sid, "behavioral_video", {
+        gazeScore: r.face ? (1 - r.face.gazeDeviation) : 0.5,
+        motorScore: 1 - (r.multimodal.bodyRisk || 0),
+        vocalizationScore: 0.5,
+        responseLatencyMs: r.latencyMs,
+        asdRiskScore: r.multimodal.asdRisk,
+        bodyBehaviorClass: r.behavior?.className,
+        faceBehaviorClass: r.face?.faceBehavior?.className,
+        bodyProbabilities: r.behavior?.probabilities
+          ? Array.from(r.behavior.probabilities)
+          : undefined,
+        faceProbabilities: r.face?.faceBehavior?.probabilities
+          ? Array.from(r.face.faceBehavior.probabilities)
+          : undefined,
+        emotionDistribution: r.face?.emotions
+          ? Array.from(r.face.emotions)
+          : undefined,
+      });
+      setSamplesCollected((c) => c + 1);
+    } catch {
+      // non-critical — keep running
+    }
+  }, []);
+
   // Start camera
   const startCamera = useCallback(async () => {
     try {
@@ -54,7 +98,15 @@ export default function VideoCapturePage() {
       const video = videoRef.current;
       if (video) {
         video.srcObject = stream;
-        await video.play();
+        try {
+          await video.play();
+        } catch (playErr) {
+          // "play() interrupted by a new load request" — autoPlay already handles
+          // playback; AbortError is safe to ignore in this context.
+          if (!(playErr instanceof DOMException && playErr.name === "AbortError")) {
+            throw playErr;
+          }
+        }
         setCamReady(true);
       }
     } catch (err) {
@@ -71,6 +123,7 @@ export default function VideoCapturePage() {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
       if (timerRef.current) clearInterval(timerRef.current);
+      if (biomarkerTimerRef.current) clearInterval(biomarkerTimerRef.current);
     };
   }, []);
 
@@ -78,12 +131,15 @@ export default function VideoCapturePage() {
     await startCamera();
     setStarted(true);
     setTimeLeft(ASSESSMENT_SECONDS);
+    setSamplesCollected(0);
+
+    // Countdown timer
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
+          if (biomarkerTimerRef.current) clearInterval(biomarkerTimerRef.current);
           setTaskComplete(true);
-          // Stop camera
           if (streamRef.current) {
             streamRef.current.getTracks().forEach((tr) => tr.stop());
           }
@@ -92,15 +148,23 @@ export default function VideoCapturePage() {
         return t - 1;
       });
     }, 1000);
-  }, [startCamera]);
+
+    // Periodic biomarker snapshots
+    biomarkerTimerRef.current = setInterval(() => {
+      saveBiomarkerSnapshot();
+    }, BIOMARKER_SAVE_INTERVAL);
+  }, [startCamera, saveBiomarkerSnapshot]);
 
   const stopEarly = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (biomarkerTimerRef.current) clearInterval(biomarkerTimerRef.current);
+    // Save final snapshot
+    saveBiomarkerSnapshot();
     setTaskComplete(true);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
     }
-  }, []);
+  }, [saveBiomarkerSnapshot]);
 
   return (
     <div className="page">
@@ -140,17 +204,17 @@ export default function VideoCapturePage() {
 
             <div className="chip fade fade-1">Step 10 — Video Analysis</div>
             <h1 className="page-title fade fade-2">
-              AI <em>behavioral screening</em>
+              Behavioral <em>screening</em>
             </h1>
             <p className="subtitle fade fade-2">
               The camera will observe your child&apos;s movements and expressions for 2 minutes.
-              Our AI analyzes body pose, facial expressions, and behavioral patterns — all
-              processed on your device. <strong>No video is recorded, stored, or uploaded.</strong>
+              Body pose, facial expressions, and behavioral patterns are analyzed entirely
+              on your device. <strong>No video is recorded, stored, or uploaded.</strong>
             </p>
 
             <div className="card fade fade-3" style={{ padding: "20px 24px", marginBottom: 24, background: "var(--sage-50)", borderColor: "var(--sage-300)" }}>
               <p style={{ fontSize: "0.9rem", color: "var(--sage-600)", fontWeight: 600, lineHeight: 1.7 }}>
-                🔒 Privacy: The camera feed is processed entirely on your device using AI models.
+                🔒 Privacy: The camera feed is processed entirely on your device.
                 No video or images ever leave your phone. Only numerical scores are saved.
               </p>
             </div>
@@ -198,8 +262,13 @@ export default function VideoCapturePage() {
                   </div>
                 )}
 
-                {/* Stop early button */}
-                <div style={{ textAlign: "center", marginTop: 16 }}>
+                {/* Sample count + stop early */}
+                <div style={{ textAlign: "center", marginTop: 16, display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
+                  {samplesCollected > 0 && (
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }}>
+                      {samplesCollected} samples collected
+                    </span>
+                  )}
                   <button className="btn btn-outline" onClick={stopEarly}
                     style={{ minHeight: 40, padding: "8px 20px", fontSize: "0.85rem" }}>
                     Stop Early
@@ -224,9 +293,9 @@ export default function VideoCapturePage() {
               <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.4rem", marginBottom: 14, color: "var(--text-primary)" }}>
                 Video analysis complete!
               </h2>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", lineHeight: 1.7, marginBottom: 20 }}>
-                The AI has finished analyzing behavioral patterns. Your camera has been turned off
-                and no video was stored. Proceed to see your screening summary.
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", lineHeight: 1.7, marginBottom: 12 }}>
+                The analysis has finished. Your camera has been turned off
+                and no video was stored. {samplesCollected > 0 && `${samplesCollected} data snapshots were recorded.`}
               </p>
 
               {result?.multimodal && (
@@ -247,12 +316,39 @@ export default function VideoCapturePage() {
               )}
             </div>
 
-            <div className="fade fade-4" style={{ display: "flex", gap: 12, marginTop: 28 }}>
+            {/* Data consent card */}
+            <div className="card fade fade-3" style={{
+              padding: "20px 24px", marginTop: 16,
+              border: "2px solid var(--sage-300)", background: "var(--card)",
+            }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <label style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: 10, flex: 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={consentToSync}
+                    onChange={(e) => setConsentToSync(e.target.checked)}
+                    style={{ width: 20, height: 20, accentColor: "var(--sage-500)", flexShrink: 0 }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: 4 }}>
+                      Save anonymised results to cloud
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.6 }}>
+                      Only numerical scores are shared — no personal information, no video.
+                      This helps improve screening accuracy. You can uncheck to keep results local only.
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="fade fade-4" style={{ display: "flex", gap: 12, marginTop: 20 }}>
               <Link href="/intake/audio" className="btn btn-outline" style={{ minWidth: 100 }}>
                 ← Back
               </Link>
               <button className="btn btn-primary btn-full"
                 onClick={async () => {
+                  // Save final biomarker snapshot with all extended fields
                   const sid = getCurrentSessionId();
                   if (sid && result?.multimodal) {
                     await addBiomarker(sid, "behavioral_video", {
@@ -260,8 +356,24 @@ export default function VideoCapturePage() {
                       motorScore: 1 - (result.multimodal.bodyRisk || 0),
                       vocalizationScore: 0.5,
                       responseLatencyMs: result.latencyMs,
+                      asdRiskScore: result.multimodal.asdRisk,
+                      bodyBehaviorClass: result.behavior?.className,
+                      faceBehaviorClass: result.face?.faceBehavior?.className,
+                      bodyProbabilities: result.behavior?.probabilities
+                        ? Array.from(result.behavior.probabilities)
+                        : undefined,
+                      faceProbabilities: result.face?.faceBehavior?.probabilities
+                        ? Array.from(result.face.faceBehavior.probabilities)
+                        : undefined,
+                      emotionDistribution: result.face?.emotions
+                        ? Array.from(result.face.emotions)
+                        : undefined,
                     }).catch(() => {});
                   }
+                  // Store consent preference for the summary page
+                  try {
+                    localStorage.setItem("autisense-sync-consent", consentToSync ? "yes" : "no");
+                  } catch { /* localStorage unavailable */ }
                   const sessionId = sid ? `?sessionId=${sid}` : "";
                   router.push(`/intake/summary${sessionId}`);
                 }}>

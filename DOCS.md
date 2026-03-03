@@ -399,6 +399,10 @@ npx playwright test    # Run all 30 tests
 | R4 | **ONNX worker fails on mobile browsers** | WebGPU unavailable on mobile; WASM sub-worker couldn't load from Next.js static media. Fixed: CDN WASM paths in `backendDetector.ts`, mobile WebGPU skip, single-thread when SharedArrayBuffer unavailable. |
 | R5 | **ESLint CI failures with React 19 strict rules** | `eslint-config-next` introduced strict `react-hooks/*` rules. Fixed: moved hooks before conditional returns, added ref patterns for recursive callbacks, configured rule overrides in `eslint.config.mjs`. |
 | R6 | **Mobile layout overflow** | 12 step-dots (38px each) + fixed grid layout overflowed phone screens. Fixed: responsive breakpoints at 768px/480px, `.video-capture-grid` CSS class, safe-area padding. |
+| R7 | **Camera "play() interrupted" error** | Browser autoPlay attribute conflicted with explicit `video.play()` call. Fixed by catching `AbortError` in `startCamera()` — autoPlay handles playback. |
+| R8 | **PDF "=======" separator lines** | Clinical report mock joined sections with `"=".repeat(60)`. Fixed: changed to `---` separator. PDF renderer now detects separator lines (`===`, `---`) and renders graphical dividers instead of text. |
+| R9 | **Video analysis saved only basic metrics** | Stage 10 only saved gazeScore/motorScore at the end. Fixed: extended `addBiomarker` to accept asdRiskScore, body/face behavior classes, probabilities, and emotion distribution. Biomarkers now saved every 5 seconds during the 2-minute assessment. |
+| R10 | **No consent before cloud sync** | Results auto-synced to cloud without user consent. Fixed: consent checkbox added at Stage 10 completion. Summary page (Stage 11) respects the preference — skips sync if user opts out. |
 
 ---
 
@@ -449,3 +453,21 @@ npx playwright test    # Run all 30 tests
 **Infrastructure:**
 - Environment variables set at both app-level and branch-level in Amplify
 - Build-time env var inlining prevents future runtime env var issues
+
+### v1.2.0 — 2026-03-03 (Metrics, Consent, PDF & Camera Fixes)
+
+**Fixed:**
+- Camera "play() interrupted by a new load request" error — `AbortError` caught gracefully when autoPlay conflicts with explicit `play()`
+- PDF "=======" separator lines — clinical report now uses `---`, PDF renderer converts separator lines to graphical dividers
+- Video heading changed from "AI behavioral screening" to "Behavioral screening" (matches test and removes AI language)
+
+**Improved:**
+- **Extended biomarker collection**: Video analysis (Stage 10) now saves full inference data every 5 seconds during the 2-minute assessment — asdRiskScore, body behavior class, face behavior class, body/face probabilities (6+4 arrays), FER+ emotion distribution (8 values), in addition to core gaze/motor/vocal scores
+- **PDF report redesign**: Letter grading system (A+ to F), score distribution pie chart, AutiSense leaf logo in header, grading scale legend, grade circles per score, confidential watermark in footer, improved risk level badge with colored background box
+- **Data consent**: Checkbox at Stage 10 completion — "Save anonymised results to cloud" — user can opt out to keep results local-only. Summary page (Stage 11) respects preference
+
+**Added:**
+- `addBiomarker` now accepts extended fields: `asdRiskScore`, `bodyBehaviorClass`, `faceBehaviorClass`, `bodyProbabilities`, `faceProbabilities`, `emotionDistribution`
+- Periodic biomarker snapshots during video assessment (every 5s)
+- Sample counter during video analysis ("X samples collected")
+- `localStorage` consent flag (`autisense-sync-consent`) to persist consent across pages

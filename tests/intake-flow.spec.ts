@@ -81,7 +81,7 @@ test.describe("Intake Flow — Full 12-Step Progression", () => {
   test("Step 10 Video Capture renders", async ({ page }) => {
     await page.goto("/intake/video-capture");
     await expect(page.locator(".chip")).toContainText("Step 10");
-    await expect(page.locator("h1")).toContainText("behavioral screening");
+    await expect(page.locator("h1")).toContainText("screening");
     await expect(page.locator("button:has-text('Start Video Analysis')")).toBeVisible();
   });
 

@@ -90,8 +90,17 @@ function SummaryPage() {
     load();
   }, [sessionId]);
 
-  // Try to sync when online
+  // Try to sync when online (only if user consented at Stage 10)
   const triggerSync = useCallback(async () => {
+    let consent = true;
+    try {
+      consent = localStorage.getItem("autisense-sync-consent") !== "no";
+    } catch { /* default to yes */ }
+
+    if (!consent) {
+      setSyncStatus("idle");
+      return;
+    }
     if (!isOnline()) {
       setSyncStatus("offline");
       return;

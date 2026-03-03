@@ -15,6 +15,13 @@ export async function addBiomarker(
     motorScore: number;
     vocalizationScore: number;
     responseLatencyMs?: number | null;
+    // Extended fields for behavioral_video task
+    asdRiskScore?: number;
+    bodyBehaviorClass?: string;
+    faceBehaviorClass?: string;
+    bodyProbabilities?: number[];
+    faceProbabilities?: number[];
+    emotionDistribution?: number[];
   },
 ): Promise<void> {
   const userId = getCurrentUserId();
@@ -27,6 +34,13 @@ export async function addBiomarker(
     motorScore: clamp(reading.motorScore),
     vocalizationScore: clamp(reading.vocalizationScore),
     responseLatencyMs: reading.responseLatencyMs ?? null,
+    // Extended fields (Stage 10 video analysis)
+    asdRiskScore: reading.asdRiskScore != null ? clamp(reading.asdRiskScore) : undefined,
+    bodyBehaviorClass: reading.bodyBehaviorClass,
+    faceBehaviorClass: reading.faceBehaviorClass,
+    bodyProbabilities: reading.bodyProbabilities,
+    faceProbabilities: reading.faceProbabilities,
+    emotionDistribution: reading.emotionDistribution,
     timestamp: Date.now(),
   });
 }
