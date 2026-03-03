@@ -185,6 +185,10 @@ function ReportPage() {
           childName: session?.childName ?? "Child",
           sessionDate,
           scores,
+          childAge: session?.ageMonths,
+          assessmentDuration: session?.completedAt && session?.createdAt
+            ? Math.round((new Date(session.completedAt).getTime() - new Date(session.createdAt).getTime()) / 60000)
+            : undefined,
         }),
       });
 
@@ -253,7 +257,7 @@ function ReportPage() {
           Your <em>clinical report</em>
         </h1>
         <p className="subtitle fade fade-2">
-          We use AI to generate a DSM-5 aligned clinical summary based on your
+          We generate a DSM-5 aligned clinical summary based on your
           child&apos;s screening data. This report is designed to be shared with a
           paediatrician or autism specialist.
         </p>
@@ -303,7 +307,7 @@ function ReportPage() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>Quick Summary</div>
                     <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                      AI-generated &middot; Amazon Nova Lite
+                      Behavioral Analysis &middot; Quick Summary
                     </div>
                   </div>
                 </div>
@@ -329,7 +333,7 @@ function ReportPage() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>Full Clinical Report</div>
                     <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                      DSM-5 aligned PDF &middot; Cohere Command R+
+                      DSM-5 Aligned &middot; Full Clinical Report
                     </div>
                   </div>
                 </div>
@@ -349,8 +353,8 @@ function ReportPage() {
                 </div>
                 <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 10 }}>
                   {reportType === "summary"
-                    ? "Generating parent-friendly summary with Nova Lite..."
-                    : "AI is analyzing screening data and generating DSM-5 mappings..."}
+                    ? "Generating parent-friendly summary..."
+                    : "Analyzing screening data and generating DSM-5 mappings..."}
                 </p>
               </div>
             )}
@@ -368,7 +372,7 @@ function ReportPage() {
               </h2>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: 20 }}>
                 {reportType === "summary"
-                  ? "Your AI-generated screening summary is ready below."
+                  ? "Your screening summary is ready below."
                   : "Your DSM-5 aligned clinical report is ready. Download it as a PDF and share it with your child's specialist."}
               </p>
               <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
@@ -461,7 +465,7 @@ function ReportPage() {
           textAlign: "center", marginTop: 22, fontSize: "0.8rem",
           color: "var(--text-muted)", lineHeight: 1.6,
         }}>
-          This report is an AI-generated screening summary, not a clinical diagnosis.
+          This report is a screening summary, not a clinical diagnosis.
           <br />
           Always consult a qualified autism specialist or paediatrician.
         </p>

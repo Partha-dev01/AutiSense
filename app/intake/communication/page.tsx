@@ -220,10 +220,16 @@ export default function CommunicationPage() {
                 <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: 12 }}>
                   No response detected. That's okay!
                 </p>
-                <button className="btn btn-secondary" style={{ minHeight: 44, padding: "8px 20px", fontSize: "0.9rem" }}
-                  onClick={() => advancePrompt("no_response")}>
-                  Skip to next →
-                </button>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="btn btn-primary" style={{ minHeight: 44, padding: "8px 20px", fontSize: "0.9rem" }}
+                    onClick={() => { setPromptState("waiting"); setTranscript(""); }}>
+                    Try Again
+                  </button>
+                  <button className="btn btn-secondary" style={{ minHeight: 44, padding: "8px 20px", fontSize: "0.9rem" }}
+                    onClick={() => advancePrompt("no_response")}>
+                    Skip to next →
+                  </button>
+                </div>
               </div>
             )}
 

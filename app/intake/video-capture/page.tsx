@@ -129,7 +129,7 @@ export default function VideoCapturePage() {
         </div>
       </div>
 
-      <main style={{ flex: 1, maxWidth: 900, width: "100%", margin: "0 auto", padding: "32px 28px 80px" }}>
+      <main className="main-wide">
         {!started ? (
           <div style={{ maxWidth: 620, margin: "0 auto" }}>
             <div className="fade fade-1" style={{ textAlign: "center", marginBottom: 28 }}>
@@ -167,7 +167,7 @@ export default function VideoCapturePage() {
         ) : !taskComplete ? (
           <div className="fade fade-3">
             {/* Two-column layout: video + results */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+            <div className="video-capture-grid">
               {/* Left: Video feed */}
               <div>
                 <DetectorVideoCanvas

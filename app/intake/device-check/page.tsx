@@ -274,11 +274,15 @@ export default function DeviceCheckPage() {
                 color: "var(--peach-300)",
                 fontSize: "0.95rem",
                 lineHeight: 1.6,
+                marginBottom: 12,
               }}
             >
-              Some checks failed. You can still continue, but the screening may
-              be limited.
+              Some checks failed. You can retry or continue with limited screening.
             </p>
+            <button className="btn btn-secondary" onClick={runChecks}
+              style={{ minHeight: 44, padding: "8px 24px", fontSize: "0.9rem" }}>
+              Retry Checks
+            </button>
           </div>
         )}
 

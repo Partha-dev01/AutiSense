@@ -628,7 +628,92 @@ body {
   }
 }
 
+/* ── Video capture layout ── */
+.video-capture-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  align-items: start;
+}
+.main-wide {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 28px 80px;
+}
+
+/* ── User chip (nav) ── */
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: var(--r-full);
+  background: var(--sage-50);
+  border: 1.5px solid var(--sage-200);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sage-600);
+}
+.user-chip .avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sage-500);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Fredoka", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* ── Footer links ── */
+.footer-links {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.footer-links a {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 300ms var(--ease);
+}
+.footer-links a:hover {
+  color: var(--sage-500);
+}
+
+/* ── Game animations ── */
+@keyframes match-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); box-shadow: 0 0 20px var(--orb-glow); }
+  100% { transform: scale(1); }
+}
+@keyframes waveform {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
 /* ── Responsive ── */
+@media (max-width: 768px) {
+  .main {
+    max-width: 100%;
+    padding: 32px 20px 64px;
+  }
+  .main-wide {
+    padding: 24px 16px 64px;
+  }
+  .video-capture-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .nav {
     padding: 16px 20px;
@@ -638,5 +723,65 @@ body {
   }
   .progress-wrap {
     padding: 14px 20px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav {
+    padding: 12px 16px;
+    gap: 8px;
+  }
+  .logo {
+    font-size: 1.4rem;
+  }
+  .main {
+    padding: 24px 14px 56px;
+  }
+  .main-wide {
+    padding: 16px 12px 56px;
+  }
+  .progress-wrap {
+    padding: 10px 14px 0;
+  }
+  .step-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 0.78rem;
+  }
+  .step-line {
+    min-width: 8px;
+  }
+  .btn {
+    min-height: 50px;
+    padding: 12px 22px;
+    font-size: 1rem;
+  }
+  .page-title {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+  .subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 28px;
+  }
+  .user-chip {
+    font-size: 0.78rem;
+    padding: 4px 10px 4px 4px;
+  }
+  .user-chip .avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+  }
+}
+
+/* ── Safe area for notched devices ── */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .nav {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+  }
+  .main {
+    padding-bottom: max(64px, calc(env(safe-area-inset-bottom) + 40px));
   }
 }

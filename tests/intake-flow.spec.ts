@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Intake Flow — Full 12-Step Progression", () => {
   test("Landing page → Profile (consent)", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("AI-powered autism screening");
+    await expect(page.locator("h1")).toContainText("Computer-assisted autism screening");
     await page.click("text=Begin Free Autism Screening →");
     await expect(page).toHaveURL("/intake/profile");
   });
@@ -94,7 +94,7 @@ test.describe("Intake Flow — Full 12-Step Progression", () => {
     await page.goto("/intake/report");
     await expect(page.locator(".chip")).toContainText("Step 12");
     await expect(page.locator("h1")).toContainText("clinical report");
-    await expect(page.locator("text=Quick Summary")).toBeVisible();
+    await expect(page.locator("text=Quick Summary").first()).toBeVisible();
   });
 
   test("Back buttons navigate correctly", async ({ page }) => {

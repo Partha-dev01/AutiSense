@@ -14,6 +14,34 @@ const PHASES: { phase: BreathPhase; label: string; duration: number }[] = [
   { phase: "rest", label: "Rest", duration: 2000 },
 ];
 
+function startAmbientTone(): { stop: () => void } | null {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(174, ctx.currentTime);
+    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    return {
+      stop: () => {
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.stop(ctx.currentTime + 0.5);
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function triggerHaptic() {
+  try {
+    if (navigator.vibrate) navigator.vibrate(50);
+  } catch { /* vibration not available */ }
+}
+
 export default function BreathingGamePage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [screen, setScreen] = useState<Screen>("start");
@@ -26,6 +54,7 @@ export default function BreathingGamePage() {
   const [startTime, setStartTime] = useState(0);
   const animRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cycleRef = useRef(0);
+  const ambientRef = useRef<{ stop: () => void } | null>(null);
 
   useEffect(() => {
     const saved =
@@ -40,6 +69,7 @@ export default function BreathingGamePage() {
 
   const runPhase = useCallback(
     (phaseIndex: number) => {
+      triggerHaptic();
       if (phaseIndex >= PHASES.length) {
         // One cycle done
         cycleRef.current += 1;
@@ -47,6 +77,7 @@ export default function BreathingGamePage() {
 
         if (cycleRef.current >= totalCycles) {
           saveDifficulty("breathing", "default", 100);
+          if (ambientRef.current) { ambientRef.current.stop(); ambientRef.current = null; }
           setScreen("result");
           return;
         }
@@ -78,6 +109,9 @@ export default function BreathingGamePage() {
     setCyclesCompleted(0);
     setStartTime(Date.now());
     setScreen("play");
+    // Start ambient tone
+    if (ambientRef.current) ambientRef.current.stop();
+    ambientRef.current = startAmbientTone();
     runPhase(0);
   }, [runPhase]);
 
@@ -90,6 +124,7 @@ export default function BreathingGamePage() {
   useEffect(() => {
     return () => {
       if (animRef.current) clearTimeout(animRef.current);
+      if (ambientRef.current) { ambientRef.current.stop(); ambientRef.current = null; }
     };
   }, []);
 

@@ -11,6 +11,7 @@ interface Scenario {
   description: string;
   emoji: string;
   options: { text: string; correct: boolean; feedback: string }[];
+  explanation: string;
 }
 
 const SCENARIOS: Scenario[] = [
@@ -19,6 +20,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "👋",
     description:
       "You see your friend at the park. They wave and smile at you. What do you do?",
+    explanation:
+      "Greeting others back is one of the building blocks of social connection. When we respond to someone's hello, it tells them we notice them and want to be friendly.",
     options: [
       {
         text: "Wave back and say hello",
@@ -44,6 +47,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "🧸",
     description:
       "Another child asks if they can play with your toy car. You still want to play with it too. What do you say?",
+    explanation:
+      "Taking turns is a way to be fair and keep friendships strong. It shows we care about the other person's feelings, even when we want something too.",
     options: [
       {
         text: "You can play with it when I'm done",
@@ -70,6 +75,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "🧍",
     description:
       "You're waiting in line for the slide at the playground. The line is long and you feel impatient. What do you do?",
+    explanation:
+      "Waiting shows respect for others. Everyone in line wants their turn, and patience helps everyone feel treated fairly.",
     options: [
       {
         text: "Wait for your turn patiently",
@@ -96,6 +103,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "😢",
     description:
       "Your classmate drops their ice cream and starts crying. What do you do?",
+    explanation:
+      "Showing empathy \u2014 noticing and caring about someone else's feelings \u2014 helps build trust and strong relationships.",
     options: [
       {
         text: "Ask if they're okay and offer help",
@@ -122,6 +131,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "🔊",
     description:
       "You're in a store and it gets very noisy. The sounds bother you. What can you do?",
+    explanation:
+      "It's important to know our own limits. Asking for help or a break when something feels overwhelming is a healthy way to manage big feelings.",
     options: [
       {
         text: "Tell a grown-up you need a quiet break",
@@ -148,6 +159,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "🎁",
     description:
       "Your grandmother gives you a birthday present. What do you say?",
+    explanation:
+      "Gratitude makes both the giver and receiver feel good. Even a simple 'thank you' strengthens bonds between people.",
     options: [
       {
         text: "Thank you, grandma!",
@@ -174,6 +187,8 @@ const SCENARIOS: Scenario[] = [
     emoji: "🤝",
     description:
       "A new kid joins your class and sits alone at lunch. What can you do?",
+    explanation:
+      "Including others, especially when they're new or alone, is one of the kindest things we can do. It can make someone's whole day better.",
     options: [
       {
         text: "Invite them to sit with you",
@@ -214,6 +229,7 @@ export default function SocialStoriesPage() {
   const [correct, setCorrect] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
@@ -236,6 +252,7 @@ export default function SocialStoriesPage() {
     setCorrect(0);
     setSelectedOption(null);
     setShowFeedback(false);
+    setShowExplanation(false);
     setStartTime(Date.now());
     setScreen("play");
   }, []);
@@ -265,6 +282,7 @@ export default function SocialStoriesPage() {
       setCurrentIndex(nextIndex);
       setSelectedOption(null);
       setShowFeedback(false);
+      setShowExplanation(false);
     }
   };
 
@@ -416,6 +434,37 @@ export default function SocialStoriesPage() {
                 </button>
               ))}
             </div>
+
+            {showFeedback && (
+              <div style={{ marginTop: 16 }}>
+                <button
+                  onClick={() => setShowExplanation((v) => !v)}
+                  className="btn btn-outline"
+                  style={{ minHeight: 40, padding: "8px 20px", fontSize: "0.88rem" }}
+                >
+                  {showExplanation ? "Hide Why" : "Why?"}
+                </button>
+                {showExplanation && (
+                  <div className="card" style={{
+                    marginTop: 12,
+                    padding: "16px 20px",
+                    background: "var(--sage-50)",
+                    borderColor: "var(--sage-300)",
+                    textAlign: "left",
+                  }}>
+                    <p style={{
+                      fontSize: "0.88rem",
+                      color: "var(--sage-600)",
+                      lineHeight: 1.7,
+                      fontWeight: 500,
+                      margin: 0,
+                    }}>
+                      {scenarios[currentIndex].explanation}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {showFeedback && (
               <button

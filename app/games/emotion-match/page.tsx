@@ -1,8 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+
+function playMatchSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc1.type = "sine";
+    osc2.type = "sine";
+    osc1.frequency.setValueAtTime(523, ctx.currentTime);
+    osc2.frequency.setValueAtTime(659, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    osc1.start();
+    osc1.stop(ctx.currentTime + 0.15);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.4);
+  } catch { /* audio not available */ }
+}
 
 type Screen = "start" | "play" | "result";
 
@@ -41,6 +63,7 @@ export default function EmotionMatchPage() {
   const [matches, setMatches] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [pairCount, setPairCount] = useState(3);
+  const [lastMatchedLabel, setLastMatchedLabel] = useState<string | null>(null);
   const [startTime, setStartTime] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
@@ -109,7 +132,9 @@ export default function EmotionMatchPage() {
       const c2 = newCards[newSelected[1]];
 
       if (c1.label === c2.label && c1.id !== c2.id) {
-        // Match
+        // Match — play sound and trigger animation
+        playMatchSound();
+        setLastMatchedLabel(c1.label);
         setTimeout(() => {
           setCards((prev) =>
             prev.map((c) =>
@@ -117,6 +142,7 @@ export default function EmotionMatchPage() {
             ),
           );
           setSelected([]);
+          setTimeout(() => setLastMatchedLabel(null), 500);
           setMatches((m) => {
             const newM = m + 1;
             if (newM === pairCount) {
@@ -219,11 +245,13 @@ export default function EmotionMatchPage() {
                 gap: 12,
               }}
             >
-              {cards.map((card, index) => (
+              {cards.map((card, index) => {
+                const justMatched = lastMatchedLabel === card.label;
+                return (
                 <button
                   key={card.id}
                   onClick={() => handleCardClick(index)}
-                  className="card"
+                  className={`card${justMatched ? " match-pop" : ""}`}
                   style={{
                     padding: "20px 12px",
                     minHeight: 90,
@@ -231,15 +259,17 @@ export default function EmotionMatchPage() {
                     alignItems: "center",
                     justifyContent: "center",
                     cursor: card.matched ? "default" : "pointer",
-                    opacity: card.matched ? 0.5 : 1,
+                    opacity: card.matched && !justMatched ? 0.5 : 1,
                     background: card.flipped || card.matched
                       ? "var(--sage-50)"
                       : "var(--card)",
-                    borderColor: card.matched
-                      ? "var(--sage-400)"
-                      : card.flipped
-                        ? "var(--sage-300)"
-                        : "var(--border)",
+                    borderColor: justMatched
+                      ? "var(--sage-500)"
+                      : card.matched
+                        ? "var(--sage-400)"
+                        : card.flipped
+                          ? "var(--sage-300)"
+                          : "var(--border)",
                     fontSize: card.flipped || card.matched ? "1.3rem" : "1.5rem",
                     fontFamily: "'Fredoka',sans-serif",
                     fontWeight: 600,
@@ -247,6 +277,7 @@ export default function EmotionMatchPage() {
                     border: "2.5px solid",
                     borderRadius: "var(--r-lg)",
                     transition: "all 300ms var(--ease)",
+                    boxShadow: justMatched ? "0 0 20px var(--sage-300)" : undefined,
                   }}
                 >
                   {card.flipped || card.matched
@@ -255,7 +286,8 @@ export default function EmotionMatchPage() {
                       : card.label
                     : "?"}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

@@ -21,7 +21,7 @@ const COLORS: ColorItem[] = [
   { name: "Orange", hex: "#ff8a65", frequency: 349 },
 ];
 
-function playTone(frequency: number, duration: number = 400) {
+function playTone(frequency: number, duration: number = 400, onPlayingChange?: (playing: boolean) => void) {
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -34,6 +34,10 @@ function playTone(frequency: number, duration: number = 400) {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + duration / 1000);
+    if (onPlayingChange) {
+      onPlayingChange(true);
+      setTimeout(() => onPlayingChange(false), duration);
+    }
   } catch {
     // Audio not available
   }
@@ -52,6 +56,7 @@ export default function ColorSoundPage() {
   const [startTime, setStartTime] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [hintText, setHintText] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     const saved =
@@ -80,7 +85,7 @@ export default function ColorSoundPage() {
 
       // Play the tone after a short delay
       setTimeout(() => {
-        playTone(target.frequency, 500);
+        playTone(target.frequency, 500, setIsPlaying);
       }, 400);
     },
     [],
@@ -111,7 +116,7 @@ export default function ColorSoundPage() {
     if (isCorrect) setCorrect((c) => c + 1);
 
     // Play the selected color's tone
-    playTone(displayColors[index].frequency, 300);
+    playTone(displayColors[index].frequency, 300, setIsPlaying);
 
     setTimeout(() => {
       const nextRound = round + 1;
@@ -129,7 +134,7 @@ export default function ColorSoundPage() {
 
   const replaySound = () => {
     if (targetColor) {
-      playTone(targetColor.frequency, 500);
+      playTone(targetColor.frequency, 500, setIsPlaying);
     }
   };
 
@@ -225,6 +230,37 @@ export default function ColorSoundPage() {
             >
               Replay Sound
             </button>
+
+            {/* Waveform visualization */}
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                justifyContent: "center",
+                alignItems: "flex-end",
+                height: 40,
+                marginBottom: 20,
+              }}
+            >
+              {[0, 1, 2, 3, 4].map((i) => {
+                const heights = [20, 32, 36, 28, 16];
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      width: 6,
+                      borderRadius: 3,
+                      background: isPlaying ? "var(--sage-500)" : "var(--sage-200)",
+                      height: isPlaying ? heights[i] : 8,
+                      animation: isPlaying
+                        ? `waveform 0.5s ease-in-out ${i * 0.08}s infinite alternate`
+                        : "none",
+                      transition: "background 200ms ease, height 200ms ease",
+                    }}
+                  />
+                );
+              })}
+            </div>
 
             <div
               style={{

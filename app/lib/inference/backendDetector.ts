@@ -10,27 +10,54 @@
 
 import * as ort from "onnxruntime-web";
 
+// ── WASM configuration ─────────────────────────────────────────────────
+// Point ONNX Runtime to CDN for WASM binaries and internal worker scripts.
+// This bypasses Next.js webpack bundling issues where the internal worker
+// file (ort.bundle.min.mjs) gets treated as a static media asset and
+// fails to load with: "Failed to load worker script".
+const ORT_VERSION = "1.24.2";
+ort.env.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
+
+// Only enable multi-threading when SharedArrayBuffer is available
+// (requires crossOriginIsolated context via COOP/COEP headers).
+if (typeof crossOriginIsolated !== "undefined" && crossOriginIsolated) {
+  // Multi-threading safe — numThreads set per-backend in getSessionOptions()
+} else {
+  ort.env.wasm.numThreads = 1;
+}
+
 let cachedBackend: "webgpu" | "wasm" | null = null;
+
+/** Detect if running on a mobile device */
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+}
 
 export async function detectBestBackend(): Promise<"webgpu" | "wasm"> {
   if (cachedBackend) return cachedBackend;
 
-  try {
-    if (typeof navigator !== "undefined" && "gpu" in navigator) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const gpu = (navigator as any).gpu;
-      if (gpu) {
-        const adapter = await gpu.requestAdapter({
-          powerPreference: "high-performance",
-        });
-        if (adapter) {
-          cachedBackend = "webgpu";
-          return "webgpu";
+  // Skip WebGPU on mobile — unreliable and wastes startup time
+  if (!isMobileDevice()) {
+    try {
+      if (typeof navigator !== "undefined" && "gpu" in navigator) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const gpu = (navigator as any).gpu;
+        if (gpu) {
+          const adapter = await gpu.requestAdapter({
+            powerPreference: "high-performance",
+          });
+          if (adapter) {
+            cachedBackend = "webgpu";
+            return "webgpu";
+          }
         }
       }
+    } catch {
+      // WebGPU not available or errored — fall through to WASM.
     }
-  } catch {
-    // WebGPU not available or errored — fall through to WASM.
   }
 
   cachedBackend = "wasm";
@@ -54,7 +81,11 @@ export function getSessionOptions(
     opts.graphOptimizationLevel = "all";
     opts.enableMemPattern = true;
     opts.enableCpuMemArena = true;
-    ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+    if (typeof crossOriginIsolated !== "undefined" && crossOriginIsolated) {
+      ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+    } else {
+      ort.env.wasm.numThreads = 1;
+    }
   } else {
     // WebGPU: "basic" avoids excessive shader compilation overhead;
     // enableMemPattern / enableCpuMemArena are WASM-only — omitted here.

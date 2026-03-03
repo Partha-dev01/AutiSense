@@ -8,11 +8,27 @@ type Screen = "start" | "play" | "result";
 type Phase = "showing" | "input" | "feedback";
 
 const COLORS = [
-  { name: "Red", bg: "#e57373", active: "#ef5350" },
-  { name: "Blue", bg: "#64b5f6", active: "#42a5f5" },
-  { name: "Green", bg: "#81c784", active: "#66bb6a" },
-  { name: "Yellow", bg: "#ffd54f", active: "#ffca28" },
+  { name: "Red", bg: "#e57373", active: "#ef5350", freq: 262 },
+  { name: "Blue", bg: "#64b5f6", active: "#42a5f5", freq: 330 },
+  { name: "Green", bg: "#81c784", active: "#66bb6a", freq: 392 },
+  { name: "Yellow", bg: "#ffd54f", active: "#ffca28", freq: 523 },
 ];
+
+function playTone(frequency: number, duration: number = 300) {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration / 1000);
+  } catch { /* audio not available */ }
+}
 
 export default function SequenceGamePage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -48,6 +64,7 @@ export default function SequenceGamePage() {
       const showNext = () => {
         if (i < seq.length) {
           setActiveColor(seq[i]);
+          playTone(COLORS[seq[i]].freq, interval * 0.8);
           timeoutRef.current = setTimeout(() => {
             setActiveColor(null);
             i++;
@@ -97,6 +114,7 @@ export default function SequenceGamePage() {
     if (phase !== "input") return;
 
     setActiveColor(colorIndex);
+    playTone(COLORS[colorIndex].freq, 200);
     setTimeout(() => setActiveColor(null), 200);
 
     const newInput = [...playerInput, colorIndex];

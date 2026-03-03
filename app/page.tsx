@@ -2,13 +2,16 @@
  * ENDPOINT: /
  * Landing page — public-facing marketing + entry point
  * Routes to: /intake/profile (start of screening flow)
+ * Auth-aware: shows login/dashboard when applicable
  */
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useAuth } from "./hooks/useAuth";
 
 export default function LandingPage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { user, loading, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -16,28 +19,28 @@ export default function LandingPage() {
 
   const features = [
     {
-      emoji: "🧠",
+      emoji: "\u{1F9E0}",
       color: "var(--feature-green)",
-      title: "AI runs on your phone",
+      title: "Runs on your phone",
       body: "No video or audio ever leaves your device. All processing happens right here, privately.",
     },
     {
-      emoji: "📶",
+      emoji: "\u{1F4F6}",
       color: "var(--feature-blue)",
       title: "Works without internet",
       body: "Complete the full autism screening offline. Results sync automatically when you reconnect.",
     },
     {
-      emoji: "📋",
+      emoji: "\u{1F4CB}",
       color: "var(--feature-peach)",
       title: "A report for your doctor",
-      body: "We create a clear clinical summary mapped to DSM-5 criteria — ready to hand to any specialist.",
+      body: "We create a clear clinical summary mapped to DSM-5 criteria \u2014 ready to hand to any specialist.",
     },
     {
-      emoji: "🎮",
+      emoji: "\u{1F3AE}",
       color: "var(--feature-lavender)",
       title: "Post-diagnosis care games",
-      body: "Daily adaptive activities that support your child after diagnosis — adjusting to their pace.",
+      body: "Daily adaptive activities that support your child after diagnosis \u2014 adjusting to their pace.",
     },
   ];
 
@@ -50,7 +53,7 @@ export default function LandingPage() {
     {
       n: "2",
       label: "Check your device",
-      desc: "Allow camera and microphone — stays private",
+      desc: "Allow camera and microphone \u2014 stays private",
     },
     {
       n: "3",
@@ -65,9 +68,9 @@ export default function LandingPage() {
   ];
 
   const pillars = [
-    { icon: "🔍", label: "Early Screening" },
-    { icon: "🩺", label: "Diagnosis Support" },
-    { icon: "💚", label: "Post-Diagnosis Care" },
+    { icon: "\u{1F50D}", label: "Early Screening" },
+    { icon: "\u{1FA7A}", label: "Diagnosis Support" },
+    { icon: "\u{1F49A}", label: "Post-Diagnosis Care" },
   ];
 
   return (
@@ -77,27 +80,71 @@ export default function LandingPage() {
         <span className="logo">
           Auti<em>Sense</em>
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
             className="btn btn-outline"
             style={{
               minHeight: 40,
-              padding: "8px 16px",
-              fontSize: "0.9rem",
-              gap: 6,
+              padding: "8px 14px",
+              fontSize: "0.88rem",
             }}
             aria-label="Toggle theme"
           >
-            {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+            {theme === "light" ? "\u{1F319}" : "\u{2600}\u{FE0F}"}
           </button>
-          <Link
-            href="/intake/profile"
-            className="btn btn-primary"
-            style={{ minHeight: 46, padding: "10px 22px", fontSize: "0.95rem" }}
-          >
-            Start →
-          </Link>
+
+          {!loading && isAuthenticated ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="btn btn-outline"
+                style={{ minHeight: 40, padding: "8px 16px", fontSize: "0.88rem" }}
+              >
+                Dashboard
+              </Link>
+              <div className="user-chip">
+                <div className="avatar">
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  {user?.name?.split(" ")[0] || "User"}
+                </span>
+              </div>
+              <button
+                onClick={() => logout()}
+                className="btn btn-outline"
+                style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem", color: "var(--text-muted)" }}
+              >
+                Sign Out
+              </button>
+            </>
+          ) : !loading ? (
+            <>
+              <Link
+                href="/auth/login"
+                className="btn btn-outline"
+                style={{ minHeight: 40, padding: "8px 18px", fontSize: "0.88rem" }}
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/intake/profile"
+                className="btn btn-primary"
+                style={{ minHeight: 44, padding: "10px 20px", fontSize: "0.92rem" }}
+              >
+                Start &rarr;
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/intake/profile"
+              className="btn btn-primary"
+              style={{ minHeight: 44, padding: "10px 20px", fontSize: "0.92rem" }}
+            >
+              Start &rarr;
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -111,9 +158,8 @@ export default function LandingPage() {
           width: "100%",
         }}
       >
-        {/* Breathing orb — replaces float */}
         <div className="breathe-orb" style={{ margin: "0 auto 32px" }}>
-          <div className="breathe-inner">🧩</div>
+          <div className="breathe-inner">{"\u{1F9E9}"}</div>
         </div>
 
         {/* Three-pillar chips */}
@@ -138,7 +184,7 @@ export default function LandingPage() {
           className="page-title fade fade-2"
           style={{ fontSize: "clamp(2rem,6vw,3rem)", marginBottom: 16 }}
         >
-          AI-powered autism screening,
+          Computer-assisted autism screening,
           <br />
           <em>wherever you are</em>
         </h1>
@@ -148,10 +194,11 @@ export default function LandingPage() {
           style={{ maxWidth: 500, margin: "0 auto 40px" }}
         >
           AutiSense gives every family access to early autism screening,
-          clinical diagnosis support, and post-diagnosis care — all from a
+          clinical diagnosis support, and post-diagnosis care &mdash; all from a
           smartphone, no clinic visit required.
         </p>
 
+        {/* Auth-aware CTAs */}
         <div
           className="fade fade-4"
           style={{
@@ -161,13 +208,32 @@ export default function LandingPage() {
             flexWrap: "wrap",
           }}
         >
-          <Link
-            href="/intake/profile"
-            className="btn btn-primary btn-full"
-            style={{ maxWidth: 340 }}
-          >
-            Begin Free Autism Screening →
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="btn btn-primary btn-full"
+                style={{ maxWidth: 300 }}
+              >
+                Go to Dashboard &rarr;
+              </Link>
+              <Link
+                href="/intake/profile"
+                className="btn btn-outline"
+                style={{ maxWidth: 260, minHeight: 48 }}
+              >
+                Start New Screening
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/intake/profile"
+              className="btn btn-primary btn-full"
+              style={{ maxWidth: 340 }}
+            >
+              Begin Free Autism Screening &rarr;
+            </Link>
+          )}
         </div>
 
         <p
@@ -179,10 +245,78 @@ export default function LandingPage() {
             lineHeight: 1.6,
           }}
         >
-          Takes about 15 minutes &nbsp;·&nbsp; Works offline &nbsp;·&nbsp; No
-          account needed
+          {isAuthenticated
+            ? "Sign in to save progress, access therapy games, and join the community."
+            : "Takes about 15 minutes \u00A0\u00B7\u00A0 Works offline \u00A0\u00B7\u00A0 No account needed"}
         </p>
+
+        {!isAuthenticated && (
+          <p
+            className="fade fade-5"
+            style={{
+              marginTop: 8,
+              fontSize: "0.82rem",
+              color: "var(--text-muted)",
+            }}
+          >
+            <Link
+              href="/auth/login"
+              style={{ color: "var(--sage-500)", fontWeight: 600, textDecoration: "underline" }}
+            >
+              Sign in
+            </Link>{" "}
+            to save progress and access therapy games
+          </p>
+        )}
       </section>
+
+      {/* Quick Actions — only for authenticated users */}
+      {isAuthenticated && (
+        <section
+          style={{
+            padding: "0 28px 40px",
+            maxWidth: 700,
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
+          <h2
+            style={{
+              fontFamily: "'Fredoka',sans-serif",
+              fontWeight: 600,
+              fontSize: "1.3rem",
+              textAlign: "center",
+              marginBottom: 20,
+              color: "var(--text-primary)",
+            }}
+          >
+            Your Platform
+          </h2>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+              gap: 14,
+            }}
+          >
+            <Link href="/dashboard" className="card" style={{ padding: "22px 18px", textDecoration: "none", textAlign: "center" }}>
+              <div style={{ fontSize: "1.8rem", marginBottom: 10 }}>{"\u{1F4CA}"}</div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>Dashboard</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>View your screenings</div>
+            </Link>
+            <Link href="/games" className="card" style={{ padding: "22px 18px", textDecoration: "none", textAlign: "center" }}>
+              <div style={{ fontSize: "1.8rem", marginBottom: 10 }}>{"\u{1F3AE}"}</div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>Therapy Games</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>7 adaptive games</div>
+            </Link>
+            <Link href="/feed" className="card" style={{ padding: "22px 18px", textDecoration: "none", textAlign: "center" }}>
+              <div style={{ fontSize: "1.8rem", marginBottom: 10 }}>{"\u{1F4AC}"}</div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>Community Feed</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Share & connect</div>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Three pillars section */}
       <section
@@ -215,17 +349,17 @@ export default function LandingPage() {
           >
             {[
               {
-                icon: "🔍",
+                icon: "\u{1F50D}",
                 title: "Early Screening",
-                desc: "AI observes gaze, motor patterns, and vocalisations to flag early autism indicators — before a formal assessment.",
+                desc: "Computer-assisted observation of gaze, motor patterns, and vocalisations to flag early autism indicators \u2014 before a formal assessment.",
               },
               {
-                icon: "🩺",
+                icon: "\u{1FA7A}",
                 title: "Diagnosis Support",
                 desc: "DSM-5 aligned clinical reports your specialist can use. Reduces the gap between concern and confirmed diagnosis.",
               },
               {
-                icon: "💚",
+                icon: "\u{1F49A}",
                 title: "Post-Diagnosis Care",
                 desc: "Adaptive therapy games and monthly re-evaluations that support your child long after the diagnosis is received.",
               },
@@ -421,7 +555,7 @@ export default function LandingPage() {
             boxShadow: "0 16px 48px rgba(58,99,68,0.25)",
           }}
         >
-          <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>🧩</div>
+          <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>{"\u{1F9E9}"}</div>
           <h2
             style={{
               fontFamily: "'Fredoka',sans-serif",
@@ -441,7 +575,7 @@ export default function LandingPage() {
             }}
           >
             AutiSense gives families in remote areas the same autism screening
-            quality as a specialist clinic — for free.
+            quality as a specialist clinic &mdash; for free.
           </p>
           <Link
             href="/intake/profile"
@@ -453,7 +587,7 @@ export default function LandingPage() {
               fontSize: "1.1rem",
             }}
           >
-            Start the Autism Screening →
+            Start the Autism Screening &rarr;
           </Link>
         </div>
       </section>
@@ -472,6 +606,37 @@ export default function LandingPage() {
         >
           Auti<em>Sense</em>
         </span>
+
+        {/* Footer navigation links */}
+        <div className="footer-links" style={{ marginBottom: 12 }}>
+          <Link href="/">Home</Link>
+          <span>{"\u00B7"}</span>
+          <Link href="/dashboard">Dashboard</Link>
+          <span>{"\u00B7"}</span>
+          <Link href="/games">Games</Link>
+          <span>{"\u00B7"}</span>
+          <Link href="/feed">Feed</Link>
+          <span>{"\u00B7"}</span>
+          {isAuthenticated ? (
+            <button
+              onClick={() => logout()}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                fontSize: "0.82rem",
+                cursor: "pointer",
+                padding: 0,
+                fontFamily: "inherit",
+              }}
+            >
+              Sign Out
+            </button>
+          ) : (
+            <Link href="/auth/login">Sign In</Link>
+          )}
+        </div>
+
         <p
           style={{
             fontSize: "0.8rem",
@@ -479,7 +644,7 @@ export default function LandingPage() {
             lineHeight: 1.6,
           }}
         >
-          AutiSense provides autism screening summaries and diagnosis support —
+          AutiSense provides autism screening summaries and diagnosis support &mdash;
           not a confirmed diagnosis.
           <br />
           Always consult a qualified autism specialist or paediatrician.

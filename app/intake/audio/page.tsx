@@ -92,7 +92,7 @@ export default function AudioAssessmentPage() {
   const startListening = useCallback((expectedWord: string) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setTimeout(() => advance("missed"), 2000);
+      setWordState("missed");
       return;
     }
 
@@ -110,15 +110,18 @@ export default function AudioAssessmentPage() {
       if (event.results[0]?.isFinal) {
         stopRecognition();
         const match = result.toLowerCase().includes(expectedWord.toLowerCase());
-        setWordState(match ? "matched" : "missed");
-        setTimeout(() => advance(match ? "matched" : "missed"), 1200);
+        if (match) {
+          setWordState("matched");
+          setTimeout(() => advance("matched"), 1200);
+        } else {
+          setWordState("missed");
+        }
       }
     };
 
     recognition.onerror = () => {
       stopRecognition();
       setWordState("missed");
-      setTimeout(() => advance("missed"), 1000);
     };
 
     recognition.start();
@@ -126,7 +129,6 @@ export default function AudioAssessmentPage() {
     timerRef.current = setTimeout(() => {
       stopRecognition();
       setWordState("missed");
-      setTimeout(() => advance("missed"), 800);
     }, 10000);
   }, [advance, stopRecognition]);
 
@@ -251,9 +253,21 @@ export default function AudioAssessmentPage() {
 
             {wordState === "missed" && (
               <div>
-                <p style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                <p style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-muted)", marginBottom: 16 }}>
                   No match detected — that's okay!
                 </p>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="btn btn-primary"
+                    style={{ minHeight: 44, padding: "8px 20px", fontSize: "0.9rem" }}
+                    onClick={() => { setWordState("idle"); setTranscript(""); }}>
+                    Replay & Retry
+                  </button>
+                  <button className="btn btn-secondary"
+                    style={{ minHeight: 44, padding: "8px 20px", fontSize: "0.9rem" }}
+                    onClick={() => advance("missed")}>
+                    Next Word →
+                  </button>
+                </div>
               </div>
             )}
           </div>

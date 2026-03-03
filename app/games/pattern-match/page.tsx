@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
 
 type Screen = "start" | "play" | "result";
@@ -34,6 +34,8 @@ export default function PatternMatchPage() {
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [startTime, setStartTime] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [timer, setTimer] = useState<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const saved =
@@ -61,7 +63,12 @@ export default function PatternMatchPage() {
         oddIdx = Math.floor(Math.random() * PATTERNS.length);
       }
       const oddPattern = PATTERNS[oddIdx];
-      const oddColor = PATTERN_COLORS[oddIdx];
+      let oddColor = PATTERN_COLORS[oddIdx];
+
+      // Progressive similarity: at higher levels, use same color, different shape
+      if (level >= 3) {
+        oddColor = mainColor; // same color, harder to distinguish
+      }
 
       const oddPosition = Math.floor(Math.random() * size);
 
@@ -76,6 +83,25 @@ export default function PatternMatchPage() {
       setGrid(newGrid);
       setSelected(null);
       setFeedback(null);
+
+      // Timer logic for higher levels
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (level >= 3) {
+        const seconds = Math.max(3, 8 - level);
+        setTimer(seconds);
+        timerRef.current = setInterval(() => {
+          setTimer(prev => {
+            if (prev !== null && prev <= 1) {
+              if (timerRef.current) clearInterval(timerRef.current);
+              timerRef.current = null;
+              return 0;
+            }
+            return prev !== null ? prev - 1 : null;
+          });
+        }, 1000);
+      } else {
+        setTimer(null);
+      }
     },
     [],
   );
@@ -93,11 +119,36 @@ export default function PatternMatchPage() {
   useEffect(() => {
     if (screen !== "play") return;
     const iv = setInterval(() => setElapsed(Date.now() - startTime), 500);
-    return () => clearInterval(iv);
+    return () => {
+      clearInterval(iv);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    };
   }, [screen, startTime]);
+
+  useEffect(() => {
+    if (timer === 0 && feedback === null) {
+      // Time's up
+      setFeedback("wrong");
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      setTimeout(() => {
+        const nextRound = round + 1;
+        if (nextRound > maxRounds) {
+          const score = Math.round((correct / maxRounds) * 100);
+          saveDifficulty("pattern-match", "default", score);
+          setScreen("result");
+        } else {
+          setRound(nextRound);
+          const config = getDifficulty("pattern-match", "default");
+          generateRound(config.level);
+        }
+      }, 700);
+    }
+  }, [timer]);
 
   const handleSelect = (index: number) => {
     if (feedback !== null) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setTimer(null);
     setSelected(index);
 
     const isCorrect = grid[index].isOdd;
@@ -185,7 +236,15 @@ export default function PatternMatchPage() {
                 Round {round}/{maxRounds}
               </span>
               <span>Correct: {correct}</span>
-              <span>{Math.floor(elapsed / 1000)}s</span>
+              <span>
+                {timer !== null ? (
+                  <span style={{ color: timer <= 2 ? "var(--peach-300)" : "var(--text-secondary)" }}>
+                    ⏱ {timer}s
+                  </span>
+                ) : (
+                  `${Math.floor(elapsed / 1000)}s`
+                )}
+              </span>
             </div>
 
             <p
