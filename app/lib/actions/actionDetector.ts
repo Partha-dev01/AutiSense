@@ -247,7 +247,7 @@ export class ActionTracker {
     keypoints: Float32Array,
     confidence: Float32Array,
     action: ActionId,
-  ): ActionResult & { confirmed: boolean } {
+  ): ActionResult & { confirmed: boolean; consecutiveHits: number; requiredHits: number } {
     this.history.push(new Float32Array(keypoints));
     if (this.history.length > 15) this.history.shift();
 
@@ -263,6 +263,11 @@ export class ActionTracker {
       this.confirmed = true;
     }
 
-    return { ...result, confirmed: this.confirmed };
+    return {
+      ...result,
+      confirmed: this.confirmed,
+      consecutiveHits: Math.min(this.consecutiveHits, REQUIRED_CONSECUTIVE),
+      requiredHits: REQUIRED_CONSECUTIVE,
+    };
   }
 }

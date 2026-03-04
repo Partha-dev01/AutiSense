@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { PipelineResult, WorkerOutMessage } from "../types/inference";
 import { ActionTracker, type ActionId, type ActionResult } from "../lib/actions/actionDetector";
+import { getUserMediaWithFallback, getCameraErrorMessage } from "../lib/camera/cameraUtils";
 
 // COCO-17 skeleton connections (same as DetectorVideoCanvas)
 const SKELETON: [number, number][] = [
@@ -31,6 +32,7 @@ export interface UseActionCameraReturn {
   stopDetecting: () => void;
   actionResult: ActionResult | null;
   actionDetected: boolean;
+  consecutiveHits: number;
   keypoints: Float32Array | null;
   confidence: Float32Array | null;
 }
@@ -45,6 +47,7 @@ export function useActionCamera(): UseActionCameraReturn {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<ActionResult | null>(null);
   const [actionDetected, setActionDetected] = useState(false);
+  const [consecutiveHits, setConsecutiveHits] = useState(0);
   const [keypoints, setKeypoints] = useState<Float32Array | null>(null);
   const [confidence, setConfidence] = useState<Float32Array | null>(null);
 
@@ -109,6 +112,7 @@ export function useActionCamera(): UseActionCameraReturn {
       if (detectingRef.current && targetActionRef.current) {
         const tracked = trackerRef.current.update(kps, conf, targetActionRef.current);
         setActionResult(tracked);
+        setConsecutiveHits(tracked.consecutiveHits);
         if (tracked.confirmed) {
           setActionDetected(true);
           detectingRef.current = false;
@@ -197,9 +201,7 @@ export function useActionCamera(): UseActionCameraReturn {
 
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 320, height: 240, facingMode: "user" },
-      });
+      const stream = await getUserMediaWithFallback();
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -208,9 +210,7 @@ export function useActionCamera(): UseActionCameraReturn {
       setIsActive(true);
       setCameraError(null);
     } catch (err) {
-      setCameraError(
-        err instanceof Error ? err.message : "Camera access denied",
-      );
+      setCameraError(getCameraErrorMessage(err));
     }
   }, []);
 
@@ -232,6 +232,7 @@ export function useActionCamera(): UseActionCameraReturn {
     trackerRef.current.reset();
     setActionDetected(false);
     setActionResult(null);
+    setConsecutiveHits(0);
   }, []);
 
   const stopDetecting = useCallback(() => {
@@ -261,6 +262,7 @@ export function useActionCamera(): UseActionCameraReturn {
     stopDetecting,
     actionResult,
     actionDetected,
+    consecutiveHits,
     keypoints,
     confidence,
   };

@@ -7,6 +7,7 @@ import DetectorResultsPanel from "../../components/DetectorResultsPanel";
 import { useDetectorInference } from "../../hooks/useDetectorInference";
 import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
+import { getUserMediaWithFallback, getCameraErrorMessage } from "../../lib/camera/cameraUtils";
 import type { PipelineResult } from "../../types/inference";
 
 const STEPS = [
@@ -27,6 +28,7 @@ export default function VideoCapturePage() {
   const [camError, setCamError] = useState<string | null>(null);
   const [consentToSync, setConsentToSync] = useState(true);
   const [samplesCollected, setSamplesCollected] = useState(0);
+  const [forceComplete, setForceComplete] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -87,13 +89,10 @@ export default function VideoCapturePage() {
     }
   }, []);
 
-  // Start camera
+  // Start camera — with progressive constraint fallback for mobile
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: "user" },
-        audio: false,
-      });
+      const stream = await getUserMediaWithFallback();
       streamRef.current = stream;
       const video = videoRef.current;
       if (video) {
@@ -110,9 +109,7 @@ export default function VideoCapturePage() {
         setCamReady(true);
       }
     } catch (err) {
-      setCamError(err instanceof DOMException && err.name === "NotAllowedError"
-        ? "Camera access denied. Please allow camera permissions."
-        : `Camera error: ${err instanceof Error ? err.message : String(err)}`);
+      setCamError(getCameraErrorMessage(err));
     }
   }, []);
 
@@ -253,12 +250,24 @@ export default function VideoCapturePage() {
                   ))}
                 </div>
 
-                {/* Errors */}
+                {/* Errors — with retry + skip for camera issues */}
                 {(camError || modelError || error) && (
-                  <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: "var(--r-md)", background: "var(--peach-100)", border: "2px solid var(--peach-300)" }}>
-                    <p style={{ fontSize: "0.85rem", color: "var(--peach-300)", fontWeight: 600 }}>
+                  <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: "var(--r-md)", background: "var(--peach-100)", border: "2px solid var(--peach-300)", textAlign: "center" }}>
+                    <p style={{ fontSize: "0.85rem", color: "var(--peach-300)", fontWeight: 600, marginBottom: camError ? 12 : 0 }}>
                       {camError || modelError || error}
                     </p>
+                    {camError && (
+                      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                        <button className="btn btn-primary" style={{ minHeight: 36, padding: "6px 16px", fontSize: "0.85rem" }}
+                          onClick={() => { setCamError(null); startCamera(); }}>
+                          Retry Camera
+                        </button>
+                        <button className="btn btn-outline" style={{ minHeight: 36, padding: "6px 16px", fontSize: "0.85rem" }}
+                          onClick={stopEarly}>
+                          Skip Video Analysis
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -288,6 +297,33 @@ export default function VideoCapturePage() {
           </div>
         ) : (
           <div style={{ maxWidth: 620, margin: "0 auto" }}>
+            {/* Criteria gate: need at least 5 samples and 30s elapsed */}
+            {samplesCollected < 5 && (ASSESSMENT_SECONDS - timeLeft) < 30 && !forceComplete ? (
+              <div className="card fade fade-3" style={{ padding: "32px 28px", textAlign: "center", background: "var(--peach-50)", borderColor: "var(--peach-300)" }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: 14 }}>🔄</div>
+                <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.3rem", marginBottom: 10 }}>
+                  Not enough data collected
+                </h2>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: 20 }}>
+                  Only {samplesCollected} samples in {ASSESSMENT_SECONDS - timeLeft}s.
+                  We need at least 5 samples and 30 seconds for reliable results.
+                </p>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="btn btn-primary" onClick={() => {
+                    setTaskComplete(false);
+                    setStarted(false);
+                    setTimeLeft(ASSESSMENT_SECONDS);
+                    setCamReady(false);
+                  }} style={{ minHeight: 44, padding: "8px 24px" }}>
+                    Try Again
+                  </button>
+                  <button className="btn btn-outline" onClick={() => setForceComplete(true)}
+                    style={{ minHeight: 44, padding: "8px 24px" }}>
+                    Skip Video Analysis
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="card fade fade-3" style={{ padding: "36px 28px", textAlign: "center", background: "var(--sage-50)", borderColor: "var(--sage-300)" }}>
               <div style={{ fontSize: "3rem", marginBottom: 16 }}>✅</div>
               <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.4rem", marginBottom: 14, color: "var(--text-primary)" }}>
@@ -315,6 +351,7 @@ export default function VideoCapturePage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Data consent card */}
             <div className="card fade fade-3" style={{

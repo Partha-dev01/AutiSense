@@ -39,8 +39,9 @@ test.describe("Intake Flow — Full 12-Step Progression", () => {
   test("Step 4 Communication renders", async ({ page }) => {
     await page.goto("/intake/communication");
     await expect(page.locator(".chip")).toContainText("Step 4");
-    await expect(page.locator("h1")).toContainText("their voice");
-    await expect(page.locator("button:has-text('Start Listening')")).toBeVisible();
+    await expect(page.locator("h1")).toContainText("echo");
+    // Loading state or start button (words fetched dynamically)
+    await expect(page.locator("text=Generating").or(page.locator("button:has-text('Start Word Echo')"))).toBeVisible();
   });
 
   test("Step 5 Visual Engagement renders", async ({ page }) => {
@@ -60,8 +61,8 @@ test.describe("Intake Flow — Full 12-Step Progression", () => {
   test("Step 7 Preparation renders", async ({ page }) => {
     await page.goto("/intake/preparation");
     await expect(page.locator(".chip")).toContainText("Step 7");
-    await expect(page.locator("h1")).toContainText("chat");
-    await expect(page.locator("button:has-text('Start Conversation')")).toBeVisible();
+    await expect(page.locator("h1")).toContainText("moves");
+    await expect(page.locator("button:has-text('Start Action Challenge')")).toBeVisible();
   });
 
   test("Step 8 Motor Assessment renders", async ({ page }) => {
@@ -75,7 +76,8 @@ test.describe("Intake Flow — Full 12-Step Progression", () => {
     await page.goto("/intake/audio");
     await expect(page.locator(".chip")).toContainText("Step 9");
     await expect(page.locator("h1")).toContainText("back");
-    await expect(page.locator("button:has-text('Start Audio Test')")).toBeVisible();
+    // Loading state or start button (content fetched dynamically)
+    await expect(page.locator("text=Generating").or(page.locator("button:has-text('Start Speech Test')"))).toBeVisible();
   });
 
   test("Step 10 Video Capture renders", async ({ page }) => {

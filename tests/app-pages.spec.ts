@@ -134,4 +134,15 @@ test.describe("Report API", () => {
     // Will be 503 without AWS credentials
     expect([200, 503]).toContain(response.status());
   });
+
+  test("Generate words API returns fallback data", async ({ request }) => {
+    const response = await request.post("/api/chat/generate-words", {
+      data: { ageMonths: 36, count: 6, mode: "words" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.items).toHaveLength(6);
+    expect(data.items[0]).toHaveProperty("text");
+    expect(data.items[0]).toHaveProperty("emoji");
+  });
 });

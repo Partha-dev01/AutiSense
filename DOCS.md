@@ -409,6 +409,9 @@ npx playwright test    # Run all 30 tests
 | R12 | **CI Playwright failures — AWS SDK "Region is missing"** | `next.config.ts` inlines env vars at build time with `?? ""` defaults. On CI (no `.env.local`), `BEDROCK_REGION`/`POLLY_REGION` resolved to `""` (empty string). Nullish coalescing (`??`) doesn't catch empty strings, so `process.env.BEDROCK_REGION ?? "us-east-1"` → `""`. AWS SDK threw `Error: Region is missing` outside try/catch → uncaught 500. Fix: changed `??` to `||` in all 4 API routes (summary, clinical, tts, conversation) and moved client creation inside try/catch blocks. TTS error status changed from 500 → 503. |
 | R13 | **Step 7 auto-advances without verifying motor actions** | Voice agent spoke motor instructions ("touch your nose", "wave") but immediately moved on without checking if the child performed the action. Also, agent text wasn't displayed prominently. Fix: added camera-based motor action verification using existing YOLO pose detection pipeline. Motor turns activate camera → YOLO extracts 17 keypoints → rule-based ActionDetector checks keypoint geometry → ActionTracker requires 5 consecutive positive frames → confirmed. Agent text now displayed in large centered speech bubble with domain emoji headers. |
 | R14 | **Stage 10 worker URL parse error** | `Failed to execute 'fetch' on 'WorkerGlobalScope': Failed to parse URL from /models/yolo26n-pose-int8.onnx`. ONNX model paths were relative URLs (`/models/...`) which fail inside Web Workers because relative paths resolve against the worker script URL (blob: or /_next/static/), not the page origin. Fix: prefixed all 4 model paths with `${self.location.origin}` in PipelineOrchestrator.ts and MultimodalOrchestrator.ts. |
+| R15 | **Stages 4, 7, 9 overlap and lack differentiation** | Stage 4 (Communication) and Stage 9 (Audio) were both simple speech echo tests with hardcoded word lists. Stage 7 (Preparation) mixed motor actions with LLM conversation. Fix: Stage 4 → pure Word Echo with LLM-generated age-appropriate words + Polly TTS. Stage 7 → pure Motor Action Challenge with fixed 6-action sequence + live YOLO detection feedback (confidence bar, 5-dot frame counter, color-coded borders). Stage 9 → Sentence Echo + Comprehension (Part A: sentence repetition with word-overlap scoring, Part B: audio instruction following). |
+| R16 | **Stage 10 camera fails on mobile** | `getUserMedia()` with fixed resolution constraints fails on many mobile browsers. Also: no HTTPS check (required for camera on mobile), generic error messages, no retry mechanism. Fix: 3-tier progressive constraint negotiation (ideal 320×240 → facingMode only → any video). HTTPS early check. Specific error messages per DOMException type (NotAllowedError, NotFoundError, NotReadableError, SecurityError). Retry Camera + Skip buttons on failure. Shared `cameraUtils.ts` reused by Stage 7 and Stage 10. |
+| R17 | **Stages auto-advance without criteria verification** | Some stages allowed proceeding even when insufficient data was collected. Fix: minimum criteria gates on Stages 4 (2/6 words), 7 (3/6 actions), 9 (2/7 items), 10 (5 samples + 30s). Stages show "Let's try again!" card with Try Again/Skip buttons when criteria not met. |
 
 ---
 
@@ -538,3 +541,31 @@ npx playwright test    # Run all 30 tests
 - Updated: `app/api/chat/conversation/route.ts` (action field in metadata)
 - Fixed: `app/lib/inference/PipelineOrchestrator.ts` (absolute model URLs)
 - Fixed: `app/lib/inference/MultimodalOrchestrator.ts` (absolute model URLs)
+
+### v1.5.0 — 2026-03-04 (Stage Differentiation, Dynamic Content, Mobile Camera, Criteria Gates)
+
+**Major Changes:**
+- **Stage 4 → Word Echo**: Dynamic LLM-generated (Bedrock Nova Lite) age-appropriate words spoken via Polly TTS. Child echoes back, matched via Web Speech API. 6 words per session from age-stratified pools (18-36mo, 36-60mo, 60+mo). Falls back to curated word pools when Bedrock unavailable.
+- **Stage 7 → Action Challenge**: Pure motor action test — fixed sequence of 6 actions (wave, touch nose, clap, raise arms, touch head, touch ears). Camera + YOLO pose detection with **live feedback**: confidence bar, color-coded camera border (red/blue/green), 5-dot frame counter showing consecutive detection progress, contextual status text ("Step into view", "Getting closer!", "Almost there!"). No LLM/TTS/STT — purely visual.
+- **Stage 9 → Speech & Comprehension**: Two-part test. Part A: 4 LLM-generated sentences with word-overlap matching (threshold 0.4). Part B: 3 audio instructions testing comprehension (any verbal response = engaged). Both spoken via Polly TTS.
+
+**New:**
+- `POST /api/chat/generate-words` — Shared endpoint for dynamic content generation. Modes: `words`, `sentences`, `instructions`. Falls back to curated age-stratified pools (20 words, 6 sentences, 5 instructions per bracket).
+- `app/lib/camera/cameraUtils.ts` — Shared camera utility: 3-tier progressive `getUserMedia` constraint negotiation (ideal 320×240 → facingMode only → any camera). HTTPS early check. Specific error messages per DOMException type.
+- `consecutiveHits` exposed from ActionTracker and useActionCamera hook for real-time frame progress display.
+
+**Fixed:**
+- **Mobile camera failures**: Progressive constraint fallback handles devices that can't satisfy resolution constraints. HTTPS check prevents silent failures on mobile HTTP. Specific error messages for NotFoundError, NotReadableError, OverconstrainedError, SecurityError. Retry Camera + Skip buttons added to Stage 10.
+- **Stages auto-advance without verification**: Minimum criteria gates added — Stage 4 (2/6 words), Stage 7 (3/6 actions), Stage 9 (2/7 items), Stage 10 (5 samples + 30s). Shows retry/skip menu when criteria not met.
+
+**Files:**
+- Created: `app/api/chat/generate-words/route.ts`
+- Created: `app/lib/camera/cameraUtils.ts`
+- Rewritten: `app/intake/communication/page.tsx` (Word Echo)
+- Rewritten: `app/intake/preparation/page.tsx` (Action Challenge)
+- Rewritten: `app/intake/audio/page.tsx` (Speech & Comprehension)
+- Updated: `app/intake/video-capture/page.tsx` (mobile camera + criteria gate)
+- Updated: `app/hooks/useActionCamera.ts` (consecutiveHits + cameraUtils)
+- Updated: `app/lib/actions/actionDetector.ts` (consecutiveHits in tracker return)
+- Updated: `tests/intake-flow.spec.ts` (Step 4, 7, 9 test assertions)
+- Updated: `tests/app-pages.spec.ts` (generate-words API test)
