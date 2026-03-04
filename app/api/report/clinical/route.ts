@@ -43,7 +43,7 @@ interface ClinicalResponse {
   };
 }
 
-const BEDROCK_REGION = process.env.BEDROCK_REGION ?? "us-east-1";
+const BEDROCK_REGION = process.env.BEDROCK_REGION || "us-east-1";
 
 // Don't pass explicit credentials — the SDK default credential provider chain
 // handles Lambda IAM roles (with session tokens) and local dev env vars.
@@ -169,7 +169,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { biomarkers, childAge } = body;
-  const client = getBedrockClient();
 
   const ageContext = childAge
     ? `The child is ${Math.floor(childAge / 12)} years and ${childAge % 12} months old.`
@@ -204,6 +203,7 @@ Guidelines:
 - End with a clear disclaimer about the screening nature of this tool`;
 
   try {
+    const client = getBedrockClient();
     const invokeBody = JSON.stringify({
       message: prompt,
       max_tokens: 2048,

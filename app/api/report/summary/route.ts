@@ -24,7 +24,7 @@ interface SummaryRequestBody {
   biomarkers: BiomarkerAggregate;
 }
 
-const BEDROCK_REGION = process.env.BEDROCK_REGION ?? "us-east-1";
+const BEDROCK_REGION = process.env.BEDROCK_REGION || "us-east-1";
 
 // Don't pass explicit credentials — the SDK default credential provider chain
 // handles Lambda IAM roles (with session tokens) and local dev env vars.
@@ -62,7 +62,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { biomarkers } = body;
-  const client = getBedrockClient();
 
   const prompt = `Generate a parent-friendly screening summary for a child based on the following biomarker data. Map to DSM-5 criteria. Keep it to 3-4 paragraphs.
 
@@ -77,6 +76,7 @@ Important guidelines:
 - Do NOT use the word "diagnosis" -- this is a screening tool, not a diagnostic instrument`;
 
   try {
+    const client = getBedrockClient();
     const invokeBody = JSON.stringify({
       messages: [{ role: "user", content: [{ text: prompt }] }],
       inferenceConfig: { maxTokens: 1024, temperature: 0.7 },

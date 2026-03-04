@@ -406,6 +406,7 @@ npx playwright test    # Run all 30 tests
 | R9 | **Video analysis saved only basic metrics** | Stage 10 only saved gazeScore/motorScore at the end. Fixed: extended `addBiomarker` to accept asdRiskScore, body/face behavior classes, probabilities, and emotion distribution. Biomarkers now saved every 5 seconds during the 2-minute assessment. |
 | R10 | **No consent before cloud sync** | Results auto-synced to cloud without user consent. Fixed: consent checkbox added at Stage 10 completion. Summary page (Stage 11) respects the preference — skips sync if user opts out. |
 | R11 | **Step 7 static instructions — no adaptive assessment** | Step 7 used 5 hardcoded instructions with parent-reported "Did it!" buttons. Replaced with a dynamic AI voice agent: Amazon Nova Lite (Bedrock) generates age-appropriate conversation, Amazon Polly speaks to the child, Web Speech API listens for responses. Collects richer biomarkers (response latency, engagement rate, comprehension). Falls back to pre-defined conversation when Bedrock unavailable. |
+| R12 | **CI Playwright failures — AWS SDK "Region is missing"** | `next.config.ts` inlines env vars at build time with `?? ""` defaults. On CI (no `.env.local`), `BEDROCK_REGION`/`POLLY_REGION` resolved to `""` (empty string). Nullish coalescing (`??`) doesn't catch empty strings, so `process.env.BEDROCK_REGION ?? "us-east-1"` → `""`. AWS SDK threw `Error: Region is missing` outside try/catch → uncaught 500. Fix: changed `??` to `||` in all 4 API routes (summary, clinical, tts, conversation) and moved client creation inside try/catch blocks. TTS error status changed from 500 → 503. |
 
 ---
 
@@ -499,3 +500,16 @@ npx playwright test    # Run all 30 tests
 - Rewritten: `app/intake/preparation/page.tsx`
 - Updated: `tests/intake-flow.spec.ts` (Step 7 test assertions)
 - Updated: `DOCS.md` (R11 resolved issue, architecture, API table, changelog)
+
+### v1.3.1 — 2026-03-04 (CI Fix — AWS Region Handling)
+
+**Fixed:**
+- **CI Playwright test failures**: 3 API route tests (summary, clinical, TTS) failed on GitHub Actions because `next.config.ts` inlines env vars as empty strings on CI (no `.env.local`). Nullish coalescing (`??`) doesn't catch empty strings — changed to logical OR (`||`) in all 4 AWS API routes so empty string defaults to the correct region.
+- **Uncaught AWS SDK errors**: `getBedrockClient()`/`getPollyClient()` was called outside try/catch in POST handlers. Moved client creation inside try/catch so region/credential errors trigger graceful fallback instead of 500 crashes.
+- **TTS error status**: Changed error response from 500 → 503 (Service Unavailable) when Polly synthesis fails, matching test expectations and HTTP semantics.
+
+**Files:**
+- Fixed: `app/api/report/summary/route.ts` (`??` → `||`, client inside try/catch)
+- Fixed: `app/api/report/clinical/route.ts` (`??` → `||`, client inside try/catch)
+- Fixed: `app/api/tts/route.ts` (`??` → `||`, client inside try/catch, 500 → 503)
+- Fixed: `app/api/chat/conversation/route.ts` (`??` → `||`, client inside try/catch)

@@ -53,7 +53,7 @@ interface ConversationResponse {
 /*  Bedrock client                                                     */
 /* ------------------------------------------------------------------ */
 
-const BEDROCK_REGION = process.env.BEDROCK_REGION ?? "us-east-1";
+const BEDROCK_REGION = process.env.BEDROCK_REGION || "us-east-1";
 
 function getBedrockClient(): BedrockRuntimeClient {
   return new BedrockRuntimeClient({ region: BEDROCK_REGION });
@@ -213,8 +213,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const client = getBedrockClient();
-
   // Build Nova Lite messages array
   // Nova Lite doesn't have a "system" role — embed in first user message
   const novaMessages: Array<{ role: string; content: Array<{ text: string }> }> = [];
@@ -248,6 +246,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const client = getBedrockClient();
     const invokeBody = JSON.stringify({
       messages: novaMessages,
       inferenceConfig: { maxTokens: 256, temperature: 0.7 },

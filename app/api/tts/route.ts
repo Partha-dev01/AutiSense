@@ -25,7 +25,7 @@ interface TtsRequestBody {
 }
 
 // Use POLLY_REGION if set, otherwise fall back to AWS_REGION (auto-set on Lambda)
-const POLLY_REGION = process.env.POLLY_REGION ?? process.env.AWS_REGION ?? "ap-south-1";
+const POLLY_REGION = process.env.POLLY_REGION || process.env.AWS_REGION || "ap-south-1";
 
 // Don't pass explicit credentials — the SDK default credential provider chain
 // handles Lambda IAM roles (with session tokens) and local dev env vars.
@@ -52,8 +52,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const client = getPollyClient();
-
   // Polly has a 3000-character limit for SynthesizeSpeech.
   // Truncate gracefully at the last sentence boundary.
   let text = body.text;
@@ -66,6 +64,7 @@ export async function POST(req: NextRequest) {
   const voiceId = (body.voiceId ?? "Joanna") as VoiceId;
 
   try {
+    const client = getPollyClient();
     const command = new SynthesizeSpeechCommand({
       Text: text,
       OutputFormat: "mp3",
@@ -110,7 +109,7 @@ export async function POST(req: NextRequest) {
     console.error("[TTS] Polly synthesis failed:", err);
     return NextResponse.json(
       { error: "Text-to-Speech synthesis failed" },
-      { status: 500 },
+      { status: 503 },
     );
   }
 }
