@@ -407,6 +407,8 @@ npx playwright test    # Run all 30 tests
 | R10 | **No consent before cloud sync** | Results auto-synced to cloud without user consent. Fixed: consent checkbox added at Stage 10 completion. Summary page (Stage 11) respects the preference — skips sync if user opts out. |
 | R11 | **Step 7 static instructions — no adaptive assessment** | Step 7 used 5 hardcoded instructions with parent-reported "Did it!" buttons. Replaced with a dynamic AI voice agent: Amazon Nova Lite (Bedrock) generates age-appropriate conversation, Amazon Polly speaks to the child, Web Speech API listens for responses. Collects richer biomarkers (response latency, engagement rate, comprehension). Falls back to pre-defined conversation when Bedrock unavailable. |
 | R12 | **CI Playwright failures — AWS SDK "Region is missing"** | `next.config.ts` inlines env vars at build time with `?? ""` defaults. On CI (no `.env.local`), `BEDROCK_REGION`/`POLLY_REGION` resolved to `""` (empty string). Nullish coalescing (`??`) doesn't catch empty strings, so `process.env.BEDROCK_REGION ?? "us-east-1"` → `""`. AWS SDK threw `Error: Region is missing` outside try/catch → uncaught 500. Fix: changed `??` to `||` in all 4 API routes (summary, clinical, tts, conversation) and moved client creation inside try/catch blocks. TTS error status changed from 500 → 503. |
+| R13 | **Step 7 auto-advances without verifying motor actions** | Voice agent spoke motor instructions ("touch your nose", "wave") but immediately moved on without checking if the child performed the action. Also, agent text wasn't displayed prominently. Fix: added camera-based motor action verification using existing YOLO pose detection pipeline. Motor turns activate camera → YOLO extracts 17 keypoints → rule-based ActionDetector checks keypoint geometry → ActionTracker requires 5 consecutive positive frames → confirmed. Agent text now displayed in large centered speech bubble with domain emoji headers. |
+| R14 | **Stage 10 worker URL parse error** | `Failed to execute 'fetch' on 'WorkerGlobalScope': Failed to parse URL from /models/yolo26n-pose-int8.onnx`. ONNX model paths were relative URLs (`/models/...`) which fail inside Web Workers because relative paths resolve against the worker script URL (blob: or /_next/static/), not the page origin. Fix: prefixed all 4 model paths with `${self.location.origin}` in PipelineOrchestrator.ts and MultimodalOrchestrator.ts. |
 
 ---
 
@@ -513,3 +515,26 @@ npx playwright test    # Run all 30 tests
 - Fixed: `app/api/report/clinical/route.ts` (`??` → `||`, client inside try/catch)
 - Fixed: `app/api/tts/route.ts` (`??` → `||`, client inside try/catch, 500 → 503)
 - Fixed: `app/api/chat/conversation/route.ts` (`??` → `||`, client inside try/catch)
+
+### v1.4.0 — 2026-03-04 (Camera Action Verification + Worker URL Fix)
+
+**Major Change:**
+- **Step 7 motor action verification via YOLO camera**: Motor instruction turns now activate the camera and use the existing YOLO26n-pose model to detect whether the child actually performed the requested action (wave, touch nose, clap, raise arms, touch head, touch ears). Rule-based ActionDetector analyzes 17 COCO keypoints with body-scale-normalized distance thresholds. ActionTracker requires 5 consecutive positive frames to confirm detection, preventing false positives.
+
+**New:**
+- `app/lib/actions/actionDetector.ts` — Pure rule-based action detection from YOLO keypoints: 6 actions with geometry rules, `ActionTracker` class for sustained detection, `ACTION_META` map for UI labels/emoji
+- `app/hooks/useActionCamera.ts` — Camera + YOLO inference + action detection hook: manages getUserMedia, inference worker (body-only mode), requestAnimationFrame loop, skeleton overlay drawing, ActionTracker integration
+- New `"verifying"` phase in Step 7 state machine: camera feed shown with COCO-17 skeleton overlay, detection progress bar, 15-second timeout with skip option
+- Domain emoji headers in agent text display (social, cognitive, language, motor, general)
+- `action` field added to conversation API TurnMetadata — LLM includes action ID for motor turns
+
+**Fixed:**
+- **Stage 10 ONNX worker URL parse error**: Model paths in `PipelineOrchestrator.ts` and `MultimodalOrchestrator.ts` changed from relative (`/models/...`) to absolute (`${self.location.origin}/models/...`) — resolves correctly in Web Worker scope
+
+**Files:**
+- Created: `app/lib/actions/actionDetector.ts`
+- Created: `app/hooks/useActionCamera.ts`
+- Rewritten: `app/intake/preparation/page.tsx` (camera verification integration)
+- Updated: `app/api/chat/conversation/route.ts` (action field in metadata)
+- Fixed: `app/lib/inference/PipelineOrchestrator.ts` (absolute model URLs)
+- Fixed: `app/lib/inference/MultimodalOrchestrator.ts` (absolute model URLs)

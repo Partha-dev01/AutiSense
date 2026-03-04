@@ -21,9 +21,9 @@ import type { FaceTcnResult } from "./FaceTcnEngine";
 import type { PipelineResult, FaceResult, Modality } from "../../types/inference";
 import { FACE_BEHAVIOR_CLASSES } from "../../types/inference";
 
-/** Model paths (served from public/models/). */
-const FER_MODEL_PATH = "/models/emotion-ferplus-8.onnx";
-const FACE_TCN_MODEL_PATH = "/models/face-tcn-int8.onnx";
+/** Model paths — absolute URLs required for Web Worker context. */
+const FER_MODEL_PATH = `${self.location.origin}/models/emotion-ferplus-8.onnx`;
+const FACE_TCN_MODEL_PATH = `${self.location.origin}/models/face-tcn-int8.onnx`;
 
 export class MultimodalOrchestrator {
   /** Body-pose pipeline. */

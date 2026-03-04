@@ -13,9 +13,9 @@ import { FeatureEncoder } from "./FeatureEncoder";
 import type { PipelineResult } from "../../types/inference";
 import { BEHAVIOR_CLASSES } from "../../types/inference";
 
-/** Default model paths (served from public/models/). */
-const YOLO_MODEL_PATH = "/models/yolo26n-pose-int8.onnx";
-const TCN_MODEL_PATH = "/models/pose-tcn-int8.onnx";
+/** Default model paths — absolute URLs required for Web Worker context. */
+const YOLO_MODEL_PATH = `${self.location.origin}/models/yolo26n-pose-int8.onnx`;
+const TCN_MODEL_PATH = `${self.location.origin}/models/pose-tcn-int8.onnx`;
 
 export class PipelineOrchestrator {
   private yolo = new YoloEngine();

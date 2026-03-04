@@ -41,6 +41,7 @@ interface TurnMetadata {
   responseRelevance: number;
   shouldEnd: boolean;
   domain: "social" | "cognitive" | "language" | "motor" | "general";
+  action?: string; // For motor instructions: "wave", "touch_nose", "clap", "raise_arms", "touch_head", "touch_ears"
 }
 
 interface ConversationResponse {
@@ -87,10 +88,11 @@ RULES:
 10. For motor instructions, phrase them as fun games — "Let's play a game! Can you..."
 
 You MUST respond with ONLY valid JSON (no markdown, no code blocks) in this exact format:
-{"text":"Your spoken response here","turnType":"greeting|question|instruction|follow_up|farewell","expectsResponse":true,"responseRelevance":0.5,"shouldEnd":false,"domain":"social|cognitive|language|motor|general"}
+{"text":"Your spoken response here","turnType":"greeting|question|instruction|follow_up|farewell","expectsResponse":true,"responseRelevance":0.5,"shouldEnd":false,"domain":"social|cognitive|language|motor|general","action":null}
 
 For responseRelevance: rate how relevant the child's LAST response was to your LAST question (0.0 = no response or completely irrelevant, 0.5 = somewhat relevant, 1.0 = perfect response). Use 0.5 for the first turn.
-For shouldEnd: set to true ONLY on your farewell turn (after 5-8 assistant turns).`;
+For shouldEnd: set to true ONLY on your farewell turn (after 5-8 assistant turns).
+For action: when domain is "motor" and turnType is "instruction", include one of: "wave", "touch_nose", "clap", "raise_arms", "touch_head", "touch_ears". For non-motor turns, set to null.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -108,7 +110,7 @@ function buildFallbackTurn(
     },
     {
       text: `Awesome! Let's start with something fun. Can you wave hello to me?`,
-      metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor" },
+      metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "wave" },
     },
     {
       text: `Great job! Now tell me, what color is the sky?`,
@@ -120,7 +122,7 @@ function buildFallbackTurn(
     },
     {
       text: `That's wonderful! Now let's try something silly. Can you touch your nose?`,
-      metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor" },
+      metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "touch_nose" },
     },
     {
       text: `You're a superstar! What's your favorite animal?`,
@@ -153,6 +155,7 @@ function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback">
           responseRelevance: typeof parsed.responseRelevance === "number" ? parsed.responseRelevance : 0.5,
           shouldEnd: parsed.shouldEnd === true,
           domain: parsed.domain ?? "general",
+          ...(parsed.action ? { action: parsed.action } : {}),
         },
       };
     }
@@ -175,6 +178,7 @@ function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback">
             responseRelevance: typeof parsed.responseRelevance === "number" ? parsed.responseRelevance : 0.5,
             shouldEnd: parsed.shouldEnd === true,
             domain: parsed.domain ?? "general",
+            ...(parsed.action ? { action: parsed.action } : {}),
           },
         };
       }
