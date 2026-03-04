@@ -240,16 +240,20 @@ export function useActionCamera(): UseActionCameraReturn {
     detectingRef.current = false;
   }, []);
 
-  // Defensive: re-attach stream when video element appears in DOM.
-  // Only runs when isActive changes (camera just started).
+  // Defensive: periodically check if the video element lost its stream
+  // (happens when React unmounts/remounts the <video> during phase changes).
+  // Uses a low-frequency interval instead of running every render to avoid flicker.
   useEffect(() => {
     if (!isActive) return;
-    const video = videoRef.current;
-    const stream = streamRef.current;
-    if (video && stream && !video.srcObject) {
-      video.srcObject = stream;
-      video.play().catch(() => {});
-    }
+    const check = setInterval(() => {
+      const video = videoRef.current;
+      const stream = streamRef.current;
+      if (video && stream && !video.srcObject) {
+        video.srcObject = stream;
+        video.play().catch(() => {});
+      }
+    }, 300);
+    return () => clearInterval(check);
   }, [isActive]);
 
   // Cleanup on unmount

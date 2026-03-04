@@ -143,31 +143,37 @@ export default function VideoCapturePage() {
     };
   }, []);
 
+  const startingRef = useRef(false);
+
   const startAssessment = useCallback(async () => {
+    // Guard: prevent double-invocation (async race, double-click, etc.)
+    if (startingRef.current) return;
+    startingRef.current = true;
+
+    // Clear any existing intervals first
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (biomarkerTimerRef.current) { clearInterval(biomarkerTimerRef.current); biomarkerTimerRef.current = null; }
+
     await startCamera();
     setStarted(true);
     setTimeLeft(ASSESSMENT_SECONDS);
     setSamplesCollected(0);
 
-    // Clear any existing intervals to prevent double-speed
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (biomarkerTimerRef.current) clearInterval(biomarkerTimerRef.current);
-
-    // Countdown timer
+    // Countdown timer — use a dedicated counter ref to avoid any React batching issues
+    const endTime = Date.now() + ASSESSMENT_SECONDS * 1000;
     timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          if (biomarkerTimerRef.current) clearInterval(biomarkerTimerRef.current);
-          setTaskComplete(true);
-          if (streamRef.current) {
-            streamRef.current.getTracks().forEach((tr) => tr.stop());
-          }
-          return 0;
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        if (biomarkerTimerRef.current) { clearInterval(biomarkerTimerRef.current); biomarkerTimerRef.current = null; }
+        setTaskComplete(true);
+        startingRef.current = false;
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((tr) => tr.stop());
         }
-        return t - 1;
-      });
-    }, 1000);
+      }
+    }, 500); // Check every 500ms for accurate wall-clock time
 
     // Periodic biomarker snapshots
     biomarkerTimerRef.current = setInterval(() => {
@@ -176,8 +182,9 @@ export default function VideoCapturePage() {
   }, [startCamera, saveBiomarkerSnapshot]);
 
   const stopEarly = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (biomarkerTimerRef.current) clearInterval(biomarkerTimerRef.current);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (biomarkerTimerRef.current) { clearInterval(biomarkerTimerRef.current); biomarkerTimerRef.current = null; }
+    startingRef.current = false;
     // Save final snapshot
     saveBiomarkerSnapshot();
     setTaskComplete(true);
@@ -244,7 +251,7 @@ export default function VideoCapturePage() {
               <Link href="/intake/motor" className="btn btn-outline" style={{ minWidth: 100 }}>
                 ← Back
               </Link>
-              <button className="btn btn-primary btn-full" onClick={startAssessment}>
+              <button className="btn btn-primary btn-full" onClick={startAssessment} disabled={started}>
                 📹 Start Video Analysis
               </button>
             </div>
@@ -338,6 +345,7 @@ export default function VideoCapturePage() {
                     setStarted(false);
                     setTimeLeft(ASSESSMENT_SECONDS);
                     setCamReady(false);
+                    startingRef.current = false;
                   }} style={{ minHeight: 44, padding: "8px 24px" }}>
                     Try Again
                   </button>

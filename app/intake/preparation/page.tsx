@@ -304,8 +304,8 @@ export default function PreparationPage() {
               {meta.label}
             </h2>
 
-            {/* Camera feed — visible during countdown, detecting, and detected */}
-            {(actionPhase === "countdown" || actionPhase === "detecting" || actionPhase === "detected") && (
+            {/* Camera feed — visible during all active action phases (including timeout so stream stays attached) */}
+            {(actionPhase === "countdown" || actionPhase === "detecting" || actionPhase === "detected" || actionPhase === "timeout") && (
               <>
                 {cameraActive && !cameraError ? (
                   <div style={{
@@ -410,12 +410,12 @@ export default function PreparationPage() {
                   </div>
                 )}
 
-                {/* 5-dot frame counter */}
+                {/* 8-dot frame counter (matches REQUIRED_CONSECUTIVE = 8) */}
                 {actionPhase === "detecting" && (
-                  <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 8 }}>
-                    {Array.from({ length: 5 }, (_, i) => (
+                  <div style={{ display: "flex", gap: 4, justifyContent: "center", marginBottom: 8 }}>
+                    {Array.from({ length: 8 }, (_, i) => (
                       <div key={i} style={{
-                        width: 20, height: 20, borderRadius: "50%",
+                        width: 16, height: 16, borderRadius: "50%",
                         background: i < consecutiveHits ? "var(--sage-500)" : "var(--bg-elevated)",
                         border: "2px solid var(--sage-300)",
                         transition: "background 0.2s",
@@ -434,7 +434,7 @@ export default function PreparationPage() {
                       : "var(--text-muted)",
                   }}>
                     {!hasKeypoints ? "Step into view so we can see you!"
-                      : consecutiveHits >= 3 ? "Almost there! Keep holding..."
+                      : consecutiveHits >= 5 ? "Almost there! Keep holding..."
                       : (actionResult?.confidence || 0) > 0.3 ? "Getting closer!"
                       : `Looking for: ${meta.label}...`}
                   </p>

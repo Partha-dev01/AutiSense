@@ -128,7 +128,7 @@ function detectClap(
   if (!confOk(conf, L_WRIST, R_WRIST))
     return { hit: false, proximity: 0 };
   const d = dist(kp(kps, L_WRIST), kp(kps, R_WRIST));
-  const threshold = 0.2 * scale;
+  const threshold = 0.4 * scale; // Relaxed: hands near each other (YOLO wrist keypoints are imprecise during clap)
   return { hit: d < threshold, proximity: Math.max(0, 1 - d / threshold) };
 }
 
