@@ -6,6 +6,7 @@
 "use client";
 import { useRef, useEffect } from "react";
 import type { PipelineResult } from "../types/inference";
+import { BEHAVIOR_CLASSES } from "../types/inference";
 
 // COCO-17 skeleton connections
 const SKELETON: [number, number][] = [
@@ -163,21 +164,41 @@ export default function DetectorVideoCanvas({ videoRef, canvasRef, result, isCam
         </div>
       )}
 
-      {/* Behavior label */}
-      {result?.behavior && (
-        <div style={{
-          position: "absolute", top: 8, left: 8, padding: "6px 14px",
-          borderRadius: "var(--r-md)", fontSize: "0.85rem", fontWeight: 700,
-          fontFamily: "'Fredoka',sans-serif",
-          background: "rgba(0,0,0,0.65)", color: "white",
-          border: "1px solid rgba(255,255,255,0.15)",
-        }}>
-          {fmt(result.behavior.className)}
-          <span style={{ marginLeft: 8, fontSize: "0.75rem", opacity: 0.7 }}>
-            {(result.behavior.probabilities[result.behavior.predictedClass] * 100).toFixed(0)}%
-          </span>
-        </div>
-      )}
+      {/* Behavior label — show "Normal Activity" when non_autistic > 50%, otherwise top ASD class */}
+      {result?.behavior && result.behavior.probabilities.length >= 6 && (() => {
+        const probs = result.behavior!.probabilities;
+        const nonAutisticProb = probs[5];
+        let displayClass: string;
+        let displayProb: number;
+        if (nonAutisticProb > 0.5) {
+          displayClass = "Normal Activity";
+          displayProb = nonAutisticProb;
+        } else {
+          // Find highest ASD behavior (indices 0-4)
+          let maxIdx = 0, maxP = probs[0];
+          for (let i = 1; i < 5; i++) {
+            if (probs[i] > maxP) { maxP = probs[i]; maxIdx = i; }
+          }
+          displayClass = fmt(BEHAVIOR_CLASSES[maxIdx]);
+          displayProb = maxP;
+        }
+        const isNormal = nonAutisticProb > 0.5;
+        return (
+          <div style={{
+            position: "absolute", top: 8, left: 8, padding: "6px 14px",
+            borderRadius: "var(--r-md)", fontSize: "0.85rem", fontWeight: 700,
+            fontFamily: "'Fredoka',sans-serif",
+            background: isNormal ? "rgba(58,99,68,0.75)" : "rgba(0,0,0,0.65)",
+            color: "white",
+            border: "1px solid rgba(255,255,255,0.15)",
+          }}>
+            {displayClass}
+            <span style={{ marginLeft: 8, fontSize: "0.75rem", opacity: 0.7 }}>
+              {(displayProb * 100).toFixed(0)}%
+            </span>
+          </div>
+        );
+      })()}
     </div>
   );
 }

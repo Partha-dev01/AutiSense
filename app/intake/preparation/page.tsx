@@ -410,12 +410,12 @@ export default function PreparationPage() {
                   </div>
                 )}
 
-                {/* 8-dot frame counter (matches REQUIRED_CONSECUTIVE = 8) */}
+                {/* 12-dot frame counter (matches REQUIRED_CONSECUTIVE = 12) */}
                 {actionPhase === "detecting" && (
-                  <div style={{ display: "flex", gap: 4, justifyContent: "center", marginBottom: 8 }}>
-                    {Array.from({ length: 8 }, (_, i) => (
+                  <div style={{ display: "flex", gap: 3, justifyContent: "center", marginBottom: 8 }}>
+                    {Array.from({ length: 12 }, (_, i) => (
                       <div key={i} style={{
-                        width: 16, height: 16, borderRadius: "50%",
+                        width: 14, height: 14, borderRadius: "50%",
                         background: i < consecutiveHits ? "var(--sage-500)" : "var(--bg-elevated)",
                         border: "2px solid var(--sage-300)",
                         transition: "background 0.2s",
@@ -429,12 +429,12 @@ export default function PreparationPage() {
                   <p style={{
                     fontSize: "0.9rem", fontWeight: 700, marginBottom: 8,
                     color: !hasKeypoints ? "var(--text-muted)"
-                      : consecutiveHits >= 3 ? "var(--sage-600)"
+                      : consecutiveHits >= 5 ? "var(--sage-600)"
                       : (actionResult?.confidence || 0) > 0 ? "var(--sky-400)"
                       : "var(--text-muted)",
                   }}>
                     {!hasKeypoints ? "Step into view so we can see you!"
-                      : consecutiveHits >= 5 ? "Almost there! Keep holding..."
+                      : consecutiveHits >= 7 ? "Almost there! Keep holding..."
                       : (actionResult?.confidence || 0) > 0.3 ? "Getting closer!"
                       : `Looking for: ${meta.label}...`}
                   </p>

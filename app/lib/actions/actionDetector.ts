@@ -128,7 +128,7 @@ function detectClap(
   if (!confOk(conf, L_WRIST, R_WRIST))
     return { hit: false, proximity: 0 };
   const d = dist(kp(kps, L_WRIST), kp(kps, R_WRIST));
-  const threshold = 0.4 * scale; // Relaxed: hands near each other (YOLO wrist keypoints are imprecise during clap)
+  const threshold = 0.3 * scale; // Tightened: require hands closer together
   return { hit: d < threshold, proximity: Math.max(0, 1 - d / threshold) };
 }
 
@@ -156,7 +156,7 @@ function detectTouchHead(
   const dL = confOk(conf, L_WRIST) ? dist(kp(kps, L_WRIST), nose) : Infinity;
   const dR = confOk(conf, R_WRIST) ? dist(kp(kps, R_WRIST), nose) : Infinity;
   const minD = Math.min(dL, dR);
-  const threshold = 0.3 * scale;
+  const threshold = 0.25 * scale;
   return { hit: minD < threshold, proximity: Math.max(0, 1 - minD / threshold) };
 }
 
@@ -229,7 +229,7 @@ export function detectAction(
 
 // ── Sustained detection tracker ─────────────────────────────────────
 
-const REQUIRED_CONSECUTIVE = 8;
+const REQUIRED_CONSECUTIVE = 12;
 
 export class ActionTracker {
   private consecutiveHits = 0;
@@ -253,10 +253,10 @@ export class ActionTracker {
 
     const result = detectAction(keypoints, confidence, action, this.history);
 
-    if (result.detected) {
+    if (result.detected && result.confidence > 0.4) {
       this.consecutiveHits++;
     } else {
-      this.consecutiveHits = Math.max(0, this.consecutiveHits - 1);
+      this.consecutiveHits = Math.max(0, this.consecutiveHits - 2);
     }
 
     if (this.consecutiveHits >= REQUIRED_CONSECUTIVE) {

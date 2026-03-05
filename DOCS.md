@@ -612,3 +612,32 @@ npx playwright test    # Run all 30 tests
 
 **Files:**
 - Modified: `app/intake/video-capture/page.tsx` (setCamReady moved, stream re-attach effect, description text fix)
+
+### v1.6.2 — 2026-03-05 (Action Detection Tuning, Behavior Label Fix)
+
+**Fixed:**
+- **Stage 6 (Action Challenge) hypersensitive detection**: Actions were confirming too quickly (~0.5s) due to low `REQUIRED_CONSECUTIVE` (8) and slow decay (-1 per miss). False positives from YOLO keypoint noise accumulated faster than they decayed.
+  - `REQUIRED_CONSECUTIVE`: 8 → 12 (~0.8s sustained detection at 15fps)
+  - Decay on miss: -1 → -2 (noise drops out faster)
+  - Added confidence gate: only count hits with confidence > 0.4
+  - Tightened clap threshold: 0.4×scale → 0.3×scale
+  - Tightened touch_head threshold: 0.3×scale → 0.25×scale (less overlap with touch_nose)
+- **Stage 8 (Video Capture) "Hand Flapping" always shown as behavior label**: The body TCN model is biased toward hand_flapping (F1: 0.68) due to training data class imbalance (non_autistic F1 only 0.33). The video overlay now recomputes the display label from actual probabilities:
+  - When P(non_autistic) > 50%: shows "Normal Activity" with a green badge
+  - Otherwise: shows the highest ASD-related behavior class (indices 0-4)
+  - Eliminates frame-mismatch display inconsistencies
+
+**Training Model Notes (from `Autism_code/` analysis):**
+- Body TCN best F1: 0.384 (macro-averaged, 6 classes)
+- Classes 2 (head_banging) and 4 (toe_walking): 0.0 F1 — zero validation samples
+- Class 0 (hand_flapping): 0.68 F1 — strongest, causes bias
+- Class 5 (non_autistic): 0.33 F1 — weak recognition
+- Long-term fix: retrain with balanced data. Current UI-side fix handles the display bias.
+
+**CI Playwright Warnings (NOT a bug):**
+- `CredentialsProviderError` messages in CI logs are expected — CI lacks AWS credentials. Bedrock/Polly APIs fail gracefully and tests verify fallback/mock responses. All 31 tests pass.
+
+**Files:**
+- Modified: `app/lib/actions/actionDetector.ts` (REQUIRED_CONSECUTIVE 12, decay -2, confidence gate, tighter thresholds)
+- Modified: `app/intake/preparation/page.tsx` (12-dot counter, status text thresholds)
+- Modified: `app/components/DetectorVideoCanvas.tsx` (behavior label recomputed from probs, "Normal Activity" display)
