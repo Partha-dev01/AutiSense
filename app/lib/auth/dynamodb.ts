@@ -34,10 +34,9 @@ export interface AuthSession {
 // On Amplify Lambda, credentials come via IAM role (SDK auto-detects).
 // Only fall back to in-memory when DynamoDB actually fails or in local dev
 // without any AWS config.
-let dynamoFailed = false;
+let dynamoFailedUntil = 0;
 
 function shouldUseDynamo(): boolean {
-  if (dynamoFailed) return false;
   // In local dev without any AWS config, skip DynamoDB
   if (
     process.env.NODE_ENV === "development" &&
@@ -47,12 +46,13 @@ function shouldUseDynamo(): boolean {
   ) {
     return false;
   }
-  // In production (Amplify), always try DynamoDB
+  // After a failure, wait 30 s before retrying DynamoDB
+  if (Date.now() < dynamoFailedUntil) return false;
   return true;
 }
 
 /**
- * Try a DynamoDB operation; on failure, set dynamoFailed = true and
+ * Try a DynamoDB operation; on failure, cool down for 30 s and
  * transparently retry against the in-memory adapter.
  */
 async function withFallback<T>(
@@ -64,10 +64,12 @@ async function withFallback<T>(
     return memoryFn();
   }
   try {
-    return await dynamoFn();
+    const result = await dynamoFn();
+    dynamoFailedUntil = 0; // reset on success
+    return result;
   } catch (err) {
-    console.warn(`[auth/dynamodb] ${operation} failed, falling back to in-memory:`, err);
-    dynamoFailed = true;
+    console.error(`[auth/dynamodb] ${operation} failed, falling back to in-memory:`, err);
+    dynamoFailedUntil = Date.now() + 30_000;
     return memoryFn();
   }
 }

@@ -73,10 +73,9 @@ If you skip step 2, the variable will be available during `npm run build` but **
 | `POLLY_REGION` | Amplify + next.config.ts | Polly voice region (ap-south-1) |
 | `S3_MODELS_BUCKET` | Amplify + next.config.ts | S3 bucket for ONNX models |
 | `DYNAMODB_*` (7 tables) | Amplify + next.config.ts | DynamoDB table names |
-| `AWS_REGION` | Auto (Lambda) | Lambda execution region |
-| `AWS_ACCESS_KEY_ID` | Auto (Lambda IAM) | IAM role credentials |
-| `AWS_SECRET_ACCESS_KEY` | Auto (Lambda IAM) | IAM role credentials |
-| `AWS_SESSION_TOKEN` | Auto (Lambda IAM) | IAM role session token |
+| `APP_ACCESS_KEY_ID` | Amplify + next.config.ts | IAM user access key (Amplify blocks `AWS_*`) |
+| `APP_SECRET_ACCESS_KEY` | Amplify + next.config.ts | IAM user secret key |
+| `APP_REGION` | Amplify + next.config.ts | AWS region for SDK clients |
 
 ### Google OAuth Setup
 
@@ -92,23 +91,21 @@ The redirect URI is constructed from `NEXT_PUBLIC_APP_URL` + `/api/auth/callback
 
 ## AWS SDK Credential Handling
 
-**NEVER pass explicit credentials to AWS SDK clients in API routes.**
+Amplify WEB_COMPUTE does **not** expose IAM role credentials to the SSR Lambda runtime. We use custom-named env vars (`APP_ACCESS_KEY_ID`, `APP_SECRET_ACCESS_KEY`, `APP_REGION`) because Amplify reserves the `AWS_*` prefix.
+
+All SDK clients use the shared helper in `app/lib/aws/credentials.ts`:
 
 ```ts
-// WRONG — breaks on Amplify Lambda (missing sessionToken)
-new DynamoDBClient({
-  region: "ap-south-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+import { getAppCredentials, getAppRegion } from "@/app/lib/aws/credentials";
 
-// CORRECT — SDK auto-detects IAM role credentials (including session token)
-new DynamoDBClient({ region: "ap-south-1" });
+const credentials = getAppCredentials();
+new DynamoDBClient({
+  region: getAppRegion("ap-south-1"),
+  ...(credentials && { credentials }),
+});
 ```
 
-On Amplify Lambda, the IAM execution role provides **temporary STS credentials** that include `AWS_SESSION_TOKEN`. The default SDK credential provider chain handles this automatically. Passing explicit `accessKeyId`/`secretAccessKey` without `sessionToken` will cause auth failures.
+This falls back to the SDK default provider chain when `APP_*` vars are not set (e.g., local dev with `AWS_*` in `.env.local`).
 
 ---
 
@@ -151,3 +148,84 @@ Then redeploy.
 **Cause:** React 19 strict lint rules (`react-hooks/*`) introduced in `eslint-config-next`.
 
 **Fix:** Rules are configured in `eslint.config.mjs`. If new violations appear after updating Next.js, check if hooks ordering or ref patterns need adjustment.
+
+### Google sign-in enters a redirect loop
+
+**Cause:** DynamoDB auth tables have wrong primary key names, or env vars were wiped.
+
+**Fix:** Verify table schemas match what the code expects:
+- `autisense-users`: PK = `id` (string), GSI = `email-index` on `email`
+- `autisense-auth-sessions`: PK = `token` (string), TTL on `expiresAt`
+
+Also verify all 16 Amplify env vars are set (see below).
+
+---
+
+## Critical Warnings
+
+### `aws amplify update-app --environment-variables` REPLACES ALL vars
+
+**The `--environment-variables` flag REPLACES the entire env var map.** It does not append.
+
+If you run:
+```bash
+aws amplify update-app --environment-variables NEW_VAR=value
+```
+This **deletes every other env var** and sets only `NEW_VAR`. Always include ALL existing vars when updating.
+
+**Safe pattern:**
+```bash
+aws amplify get-app --app-id d2n7pu2vtgi8yc --region ap-south-1 \
+  --query "app.environmentVariables"
+# Copy all existing vars, add your new one, then update with the full list
+```
+
+### DynamoDB Table Key Schema Must Match Code
+
+The auth code in `app/lib/auth/dynamodb.ts` uses these exact key names:
+- `autisense-users` table: PK must be `id` (NOT `userId`)
+- `autisense-auth-sessions` table: PK must be `token` (NOT `sessionToken`)
+
+If tables are created with different key names, all DynamoDB operations fail silently and auth falls back to in-memory (which doesn't persist across Lambda instances).
+
+### All 16 Required Amplify Environment Variables
+
+```
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXT_PUBLIC_APP_URL,
+BEDROCK_REGION, POLLY_REGION, S3_MODELS_BUCKET,
+DYNAMODB_SESSIONS_TABLE, DYNAMODB_BIOMARKERS_TABLE,
+DYNAMODB_USERS_TABLE, DYNAMODB_AUTH_SESSIONS_TABLE,
+DYNAMODB_CHILD_PROFILES_TABLE, DYNAMODB_SESSION_SUMMARIES_TABLE,
+DYNAMODB_FEED_POSTS_TABLE,
+APP_ACCESS_KEY_ID, APP_SECRET_ACCESS_KEY, APP_REGION
+```
+
+---
+
+## Changelog
+
+### 2026-03-06 — Fix Google sign-in loop
+
+**Root causes found:**
+1. `aws amplify update-app --environment-variables` replaced ALL env vars (wiped `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_APP_URL`, etc.)
+2. DynamoDB `autisense-users` table had PK `userId` but code uses `id`
+3. DynamoDB `autisense-auth-sessions` table had PK `sessionToken` but code uses `token`
+4. `dynamoFailed` flag was permanent — one transient error disabled DynamoDB forever
+
+**Fixes applied:**
+- Restored all 16 Amplify env vars
+- Recreated `autisense-users` table (PK=`id`, GSI=`email-index`)
+- Recreated `autisense-auth-sessions` table (PK=`token`, TTL on `expiresAt`)
+- Changed `dynamoFailed` from permanent boolean to 30-second cooldown timer
+
+### 2026-03-05 — Fix AWS SDK credentials for Amplify
+
+- Created shared credential helper (`app/lib/aws/credentials.ts`)
+- Updated all 8 SDK client locations to use `APP_*` env vars
+- Added `APP_ACCESS_KEY_ID`, `APP_SECRET_ACCESS_KEY`, `APP_REGION` to Amplify
+- Polly TTS confirmed working on deployed site
+
+### 2026-03-05 — Fix COEP header for map tiles
+
+- Changed `Cross-Origin-Embedder-Policy` from `require-corp` to `credentialless`
+- Updated both `next.config.ts` and Amplify custom headers
