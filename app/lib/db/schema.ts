@@ -2,7 +2,7 @@ import Dexie, { type Table } from "dexie";
 import type { Session } from "../../types/session";
 import type { Biomarker } from "../../types/biomarker";
 import type { ChildProfile } from "../../types/childProfile";
-import type { FeedPost } from "../../types/feedPost";
+import type { FeedPost, FeedReaction } from "../../types/feedPost";
 import type { GameActivity, Streak, WeeklyReport, ChatSession } from "../../types/gameActivity";
 
 //sessions       — one row per screening session
@@ -10,6 +10,7 @@ import type { GameActivity, Streak, WeeklyReport, ChatSession } from "../../type
 //syncQueue      — pending session IDs waiting to be uploaded to DynamoDB
 //childProfiles  — one row per child added by the user
 //feedPosts      — community feed posts stored locally
+//feedReactions  — per-user reaction tracking (prevents spam)
 //gameActivity   — one row per completed game round (kids dashboard)
 //streaks        — one row per child tracking daily play streaks
 //weeklyReports  — generated weekly progress summaries
@@ -28,6 +29,7 @@ export class AutiSenseDB extends Dexie {
   syncQueue!: Table<SyncQueueEntry>;
   childProfiles!: Table<ChildProfile>;
   feedPosts!: Table<FeedPost>;
+  feedReactions!: Table<FeedReaction>;
   gameActivity!: Table<GameActivity>;
   streaks!: Table<Streak>;
   weeklyReports!: Table<WeeklyReport>;
@@ -61,6 +63,19 @@ export class AutiSenseDB extends Dexie {
       syncQueue: "++id, sessionId, queuedAt, retryCount",
       childProfiles: "id, userId, createdAt",
       feedPosts: "++id, userId, createdAt",
+      gameActivity: "++id, childId, date, gameId",
+      streaks: "childId",
+      weeklyReports: "++id, childId, weekStart",
+      chatHistory: "++id, childId, createdAt",
+    });
+    // v5: Feed reaction tracking (per-user, prevents spam)
+    this.version(5).stores({
+      sessions: "id, userId, createdAt, synced, status",
+      biomarkers: "++id, sessionId, userId, timestamp, taskId",
+      syncQueue: "++id, sessionId, queuedAt, retryCount",
+      childProfiles: "id, userId, createdAt",
+      feedPosts: "++id, userId, createdAt",
+      feedReactions: "++id, [postId+userId+type], postId, userId",
       gameActivity: "++id, childId, date, gameId",
       streaks: "childId",
       weeklyReports: "++id, childId, weekStart",

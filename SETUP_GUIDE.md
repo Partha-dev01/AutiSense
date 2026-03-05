@@ -204,6 +204,41 @@ APP_ACCESS_KEY_ID, APP_SECRET_ACCESS_KEY, APP_REGION
 
 ## Changelog
 
+### 2026-03-06 — Mobile UI Fixes, Emotion Quiz, Feed Redesign
+
+**Issues fixed (8 items from mobile testing):**
+
+1. **UserMenu dropdown overlap** — Added semi-transparent backdrop overlay behind dropdown for visual separation on mobile. Clicking backdrop closes menu.
+   - `app/components/UserMenu.tsx`
+
+2. **Emotion Match → Emotion Quiz** — Replaced card-flip matching game (identical to Memory game) with scenario-based Emotion Quiz. 20 scenarios, 5 emotion choices, adaptive difficulty, sound feedback. Now correctly saves game activity + updates streak.
+   - `app/games/emotion-match/page.tsx` (full rewrite)
+   - `app/kid-dashboard/games/page.tsx` (updated description)
+   - `app/kid-dashboard/page.tsx` (updated card emoji/title)
+
+3. **Streak not updating** — Fixed childId mismatch: dashboard used `""` fallback but games used `"default"`. Changed dashboard fallback to `"default"`.
+   - `app/kid-dashboard/page.tsx`
+
+4. **Chat mic + viewport + input reorder**:
+   - Added `viewport` export in layout.tsx to prevent mobile zoom on input focus
+   - Fixed SpeechRecognition: cleanup old instance before new one, 120ms delay for mic release, nullify ref on callbacks, cleanup on unmount
+   - Reordered input bar: mic button first (64px, primary green), text input secondary
+   - `app/kid-dashboard/chat/page.tsx`, `app/layout.tsx`
+
+5. **Progress page** — Verified childId already uses `"default"` fallback; no change needed.
+
+6. **BottomNav/navbar overlap** — Resolved by Fix 1 (backdrop overlay).
+
+7. **Community Feed redesign**:
+   - Posts displayed first, compose form behind "New Post" button + floating action button
+   - Per-user reaction tracking via new `feedReactions` IndexedDB table (schema v5)
+   - Reactions toggle on/off per user (filled/unfilled state)
+   - Delete own posts with reaction cleanup
+   - Cleaner card layout, category pills, empty state
+   - `app/feed/page.tsx` (full rewrite), `app/lib/db/feed.repository.ts`, `app/lib/db/schema.ts`, `app/types/feedPost.ts`
+
+**Files modified:** 10 files across components, games, pages, DB layer, and types.
+
 ### 2026-03-06 — Fix Google sign-in loop
 
 **Root causes found:**

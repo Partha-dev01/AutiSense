@@ -148,8 +148,21 @@ export default function ChatPage() {
   };
 
   /* ---- voice input ---- */
+  // Cleanup previous recognition on unmount
+  useEffect(() => {
+    return () => {
+      try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+    };
+  }, []);
+
   const toggleListening = async () => {
-    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
+    if (isListening) {
+      try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+      setIsListening(false);
+      return;
+    }
 
     const mic = await checkMicSupport();
     if (!mic.supported || !mic.permitted) {
@@ -163,6 +176,13 @@ export default function ChatPage() {
       (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
     if (!SR) return;
 
+    // Clean up any leftover instance before creating a new one
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    recognitionRef.current = null;
+
+    // Small delay to let the browser release the previous mic session
+    await new Promise((r) => setTimeout(r, 120));
+
     const recognition = new (SR as new () => SpeechRec)();
     recognition.lang = "en-US";
     recognition.interimResults = false;
@@ -171,10 +191,17 @@ export default function ChatPage() {
     recognition.onresult = (event: { results: { transcript: string }[][] }) => {
       const transcript = event.results[0]?.[0]?.transcript;
       if (transcript) sendMessage(transcript);
+      recognitionRef.current = null;
       setIsListening(false);
     };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
 
     recognitionRef.current = recognition;
     recognition.start();
@@ -313,11 +340,33 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input bar */}
+            {/* Input bar — mic is primary, text is secondary */}
             <div style={{
               display: "flex", gap: 10, alignItems: "center",
               padding: "12px 0 0", borderTop: "2px solid var(--border)",
             }}>
+              <button
+                onClick={toggleListening}
+                disabled={isLoading}
+                className={isListening ? "btn btn-outline" : "btn btn-primary"}
+                aria-label={isListening ? "Stop listening" : "Speak"}
+                title={isListening ? "Stop listening" : "Speak"}
+                style={{
+                  minWidth: 64, minHeight: 64, padding: 0, fontSize: "1.5rem",
+                  borderRadius: "var(--r-lg)", flexShrink: 0,
+                  background: isListening ? "#e74c3c" : undefined,
+                  borderColor: isListening ? "#e74c3c" : undefined,
+                  color: isListening ? "white" : undefined,
+                }}
+              >
+                {isListening ? (
+                  <span style={{
+                    display: "inline-block", width: 16, height: 16,
+                    borderRadius: "var(--r-full)", background: "white",
+                    animation: "pulse 1s ease-in-out infinite",
+                  }} />
+                ) : "\uD83C\uDFA4"}
+              </button>
               <input
                 type="text"
                 value={input}
@@ -337,31 +386,9 @@ export default function ChatPage() {
                 }}
               />
               <button
-                onClick={toggleListening}
-                disabled={isLoading}
-                className="btn btn-outline"
-                aria-label={isListening ? "Stop listening" : "Speak"}
-                title={isListening ? "Stop listening" : "Speak"}
-                style={{
-                  minWidth: 56, minHeight: 56, padding: 0, fontSize: "1.3rem",
-                  borderRadius: "var(--r-lg)",
-                  background: isListening ? "var(--sage-100)" : "var(--card)",
-                  border: isListening ? "2px solid var(--sage-400)" : "2px solid var(--border)",
-                  position: "relative",
-                }}
-              >
-                {isListening ? (
-                  <span style={{
-                    display: "inline-block", width: 14, height: 14,
-                    borderRadius: "var(--r-full)", background: "#e74c3c",
-                    animation: "pulse 1s ease-in-out infinite",
-                  }} />
-                ) : "\uD83C\uDFA4"}
-              </button>
-              <button
                 onClick={() => sendMessage(input)}
                 disabled={isLoading || !input.trim()}
-                className="btn btn-primary"
+                className="btn btn-outline"
                 aria-label="Send message"
                 style={{
                   minWidth: 56, minHeight: 56, padding: 0, fontSize: "1.1rem",

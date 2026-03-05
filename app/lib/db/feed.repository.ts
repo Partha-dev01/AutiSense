@@ -25,23 +25,49 @@ export async function listPosts(limit: number = 50): Promise<FeedPost[]> {
   return all.slice(0, limit);
 }
 
-/** Increments a reaction count on a post. */
-export async function addReaction(
+/** Toggle a reaction: add if not reacted, remove if already reacted. */
+export async function toggleReaction(
   postId: number,
   type: "heart" | "helpful" | "relate",
-): Promise<void> {
+): Promise<boolean> {
+  const userId = getCurrentUserId();
+  const existing = await db.feedReactions
+    .where({ postId, userId, type })
+    .first();
+
   const post = await db.feedPosts.get(postId);
-  if (!post) return;
+  if (!post) return false;
+
   const reactions = { ...post.reactions };
-  reactions[type] += 1;
-  await db.feedPosts.update(postId, { reactions });
+
+  if (existing) {
+    // Remove reaction
+    await db.feedReactions.delete(existing.id!);
+    reactions[type] = Math.max(0, reactions[type] - 1);
+    await db.feedPosts.update(postId, { reactions });
+    return false; // no longer reacted
+  } else {
+    // Add reaction
+    await db.feedReactions.add({ postId, userId, type });
+    reactions[type] += 1;
+    await db.feedPosts.update(postId, { reactions });
+    return true; // now reacted
+  }
 }
 
-/** Deletes a post if it belongs to the current user. */
+/** Get all reactions by the current user (for displaying filled/unfilled state). */
+export async function getUserReactions(): Promise<Set<string>> {
+  const userId = getCurrentUserId();
+  const reactions = await db.feedReactions.where("userId").equals(userId).toArray();
+  return new Set(reactions.map((r) => `${r.postId}-${r.type}`));
+}
+
+/** Deletes a post if it belongs to the current user. Also cleans up reactions. */
 export async function deletePost(postId: number): Promise<void> {
   const userId = getCurrentUserId();
   const post = await db.feedPosts.get(postId);
   if (post && post.userId === userId) {
+    await db.feedReactions.where("postId").equals(postId).delete();
     await db.feedPosts.delete(postId);
   }
 }

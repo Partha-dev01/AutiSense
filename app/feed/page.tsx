@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { createPost, listPosts, addReaction, deletePost } from "../lib/db/feed.repository";
+import { createPost, listPosts, toggleReaction, getUserReactions, deletePost } from "../lib/db/feed.repository";
 import { getCurrentUserId } from "../lib/identity/identity";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 import type { FeedPost } from "../types/feedPost";
 import NavLogo from "../components/NavLogo";
+import { Plus, X, Send, Trash2 } from "lucide-react";
 
 type Category = "all" | FeedPost["category"];
 
@@ -25,6 +26,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   resource: "var(--feature-lavender)",
 };
 
+const REACTION_CONFIG = [
+  { type: "heart" as const, emoji: "❤️", filledEmoji: "❤️", label: "Love" },
+  { type: "helpful" as const, emoji: "🙏", filledEmoji: "🙏", label: "Helpful" },
+  { type: "relate" as const, emoji: "🤝", filledEmoji: "🤝", label: "Relate" },
+];
+
 export default function FeedPage() {
   const { loading: authLoading, isAuthenticated } = useAuthGuard();
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -35,6 +42,8 @@ export default function FeedPage() {
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
+  const [showCompose, setShowCompose] = useState(false);
+  const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const saved =
@@ -52,8 +61,9 @@ export default function FeedPage() {
 
   const loadPosts = useCallback(async () => {
     try {
-      const all = await listPosts(100);
+      const [all, reactions] = await Promise.all([listPosts(100), getUserReactions()]);
       setPosts(all);
+      setUserReactions(reactions);
     } catch {
       // IndexedDB may not be available
     } finally {
@@ -79,6 +89,7 @@ export default function FeedPage() {
     try {
       await createPost(content.trim(), category, true);
       setContent("");
+      setShowCompose(false);
       await loadPosts();
     } catch {
       // Failed to create post
@@ -92,10 +103,10 @@ export default function FeedPage() {
     type: "heart" | "helpful" | "relate",
   ) => {
     try {
-      await addReaction(postId, type);
+      await toggleReaction(postId, type);
       await loadPosts();
     } catch {
-      // Failed to add reaction
+      // Failed to toggle reaction
     }
   };
 
@@ -122,6 +133,11 @@ export default function FeedPage() {
     return `${days}d ago`;
   };
 
+  const hasReacted = (postId: number | undefined, type: string) => {
+    if (postId == null) return false;
+    return userReactions.has(`${postId}-${type}`);
+  };
+
   return (
     <div className="page">
       {/* Nav */}
@@ -131,7 +147,7 @@ export default function FeedPage() {
           <button
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
             className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 16px", fontSize: "0.9rem", gap: 6 }}
+            style={{ minHeight: 40, padding: "8px 16px", fontSize: "0.9rem" }}
             aria-label="Toggle theme"
           >
             {theme === "light" ? "Dark" : "Light"}
@@ -149,131 +165,140 @@ export default function FeedPage() {
       {/* Main */}
       <div
         className="main fade fade-1"
-        style={{ maxWidth: 680, padding: "40px 28px 80px" }}
+        style={{ maxWidth: 680, padding: "32px 20px 100px" }}
       >
-        <h1 className="page-title">
-          Community <em>Feed</em>
-        </h1>
-        <p className="subtitle">
-          Share tips, celebrate milestones, and connect with other families. All posts are anonymous.
-        </p>
-
-        {/* New Post Form */}
-        <div
-          className="card fade fade-2"
-          style={{ padding: "24px 22px", marginBottom: 28 }}
-        >
-          <h3
+        {/* Header with title + new post button */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <h1 className="page-title" style={{ margin: 0 }}>
+            Community <em>Feed</em>
+          </h1>
+          <button
+            onClick={() => setShowCompose(!showCompose)}
+            className="btn btn-primary"
             style={{
-              fontFamily: "'Fredoka',sans-serif",
-              fontWeight: 600,
-              fontSize: "1rem",
-              marginBottom: 14,
-              color: "var(--text-primary)",
-            }}
-          >
-            Share Something
-          </h3>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write your post..."
-            className="input"
-            style={{
-              minHeight: 80,
-              resize: "vertical",
-              marginBottom: 14,
-              fontFamily: "'Nunito', sans-serif",
-            }}
-          />
-
-          <div
-            style={{
+              minHeight: 44,
+              padding: "8px 18px",
+              fontSize: "0.85rem",
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-              marginBottom: 14,
+              gap: 6,
+              borderRadius: "var(--r-full)",
             }}
           >
-            <span
-              style={{
-                fontSize: "0.85rem",
-                fontWeight: 700,
-                color: "var(--text-secondary)",
-              }}
-            >
-              Category:
-            </span>
-            {CATEGORIES.filter((c) => c.value !== "all").map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setCategory(c.value as FeedPost["category"])}
-                className="chip"
-                style={{
-                  marginBottom: 0,
-                  cursor: "pointer",
-                  background:
-                    category === c.value
-                      ? "var(--sage-400)"
-                      : "var(--sage-100)",
-                  color: category === c.value ? "white" : "var(--sage-600)",
-                  borderColor:
-                    category === c.value
-                      ? "var(--sage-400)"
-                      : "var(--sage-200)",
-                  transition: "all 200ms var(--ease)",
-                  border: "1.5px solid",
-                  borderRadius: "var(--r-full)",
-                  padding: "6px 14px",
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                }}
-              >
-                {c.emoji} {c.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={handlePost}
-            disabled={!content.trim() || posting}
-            className="btn btn-primary"
-            style={{ minHeight: 48, padding: "10px 28px" }}
-          >
-            {posting ? "Posting..." : "Post Anonymously"}
+            {showCompose ? <X size={18} /> : <Plus size={18} />}
+            {showCompose ? "Cancel" : "New Post"}
           </button>
         </div>
+        <p className="subtitle" style={{ marginBottom: 20 }}>
+          Share tips, celebrate milestones, and connect with other families.
+        </p>
+
+        {/* Compose Form (collapsible) */}
+        {showCompose && (
+          <div
+            className="card fade fade-1"
+            style={{ padding: "22px 20px", marginBottom: 22 }}
+          >
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="What's on your mind? All posts are anonymous..."
+              className="input"
+              style={{
+                minHeight: 80,
+                resize: "vertical",
+                marginBottom: 14,
+                fontFamily: "'Nunito', sans-serif",
+                fontSize: "0.92rem",
+              }}
+              autoFocus
+            />
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+                marginBottom: 14,
+              }}
+            >
+              {CATEGORIES.filter((c) => c.value !== "all").map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => setCategory(c.value as FeedPost["category"])}
+                  style={{
+                    cursor: "pointer",
+                    background:
+                      category === c.value
+                        ? "var(--sage-500)"
+                        : "var(--sage-100)",
+                    color: category === c.value ? "white" : "var(--sage-600)",
+                    border: "1.5px solid",
+                    borderColor:
+                      category === c.value
+                        ? "var(--sage-500)"
+                        : "var(--sage-200)",
+                    borderRadius: "var(--r-full)",
+                    padding: "5px 12px",
+                    fontSize: "0.78rem",
+                    fontWeight: 700,
+                    fontFamily: "'Fredoka',sans-serif",
+                    transition: "all 200ms var(--ease)",
+                  }}
+                >
+                  {c.emoji} {c.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handlePost}
+              disabled={!content.trim() || posting}
+              className="btn btn-primary"
+              style={{
+                minHeight: 44,
+                padding: "10px 24px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "0.88rem",
+              }}
+            >
+              <Send size={16} />
+              {posting ? "Posting..." : "Post Anonymously"}
+            </button>
+          </div>
+        )}
 
         {/* Category Filter */}
         <div
-          className="fade fade-3"
+          className="fade fade-2"
           style={{
             display: "flex",
             gap: 8,
             flexWrap: "wrap",
-            marginBottom: 24,
+            marginBottom: 20,
           }}
         >
           {CATEGORIES.map((c) => (
             <button
               key={c.value}
               onClick={() => setFilter(c.value)}
-              className="chip"
               style={{
-                marginBottom: 0,
                 cursor: "pointer",
                 background:
-                  filter === c.value ? "var(--sage-400)" : "var(--sage-100)",
+                  filter === c.value ? "var(--sage-500)" : "var(--sage-100)",
                 color: filter === c.value ? "white" : "var(--sage-600)",
-                borderColor:
-                  filter === c.value ? "var(--sage-400)" : "var(--sage-200)",
-                transition: "all 200ms var(--ease)",
                 border: "1.5px solid",
+                borderColor:
+                  filter === c.value ? "var(--sage-500)" : "var(--sage-200)",
                 borderRadius: "var(--r-full)",
                 padding: "6px 14px",
-                fontSize: "0.82rem",
+                fontSize: "0.8rem",
                 fontWeight: 700,
+                fontFamily: "'Fredoka',sans-serif",
+                transition: "all 200ms var(--ease)",
               }}
             >
               {c.emoji} {c.label}
@@ -290,20 +315,26 @@ export default function FeedPage() {
           <div
             className="card"
             style={{
-              padding: "40px 20px",
+              padding: "48px 20px",
               textAlign: "center",
               color: "var(--text-muted)",
             }}
           >
-            No posts yet. Be the first to share!
+            <div style={{ fontSize: "2rem", marginBottom: 12 }}>💬</div>
+            <p style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
+              No posts yet
+            </p>
+            <p style={{ fontSize: "0.85rem" }}>
+              Be the first to share something with the community!
+            </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {filtered.map((post) => (
               <div
                 key={post.id}
-                className="card"
-                style={{ padding: "22px 22px 16px" }}
+                className="card fade fade-2"
+                style={{ padding: "20px 20px 14px" }}
               >
                 {/* Header */}
                 <div
@@ -317,14 +348,14 @@ export default function FeedPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span
                       style={{
-                        width: 36,
-                        height: 36,
+                        width: 34,
+                        height: 34,
                         borderRadius: "50%",
                         background: CATEGORY_COLORS[post.category] || "var(--sage-100)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "0.9rem",
+                        fontSize: "0.85rem",
                       }}
                     >
                       {post.anonymous ? "🙈" : "👤"}
@@ -334,6 +365,7 @@ export default function FeedPage() {
                         style={{
                           fontSize: "0.82rem",
                           fontWeight: 700,
+                          fontFamily: "'Fredoka',sans-serif",
                           color: "var(--text-primary)",
                         }}
                       >
@@ -341,7 +373,7 @@ export default function FeedPage() {
                       </span>
                       <span
                         style={{
-                          fontSize: "0.78rem",
+                          fontSize: "0.75rem",
                           color: "var(--text-muted)",
                           marginLeft: 8,
                         }}
@@ -351,12 +383,14 @@ export default function FeedPage() {
                     </div>
                   </div>
                   <span
-                    className="chip"
                     style={{
-                      marginBottom: 0,
-                      fontSize: "0.75rem",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      fontFamily: "'Fredoka',sans-serif",
                       padding: "3px 10px",
+                      borderRadius: "var(--r-full)",
                       background: CATEGORY_COLORS[post.category] || "var(--sage-100)",
+                      color: "var(--text-primary)",
                     }}
                   >
                     {post.category}
@@ -366,10 +400,10 @@ export default function FeedPage() {
                 {/* Content */}
                 <p
                   style={{
-                    fontSize: "0.95rem",
+                    fontSize: "0.92rem",
                     color: "var(--text-primary)",
                     lineHeight: 1.7,
-                    marginBottom: 16,
+                    marginBottom: 14,
                     whiteSpace: "pre-wrap",
                   }}
                 >
@@ -382,89 +416,39 @@ export default function FeedPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    borderTop: "1.5px solid var(--border)",
-                    paddingTop: 12,
+                    borderTop: "1px solid var(--border)",
+                    paddingTop: 10,
                   }}
                 >
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <button
-                      onClick={() => post.id != null && handleReaction(post.id, "heart")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                        color: "var(--text-secondary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "4px 8px",
-                        borderRadius: "var(--r-sm)",
-                        transition: "background 200ms",
-                      }}
-                      onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "var(--sage-50)")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "none")
-                      }
-                    >
-                      ❤️ {post.reactions.heart}
-                    </button>
-                    <button
-                      onClick={() => post.id != null && handleReaction(post.id, "helpful")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                        color: "var(--text-secondary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "4px 8px",
-                        borderRadius: "var(--r-sm)",
-                        transition: "background 200ms",
-                      }}
-                      onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "var(--sage-50)")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "none")
-                      }
-                    >
-                      🙏 {post.reactions.helpful}
-                    </button>
-                    <button
-                      onClick={() => post.id != null && handleReaction(post.id, "relate")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                        color: "var(--text-secondary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "4px 8px",
-                        borderRadius: "var(--r-sm)",
-                        transition: "background 200ms",
-                      }}
-                      onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "var(--sage-50)")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "none")
-                      }
-                    >
-                      🤝 {post.reactions.relate}
-                    </button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {REACTION_CONFIG.map((r) => {
+                      const reacted = hasReacted(post.id, r.type);
+                      return (
+                        <button
+                          key={r.type}
+                          onClick={() => post.id != null && handleReaction(post.id, r.type)}
+                          style={{
+                            background: reacted ? "var(--sage-100)" : "none",
+                            border: reacted ? "1.5px solid var(--sage-300)" : "1.5px solid transparent",
+                            cursor: "pointer",
+                            fontSize: "0.82rem",
+                            color: reacted ? "var(--sage-700)" : "var(--text-secondary)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "4px 10px",
+                            borderRadius: "var(--r-full)",
+                            fontWeight: reacted ? 700 : 500,
+                            transition: "all 200ms var(--ease)",
+                          }}
+                        >
+                          {r.emoji}{" "}
+                          <span style={{ fontSize: "0.78rem" }}>
+                            {post.reactions[r.type]}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {post.userId === userId && (
@@ -474,21 +458,23 @@ export default function FeedPage() {
                         background: "none",
                         border: "none",
                         cursor: "pointer",
-                        fontSize: "0.78rem",
                         color: "var(--text-muted)",
                         padding: "4px 8px",
                         borderRadius: "var(--r-sm)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: "0.75rem",
                         transition: "color 200ms",
                       }}
                       onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLElement).style.color =
-                          "var(--peach-300)")
+                        ((e.currentTarget as HTMLElement).style.color = "var(--peach-300)")
                       }
                       onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLElement).style.color =
-                          "var(--text-muted)")
+                        ((e.currentTarget as HTMLElement).style.color = "var(--text-muted)")
                       }
                     >
+                      <Trash2 size={14} />
                       Delete
                     </button>
                   )}
@@ -498,6 +484,42 @@ export default function FeedPage() {
           </div>
         )}
       </div>
+
+      {/* Floating Action Button (mobile) — only shows when compose is hidden */}
+      {!showCompose && (
+        <button
+          onClick={() => setShowCompose(true)}
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: "var(--sage-500)",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            transition: "transform 200ms var(--ease), box-shadow 200ms var(--ease)",
+            zIndex: 50,
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.transform = "scale(1.1)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(0,0,0,0.2)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.15)";
+          }}
+          aria-label="New Post"
+        >
+          <Plus size={26} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }

@@ -7,3 +7,10 @@ export interface FeedPost {
   createdAt: number;
   anonymous: boolean;
 }
+
+export interface FeedReaction {
+  id?: number;
+  postId: number;
+  userId: string;
+  type: "heart" | "helpful" | "relate";
+}

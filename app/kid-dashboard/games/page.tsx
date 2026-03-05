@@ -15,7 +15,7 @@ const games = [
 ];
 
 const existingGames = [
-  { id: "emotion-match", emoji: "😊", title: "Emotion Match", description: "Match emoji faces to their emotion words.", color: "var(--feature-peach)" },
+  { id: "emotion-match", emoji: "🧠", title: "Emotion Quiz", description: "Read a situation and pick the right feeling. Builds emotional understanding.", color: "var(--feature-peach)" },
   { id: "sorting", emoji: "🗂️", title: "Category Sorting", description: "Drag items into the correct category.", color: "var(--feature-blue)" },
   { id: "sequence", emoji: "🎵", title: "Sequence Memory", description: "Remember and repeat color sequences.", color: "var(--feature-lavender)" },
   { id: "social-stories", emoji: "📖", title: "Social Stories", description: "Interactive social scenarios with choices.", color: "var(--feature-green)" },

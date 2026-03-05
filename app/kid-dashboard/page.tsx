@@ -33,7 +33,7 @@ const gameCards = [
   { id: "match-numbers", emoji: "🔢", title: "Numbers", color: "var(--feature-lavender)", isNew: true },
   { id: "memory", emoji: "🃏", title: "Memory", color: "var(--feature-peach)", isNew: true },
   { id: "social-stories-v2", emoji: "📖", title: "Stories", color: "var(--feature-green)", isNew: true },
-  { id: "emotion-match", emoji: "😊", title: "Emotions", color: "var(--feature-peach)" },
+  { id: "emotion-match", emoji: "🧠", title: "Emotions", color: "var(--feature-peach)" },
   { id: "sorting", emoji: "🗂️", title: "Sorting", color: "var(--feature-blue)" },
   { id: "sequence", emoji: "🎵", title: "Sequence", color: "var(--feature-lavender)" },
   { id: "breathing", emoji: "🌿", title: "Breathing", color: "var(--feature-green)" },
@@ -67,7 +67,7 @@ export default function KidDashboardPage() {
     const savedChild = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_CHILD_KEY) : null;
     const childId = savedChild && all.find((p) => p.id === savedChild)
       ? savedChild
-      : all[0]?.id || "";
+      : all[0]?.id || "default";
 
     if (childId) {
       setActiveChildId(childId);
