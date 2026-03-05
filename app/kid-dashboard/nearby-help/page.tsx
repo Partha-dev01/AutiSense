@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 import { DOCTORS, SPECIALTY_COLORS, type Doctor } from "../../lib/data/doctors";
 import { INSTITUTES, CATEGORY_LABELS, CATEGORY_COLORS, type Institute } from "../../lib/data/institutes";
 import NavLogo from "../../components/NavLogo";
+import UserMenu from "../../components/UserMenu";
+import ThemeToggle from "../../components/ThemeToggle";
+import type { MapMarker } from "../../components/LeafletMap";
+
+const LeafletMapDynamic = dynamic(() => import("../../components/LeafletMap"), { ssr: false });
 
 /* ─── Unified item type ─────────────────────────────────────────────── */
 
@@ -37,6 +43,7 @@ type NearbyItem =
       badgeLabel: string;
       badgeColor: string;
       category: Institute["category"];
+      isLive?: boolean;
     };
 
 /* ─── Normalize data into NearbyItem[] ──────────────────────────────── */
@@ -137,34 +144,48 @@ export default function NearbyHelpPage() {
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [MapComponent, setMapComponent] = useState<any>(null);
+  const [liveResults, setLiveResults] = useState<NearbyItem[]>([]);
+  const [liveLoading, setLiveLoading] = useState(false);
 
   /* Reset chips when toggle changes */
   useEffect(() => {
     setActiveChips(new Set());
   }, [view]);
 
-  /* Dynamically load Leaflet */
-  useEffect(() => {
-    async function loadLeaflet() {
-      try {
-        if (!document.querySelector('link[href*="leaflet"]')) {
-          const link = document.createElement("link");
-          link.rel = "stylesheet";
-          link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-          document.head.appendChild(link);
-        }
-        // @ts-expect-error — leaflet may not be installed
-        const L = await import(/* webpackIgnore: true */ "leaflet");
-        // @ts-expect-error — react-leaflet may not be installed
-        const RL = await import(/* webpackIgnore: true */ "react-leaflet");
-        setMapComponent({ L, RL });
-      } catch {
-        setMapComponent(null);
-      }
+  /* Fetch live results from Overpass API when geolocation is available */
+  const fetchLiveResults = useCallback(async (lat: number, lng: number) => {
+    setLiveLoading(true);
+    try {
+      const res = await fetch("/api/nearby", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng, radius: 15000 }),
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      const items: NearbyItem[] = (data.results || []).map(
+        (r: { id: number; name: string; lat: number; lng: number; type: string; phone?: string; website?: string }): NearbyItem => ({
+          type: "institute" as const,
+          name: r.name,
+          subtitle: r.type,
+          address: r.type,
+          city: "Nearby",
+          lat: r.lat,
+          lng: r.lng,
+          phone: r.phone,
+          website: r.website,
+          badgeLabel: r.type,
+          badgeColor: "#4d8058",
+          category: "hospital" as Institute["category"],
+          isLive: true,
+        }),
+      );
+      setLiveResults(items);
+    } catch {
+      setLiveResults([]);
+    } finally {
+      setLiveLoading(false);
     }
-    loadLeaflet();
   }, []);
 
   /* Geolocation */
@@ -176,12 +197,13 @@ export default function NearbyHelpPage() {
         setUserLat(pos.coords.latitude);
         setUserLng(pos.coords.longitude);
         setGeoLoading(false);
+        fetchLiveResults(pos.coords.latitude, pos.coords.longitude);
       },
       () => {
         setGeoLoading(false);
       },
     );
-  }, []);
+  }, [fetchLiveResults]);
 
   /* Visible chips based on current toggle */
   const visibleChips = useMemo<ChipDef[]>(() => {
@@ -200,9 +222,9 @@ export default function NearbyHelpPage() {
     });
   }, []);
 
-  /* Filtered items */
+  /* Filtered items (merge live results) */
   const filtered = useMemo(() => {
-    let list = ALL_ITEMS;
+    let list: NearbyItem[] = [...ALL_ITEMS, ...liveResults];
 
     /* View toggle */
     if (view === "doctors") list = list.filter((it) => it.type === "doctor");
@@ -226,7 +248,7 @@ export default function NearbyHelpPage() {
     }
 
     return list;
-  }, [view, activeChips, search]);
+  }, [view, activeChips, search, liveResults]);
 
   /* Sort by distance when available */
   const sortedFiltered = useMemo(() => {
@@ -260,13 +282,7 @@ export default function NearbyHelpPage() {
       <nav className="nav">
         <NavLogo />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem" }}
-          >
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
           <Link
             href="/kid-dashboard"
             className="btn btn-outline"
@@ -274,6 +290,7 @@ export default function NearbyHelpPage() {
           >
             Home
           </Link>
+          <UserMenu />
         </div>
       </nav>
 
@@ -401,24 +418,35 @@ export default function NearbyHelpPage() {
         </p>
 
         {/* ── Map ──────────────────────────────────────────────────── */}
-        {MapComponent && (
-          <div
-            className="fade fade-3"
-            style={{
-              height: 350,
-              borderRadius: "var(--r-lg)",
-              overflow: "hidden",
-              marginBottom: 20,
-              border: "1px solid var(--border)",
-            }}
-          >
-            <LeafletMap
-              modules={MapComponent}
-              items={sortedFiltered}
-              userLat={userLat}
-              userLng={userLng}
-            />
-          </div>
+        <div
+          className="fade fade-3"
+          style={{
+            marginBottom: 20,
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-lg)",
+            overflow: "hidden",
+          }}
+        >
+          <LeafletMapDynamic
+            center={userLat !== null && userLng !== null ? [userLat, userLng] : [20.5937, 78.9629]}
+            zoom={userLat !== null ? 10 : 5}
+            height={350}
+            markers={sortedFiltered.map((item, i): MapMarker => ({
+              id: `${item.type}-${i}`,
+              lat: item.lat,
+              lng: item.lng,
+              name: item.name,
+              type: item.badgeLabel,
+              phone: item.phone,
+              website: item.website,
+              isLive: item.type === "institute" && "isLive" in item && !!item.isLive,
+            }))}
+          />
+        </div>
+        {liveLoading && (
+          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: 12, textAlign: "center" }}>
+            Searching for nearby facilities...
+          </p>
         )}
 
         {/* ── List view ────────────────────────────────────────────── */}
@@ -476,6 +504,14 @@ export default function NearbyHelpPage() {
                   >
                     {item.type === "doctor" ? "Doctor" : "Institute"}
                   </span>
+                  {"isLive" in item && item.isLive && (
+                    <span style={{
+                      fontSize: "0.6rem", fontWeight: 700, padding: "2px 6px",
+                      borderRadius: "var(--r-full)", background: "var(--sage-500)", color: "#fff",
+                    }}>
+                      Live
+                    </span>
+                  )}
                 </div>
 
                 {/* Subtitle (hospital / category) */}
@@ -551,60 +587,3 @@ export default function NearbyHelpPage() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   LeafletMap Sub-component
-   ═══════════════════════════════════════════════════════════════════════ */
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function LeafletMap({
-  modules,
-  items,
-  userLat,
-  userLng,
-}: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  modules: any;
-  items: NearbyItem[];
-  userLat: number | null;
-  userLng: number | null;
-}) {
-  const { RL } = modules;
-  const { MapContainer, TileLayer, Marker, Popup } = RL;
-
-  const center: [number, number] =
-    userLat !== null && userLng !== null ? [userLat, userLng] : [20.5937, 78.9629]; // India center
-
-  const zoom = userLat !== null ? 10 : 5;
-
-  return (
-    <MapContainer center={center} zoom={zoom} style={{ width: "100%", height: "100%" }} scrollWheelZoom>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {items.map((item, i) => (
-        <Marker key={`${item.type}-${i}`} position={[item.lat, item.lng]}>
-          <Popup>
-            <strong>{item.name}</strong>
-            <br />
-            <span style={{ fontSize: "0.8em", color: item.badgeColor }}>{item.badgeLabel}</span>
-            <br />
-            {item.address}, {item.city}
-            <br />
-            {item.phone && (
-              <>
-                <a href={`tel:${item.phone}`}>{item.phone}</a>
-                <br />
-              </>
-            )}
-            {item.website && (
-              <a href={item.website} target="_blank" rel="noopener noreferrer">
-                Website
-              </a>
-            )}
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
-  );
-}

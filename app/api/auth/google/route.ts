@@ -30,7 +30,7 @@ export async function GET() {
     scope: google.scopes,
     state,
     access_type: "offline",
-    prompt: "consent",
+    prompt: "select_account",
   });
 
   const authorizationUrl = `${google.authUrl}?${params.toString()}`;

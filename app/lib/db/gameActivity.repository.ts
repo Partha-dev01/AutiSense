@@ -57,3 +57,23 @@ export async function getActivityRange(
 export async function getTotalGamesPlayed(childId: string): Promise<number> {
   return db.gameActivity.where("childId").equals(childId).count();
 }
+
+/** Get the most recently played unique game IDs for a child (max `limit`). */
+export async function getRecentGameIds(childId: string, limit: number = 4): Promise<string[]> {
+  const activities = await db.gameActivity
+    .where("childId")
+    .equals(childId)
+    .reverse()
+    .sortBy("completedAt");
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const a of activities) {
+    if (!seen.has(a.gameId)) {
+      seen.add(a.gameId);
+      result.push(a.gameId);
+      if (result.length >= limit) break;
+    }
+  }
+  return result;
+}

@@ -5,10 +5,12 @@ import { useState, useEffect, useRef } from "react";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 import AnimalAvatar from "../../components/AnimalAvatar";
 import { db } from "../../lib/db/schema";
+import { speakText, checkMicSupport } from "../../lib/audio/ttsHelper";
 import NavLogo from "../../components/NavLogo";
+import UserMenu from "../../components/UserMenu";
+import ThemeToggle from "../../components/ThemeToggle";
 
 type Animal = "dog" | "cat" | "rabbit" | "parrot";
-type Gender = "boy" | "girl";
 type Screen = "select" | "chat" | "end";
 interface ChatMsg { role: "user" | "assistant"; content: string }
 
@@ -33,13 +35,14 @@ export default function ChatPage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [screen, setScreen] = useState<Screen>("select");
   const [animal, setAnimal] = useState<Animal | null>(null);
-  const [gender, setGender] = useState<Gender>("boy");
   const [avatarState, setAvatarState] = useState<"idle" | "talking" | "happy" | "thinking">("idle");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [turnNumber, setTurnNumber] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [fallbackMode, setFallbackMode] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,20 +71,8 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ---- TTS playback ---- */
-  const playTTS = (text: string): Promise<void> => new Promise((resolve) => {
-    fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
-      .then((res) => (res.ok ? res.blob() : Promise.reject()))
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        if (audioRef.current) { audioRef.current.pause(); URL.revokeObjectURL(audioRef.current.src); }
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => resolve(); audio.onerror = () => resolve();
-        audio.play().catch(() => resolve());
-      })
-      .catch(() => resolve());
-  });
+  /* ---- TTS playback (Polly → browser fallback) ---- */
+  const playTTS = (text: string): Promise<void> => speakText(text);
 
   /* ---- fetch AI turn ---- */
   const fetchAIResponse = async (history: ChatMsg[], turn: number): Promise<{ text: string; shouldEnd: boolean }> => {
@@ -92,8 +83,10 @@ export default function ChatPage() {
       });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
+      if (data.fallback) setFallbackMode(true);
       return { text: data.text || "That was fun! Let's talk again soon!", shouldEnd: data.metadata?.shouldEnd === true };
     } catch {
+      setFallbackMode(true);
       return { text: "That was fun! Let's talk again soon!", shouldEnd: true };
     }
   };
@@ -146,8 +139,15 @@ export default function ChatPage() {
   };
 
   /* ---- voice input ---- */
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
+
+    const mic = await checkMicSupport();
+    if (!mic.supported || !mic.permitted) {
+      setMicError(mic.error || "Microphone not available");
+      return;
+    }
+    setMicError(null);
 
     const SR =
       (window as unknown as Record<string, unknown>).SpeechRecognition ||
@@ -188,16 +188,11 @@ export default function ChatPage() {
       <nav className="nav">
         <NavLogo />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem" }}
-          >
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
           <Link href="/kid-dashboard" className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem" }}>
             Home
           </Link>
+          <UserMenu />
         </div>
       </nav>
 
@@ -241,28 +236,6 @@ export default function ChatPage() {
               ))}
             </div>
 
-            {/* Gender toggle */}
-            <div style={{ display: "flex", justifyContent: "center", gap: 12, marginBottom: 28 }}>
-              {(["boy", "girl"] as Gender[]).map((g) => (
-                <button
-                  key={g}
-                  onClick={() => setGender(g)}
-                  className="btn"
-                  style={{
-                    minWidth: 100, minHeight: 56, padding: "10px 24px",
-                    fontFamily: fredoka, fontWeight: 600, fontSize: "1rem",
-                    borderRadius: "var(--r-lg)",
-                    background: gender === g ? "var(--sage-100)" : "var(--card)",
-                    border: gender === g ? "3px solid var(--sage-400)" : "2px solid var(--border)",
-                    color: "var(--text-primary)", cursor: "pointer",
-                    transition: "all 200ms var(--ease)",
-                  }}
-                >
-                  {g === "boy" ? "Boy" : "Girl"}
-                </button>
-              ))}
-            </div>
-
             <button
               onClick={startConversation}
               disabled={!animal}
@@ -282,7 +255,7 @@ export default function ChatPage() {
           <div className="fade fade-2" style={{ display: "flex", flexDirection: "column", minHeight: "60vh" }}>
             {/* Avatar header */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
-              <AnimalAvatar animal={animal} gender={gender} state={avatarState} size={120} />
+              <AnimalAvatar animal={animal} gender="boy"state={avatarState} size={120} />
               <h2 style={{
                 fontFamily: fredoka, fontWeight: 600, fontSize: "1.1rem",
                 color: "var(--text-primary)", margin: "12px 0 2px",
@@ -292,6 +265,16 @@ export default function ChatPage() {
               <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0, fontStyle: "italic" }}>
                 {animalInfo.personality}
               </p>
+              {fallbackMode && (
+                <span style={{
+                  display: "inline-block", marginTop: 6, padding: "3px 10px",
+                  borderRadius: "var(--r-md)", background: "var(--sage-50)",
+                  border: "1px solid var(--sage-200)", fontSize: "0.72rem",
+                  color: "var(--text-secondary)", fontWeight: 600,
+                }}>
+                  Offline mode — practice conversations
+                </span>
+              )}
             </div>
 
             {/* Messages container */}
@@ -390,6 +373,16 @@ export default function ChatPage() {
                 Listening... speak now!
               </p>
             )}
+
+            {micError && (
+              <div style={{
+                padding: "10px 16px", borderRadius: "var(--r-md)", marginTop: 8,
+                background: "var(--peach-100, #fff3e0)", border: "1px solid var(--peach-200, #ffe0b2)",
+                fontSize: "0.85rem", color: "var(--text-primary)",
+              }}>
+                {micError}
+              </div>
+            )}
           </div>
         )}
 
@@ -397,7 +390,7 @@ export default function ChatPage() {
         {screen === "end" && animal && animalInfo && (
           <div className="fade fade-2" style={{ textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-              <AnimalAvatar animal={animal} gender={gender} state="happy" size={120} />
+              <AnimalAvatar animal={animal} gender="boy"state="happy" size={120} />
             </div>
             <h1 className="page-title" style={{ fontFamily: fredoka }}>
               That was <em>fun!</em>

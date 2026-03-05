@@ -43,15 +43,12 @@ function buildDeck(pairCount: number): Card[] {
 }
 
 function getPairsForLevel(level: number): number {
-  if (level <= 1) return 3;
-  if (level <= 2) return 6;
-  return 8;
+  if (level <= 1) return 3;  // 6 cards — 3×2
+  return 4;                  // 8 cards — 3×3 (one slot empty)
 }
 
-function getGridCols(pairs: number): number {
-  if (pairs <= 3) return 3;  // 2x3
-  if (pairs <= 6) return 4;  // 3x4
-  return 4;                  // 4x4
+function getGridCols(): number {
+  return 3; // always 3 columns for a manageable grid
 }
 
 function playMatchSound() {
@@ -193,7 +190,7 @@ export default function MemoryGamePage() {
   );
 
   const finalScore = Math.min(100, Math.round((totalPairs / Math.max(1, attempts)) * 100));
-  const gridCols = getGridCols(totalPairs);
+  const gridCols = getGridCols();
 
   return (
     <div className="page">

@@ -30,11 +30,23 @@ export interface AuthSession {
 }
 
 // ─── AWS availability check ──────────────────────────────────────────
-function hasAWSCredentials(): boolean {
-  return !!(
-    process.env.AWS_ACCESS_KEY_ID &&
-    process.env.AWS_SECRET_ACCESS_KEY
-  );
+// On Amplify Lambda, credentials come via IAM role (SDK auto-detects).
+// Only fall back to in-memory when DynamoDB actually fails or in local dev
+// without any AWS config.
+let dynamoFailed = false;
+
+function shouldUseDynamo(): boolean {
+  if (dynamoFailed) return false;
+  // In local dev without any AWS config, skip DynamoDB
+  if (
+    process.env.NODE_ENV === "development" &&
+    !process.env.AWS_ACCESS_KEY_ID &&
+    !process.env.AWS_REGION
+  ) {
+    return false;
+  }
+  // In production (Amplify), always try DynamoDB — IAM role provides creds
+  return true;
 }
 
 // ─── In-memory fallback for local dev ────────────────────────────────
@@ -221,12 +233,10 @@ const dynamoAdapter = {
 
 // ─── Exported interface — auto-selects adapter ───────────────────────
 function getAdapter() {
-  if (hasAWSCredentials()) {
+  if (shouldUseDynamo()) {
     return dynamoAdapter;
   }
-  if (process.env.NODE_ENV === "development") {
-    console.warn("[auth/dynamodb] AWS credentials not found — using in-memory store");
-  }
+  console.warn("[auth/dynamodb] Using in-memory store (DynamoDB unavailable)");
   return memoryAdapter;
 }
 

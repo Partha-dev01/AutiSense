@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Home, Gamepad2, MessageCircle, BarChart3, MapPin } from "lucide-react";
 
 const tabs = [
-  { href: "/kid-dashboard", label: "Home", icon: "🏠" },
-  { href: "/kid-dashboard/games", label: "Games", icon: "🎮" },
-  { href: "/kid-dashboard/chat", label: "Chat", icon: "💬" },
-  { href: "/kid-dashboard/progress", label: "Progress", icon: "📊" },
-  { href: "/kid-dashboard/nearby-help", label: "Help", icon: "🏥" },
+  { href: "/kid-dashboard", label: "Home", Icon: Home },
+  { href: "/kid-dashboard/games", label: "Games", Icon: Gamepad2 },
+  { href: "/kid-dashboard/chat", label: "Chat", Icon: MessageCircle },
+  { href: "/kid-dashboard/progress", label: "Progress", Icon: BarChart3 },
+  { href: "/kid-dashboard/nearby-help", label: "Help", Icon: MapPin },
 ];
 
 export default function BottomNav() {
@@ -19,15 +20,18 @@ export default function BottomNav() {
       style={{
         position: "fixed",
         bottom: 0,
-        left: 0,
-        right: 0,
+        left: "50%",
+        transform: "translateX(-50%)",
         zIndex: 100,
         background: "var(--card)",
         borderTop: "1px solid var(--border)",
+        borderRadius: "20px 20px 0 0",
         display: "flex",
         justifyContent: "space-around",
         alignItems: "center",
         height: 64,
+        width: "100%",
+        maxWidth: 600,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
       }}
@@ -49,7 +53,6 @@ export default function BottomNav() {
               gap: 2,
               textDecoration: "none",
               color: isActive ? "var(--sage-600)" : "var(--text-muted)",
-              fontSize: "1.3rem",
               minWidth: 56,
               minHeight: 56,
               justifyContent: "center",
@@ -57,7 +60,7 @@ export default function BottomNav() {
               transition: "color 200ms var(--ease)",
             }}
           >
-            <span>{tab.icon}</span>
+            <tab.Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
             <span
               style={{
                 fontSize: "0.65rem",

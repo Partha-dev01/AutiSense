@@ -12,36 +12,44 @@ interface Props {
   backend: string;
   timeLeft: number;
   totalTime: number;
+  mode?: "countdown" | "elapsed";
+  elapsed?: number;
 }
 
-export default function DetectorResultsPanel({ result, isModelLoaded, backend, timeLeft, totalTime }: Props) {
+export default function DetectorResultsPanel({ result, isModelLoaded, backend, timeLeft, totalTime, mode = "countdown", elapsed: elapsedSec }: Props) {
   const asdRisk = result?.multimodal?.asdRisk ?? 0;
   const bodyRisk = result?.multimodal?.bodyRisk ?? 0;
   const faceRisk = result?.multimodal?.faceRisk ?? 0;
   const confidence = result?.multimodal?.confidence ?? 0;
   const riskPct = Math.round(asdRisk * 100);
   const riskColor = riskPct >= 70 ? "var(--peach-300)" : riskPct >= 40 ? "#d4a843" : "var(--sage-500)";
-  const progressPct = ((totalTime - timeLeft) / totalTime) * 100;
+  const progressPct = mode === "elapsed" ? 0 : ((totalTime - timeLeft) / totalTime) * 100;
+  const isElapsedMode = mode === "elapsed";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Timer progress */}
+      {/* Timer */}
       <div className="card" style={{ padding: "16px 20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: isElapsedMode ? 0 : 8 }}>
           <span style={{ fontWeight: 700, fontSize: "0.9rem", fontFamily: "'Fredoka',sans-serif" }}>
-            Screening Progress
+            {isElapsedMode ? "Elapsed" : "Screening Progress"}
           </span>
-          <span style={{ fontWeight: 700, fontSize: "0.9rem", color: timeLeft <= 30 ? "var(--peach-300)" : "var(--sage-500)" }}>
-            {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
+          <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--sage-500)" }}>
+            {isElapsedMode
+              ? `${Math.floor((elapsedSec ?? 0) / 60)}:${String((elapsedSec ?? 0) % 60).padStart(2, "0")}`
+              : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`
+            }
           </span>
         </div>
-        <div style={{ height: 8, background: "var(--sage-100)", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{
-            height: "100%", width: `${progressPct}%`,
-            background: "var(--sage-500)", borderRadius: 4,
-            transition: "width 1s linear",
-          }} />
-        </div>
+        {!isElapsedMode && (
+          <div style={{ height: 8, background: "var(--sage-100)", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{
+              height: "100%", width: `${progressPct}%`,
+              background: "var(--sage-500)", borderRadius: 4,
+              transition: "width 1s linear",
+            }} />
+          </div>
+        )}
       </div>
 
       {/* ASD Risk Gauge */}

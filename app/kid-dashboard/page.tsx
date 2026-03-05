@@ -5,9 +5,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 import { listProfiles } from "../lib/db/childProfile.repository";
 import { getStreak } from "../lib/db/streak.repository";
-import { getTodayActivity } from "../lib/db/gameActivity.repository";
+import { getTodayActivity, getRecentGameIds } from "../lib/db/gameActivity.repository";
 import StreakBadge from "../components/StreakBadge";
 import NavLogo from "../components/NavLogo";
+import UserMenu from "../components/UserMenu";
+import ThemeToggle from "../components/ThemeToggle";
+import { Mic, Camera, Bot, MapPin, ClipboardList, Users } from "lucide-react";
 import type { ChildProfile } from "../types/childProfile";
 import type { Streak } from "../types/gameActivity";
 
@@ -15,12 +18,12 @@ const ACTIVE_CHILD_KEY = "autisense-active-child-id";
 const DAILY_TARGET = 3;
 
 const quickLinks = [
-  { href: "/kid-dashboard/speech", emoji: "🗣️", label: "Speech", color: "var(--feature-peach)" },
-  { href: "/kid-dashboard/detection", emoji: "📹", label: "Detection", color: "var(--feature-blue)" },
-  { href: "/kid-dashboard/chat", emoji: "🐾", label: "AI Chat", color: "var(--feature-lavender)" },
-  { href: "/kid-dashboard/nearby-help", emoji: "🏥", label: "Nearby", color: "var(--feature-green)" },
-  { href: "/intake/profile", emoji: "📋", label: "Screening", color: "var(--feature-peach)" },
-  { href: "/feed", emoji: "💬", label: "Community", color: "var(--feature-blue)" },
+  { href: "/kid-dashboard/speech", icon: Mic, label: "Speech", color: "var(--feature-peach)" },
+  { href: "/kid-dashboard/detection", icon: Camera, label: "Detection", color: "var(--feature-blue)" },
+  { href: "/kid-dashboard/chat", icon: Bot, label: "AI Chat", color: "var(--feature-lavender)" },
+  { href: "/kid-dashboard/nearby-help", icon: MapPin, label: "Nearby", color: "var(--feature-green)" },
+  { href: "/intake/profile", icon: ClipboardList, label: "Screening", color: "var(--feature-peach)" },
+  { href: "/feed", icon: Users, label: "Community", color: "var(--feature-blue)" },
 ];
 
 const gameCards = [
@@ -44,6 +47,7 @@ export default function KidDashboardPage() {
   const [activeChildId, setActiveChildId] = useState<string>("");
   const [streak, setStreak] = useState<Streak>({ childId: "", currentStreak: 0, longestStreak: 0, lastPlayDate: "" });
   const [todayCount, setTodayCount] = useState(0);
+  const [recentGameIds, setRecentGameIds] = useState<string[]>([]);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
@@ -68,12 +72,14 @@ export default function KidDashboardPage() {
     if (childId) {
       setActiveChildId(childId);
       if (typeof window !== "undefined") localStorage.setItem(ACTIVE_CHILD_KEY, childId);
-      const [s, today] = await Promise.all([
+      const [s, today, recent] = await Promise.all([
         getStreak(childId),
         getTodayActivity(childId),
+        getRecentGameIds(childId, 4),
       ]);
       setStreak(s);
       setTodayCount(today.length);
+      setRecentGameIds(recent);
     }
   }, []);
 
@@ -84,12 +90,14 @@ export default function KidDashboardPage() {
   const switchChild = async (childId: string) => {
     setActiveChildId(childId);
     localStorage.setItem(ACTIVE_CHILD_KEY, childId);
-    const [s, today] = await Promise.all([
+    const [s, today, recent] = await Promise.all([
       getStreak(childId),
       getTodayActivity(childId),
+      getRecentGameIds(childId, 4),
     ]);
     setStreak(s);
     setTodayCount(today.length);
+    setRecentGameIds(recent);
   };
 
   const activeChild = profiles.find((p) => p.id === activeChildId);
@@ -109,13 +117,8 @@ export default function KidDashboardPage() {
       <nav className="nav">
         <NavLogo />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem" }}
-          >
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
+          <UserMenu />
         </div>
       </nav>
 
@@ -256,7 +259,7 @@ export default function KidDashboardPage() {
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1.04)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
             >
-              <span style={{ fontSize: "1.5rem" }}>{link.emoji}</span>
+              <link.icon size={24} strokeWidth={2} style={{ color: "var(--text-primary)" }} />
               <span
                 style={{
                   fontSize: "0.72rem",
@@ -271,104 +274,58 @@ export default function KidDashboardPage() {
           ))}
         </div>
 
-        {/* Games Grid */}
-        <h2
-          className="fade fade-4"
-          style={{
-            fontFamily: "'Fredoka',sans-serif",
-            fontWeight: 600,
-            fontSize: "1.15rem",
-            color: "var(--text-primary)",
-            marginBottom: 14,
-          }}
-        >
-          Games
-        </h2>
+        {/* Recent Games */}
+        <div className="fade fade-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.15rem", color: "var(--text-primary)", margin: 0 }}>
+            {recentGameIds.length > 0 ? "Recent Games" : "Featured Games"}
+          </h2>
+          <Link href="/kid-dashboard/games" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--sage-500)", textDecoration: "none" }}>
+            See All →
+          </Link>
+        </div>
         <div
           className="fade fade-4"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(4, 1fr)",
             gap: 12,
           }}
         >
-          {gameCards.map((game) => {
-            const href = game.isNew
-              ? `/kid-dashboard/games/${game.id}`
-              : `/games/${game.id}`;
-
-            return (
-              <Link
-                key={game.id}
-                href={href}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "20px 12px",
-                  borderRadius: "var(--r-lg)",
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  textDecoration: "none",
-                  position: "relative",
-                  transition: "transform 250ms var(--ease), box-shadow 250ms var(--ease)",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-                  (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
-                }}
-              >
-                {game.isNew && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 6,
-                      right: 6,
-                      fontSize: "0.6rem",
-                      fontWeight: 700,
-                      background: "var(--sage-500)",
-                      color: "white",
-                      padding: "2px 6px",
-                      borderRadius: "var(--r-full)",
-                      fontFamily: "'Fredoka',sans-serif",
-                    }}
-                  >
-                    NEW
+          {(() => {
+            const DEFAULT_IDS = ["bubble-pop", "memory", "emotion-match", "breathing"];
+            const displayIds = recentGameIds.length > 0 ? recentGameIds.slice(0, 4) : DEFAULT_IDS;
+            return displayIds.map((id) => {
+              const game = gameCards.find((g) => g.id === id) || gameCards[0];
+              const href = game.isNew ? `/kid-dashboard/games/${game.id}` : `/games/${game.id}`;
+              return (
+                <Link
+                  key={game.id}
+                  href={href}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                    padding: "16px 8px", borderRadius: "var(--r-lg)", background: "var(--card)",
+                    border: "1px solid var(--border)", textDecoration: "none",
+                    transition: "transform 250ms var(--ease), box-shadow 250ms var(--ease)",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+                >
+                  <div style={{
+                    width: 48, height: 48, borderRadius: "var(--r-md)", background: game.color,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem",
+                  }}>
+                    {game.emoji}
+                  </div>
+                  <span style={{
+                    fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.78rem",
+                    color: "var(--text-primary)", textAlign: "center",
+                  }}>
+                    {game.title}
                   </span>
-                )}
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "var(--r-md)",
-                    background: game.color,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1.4rem",
-                  }}
-                >
-                  {game.emoji}
-                </div>
-                <span
-                  style={{
-                    fontFamily: "'Fredoka',sans-serif",
-                    fontWeight: 600,
-                    fontSize: "0.82rem",
-                    color: "var(--text-primary)",
-                    textAlign: "center",
-                  }}
-                >
-                  {game.title}
-                </span>
-              </Link>
-            );
-          })}
+                </Link>
+              );
+            });
+          })()}
         </div>
       </div>
     </div>

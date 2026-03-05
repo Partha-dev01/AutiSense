@@ -7,10 +7,12 @@ import DetectorResultsPanel from "../../components/DetectorResultsPanel";
 import { useDetectorInference } from "../../hooks/useDetectorInference";
 import { getUserMediaWithFallback, getCameraErrorMessage } from "../../lib/camera/cameraUtils";
 import NavLogo from "../../components/NavLogo";
+import UserMenu from "../../components/UserMenu";
+import ThemeToggle from "../../components/ThemeToggle";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 import type { PipelineResult } from "../../types/inference";
 
-const LARGE_TOTAL = 3600; // 1 hour — used so DetectorResultsPanel progress bar works
+// Detection uses "elapsed" mode — no countdown needed
 
 export default function DetectionPage() {
   const { loading: authLoading, isAuthenticated } = useAuthGuard();
@@ -174,14 +176,7 @@ export default function DetectionPage() {
       <nav className="nav">
         <NavLogo />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem" }}
-            aria-label="Toggle theme"
-          >
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
           <Link
             href="/kid-dashboard"
             className="btn btn-outline"
@@ -189,6 +184,7 @@ export default function DetectionPage() {
           >
             Home
           </Link>
+          <UserMenu />
         </div>
       </nav>
 
@@ -404,8 +400,10 @@ export default function DetectionPage() {
                 result={result}
                 isModelLoaded={isModelLoaded}
                 backend={backend}
-                timeLeft={LARGE_TOTAL - elapsed}
-                totalTime={LARGE_TOTAL}
+                timeLeft={0}
+                totalTime={1}
+                mode="elapsed"
+                elapsed={elapsed}
               />
             </div>
           </div>

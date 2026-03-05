@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+import { speakText } from "../../lib/audio/ttsHelper";
 import NavLogo from "../../components/NavLogo";
 
 type Screen = "start" | "play" | "result";
@@ -22,9 +23,25 @@ const COLORS: ColorItem[] = [
   { name: "Orange", hex: "#ff8a65", frequency: 349 },
 ];
 
-function playTone(frequency: number, duration: number = 400, onPlayingChange?: (playing: boolean) => void) {
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    if (sharedAudioCtx && sharedAudioCtx.state !== "closed") {
+      if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+      return sharedAudioCtx;
+    }
+    sharedAudioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    return sharedAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+function playTone(frequency: number, duration: number = 400, onPlayingChange?: (playing: boolean) => void) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
@@ -84,15 +101,21 @@ export default function ColorSoundPage() {
       setFeedback(null);
       setHintText(`Tap the ${target.name} color`);
 
-      // Play the tone after a short delay
+      // Play tone + voice cue after a short delay
       setTimeout(() => {
         playTone(target.frequency, 500, setIsPlaying);
+        // Speak the instruction after tone finishes
+        setTimeout(() => {
+          speakText(`Tap the ${target.name} color`);
+        }, 550);
       }, 400);
     },
     [],
   );
 
   const startGame = useCallback(() => {
+    // Initialize AudioContext on user gesture to avoid autoplay blocking
+    getAudioCtx();
     const config = getDifficulty("color-sound", "default");
     setMaxRounds(config.itemCount);
     setRound(1);
@@ -136,6 +159,9 @@ export default function ColorSoundPage() {
   const replaySound = () => {
     if (targetColor) {
       playTone(targetColor.frequency, 500, setIsPlaying);
+      setTimeout(() => {
+        speakText(`Tap the ${targetColor.name} color`);
+      }, 550);
     }
   };
 

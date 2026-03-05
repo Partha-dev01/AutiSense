@@ -125,39 +125,47 @@ function buildFallbackTurn(
 ): ConversationResponse {
   const prefix = (animalPersonality && PERSONALITY_PREFIX[animalPersonality]) || "";
 
-  const fallback: Array<Omit<ConversationResponse, "fallback">> = [
-    {
-      text: `${prefix}Hi ${childName}! I'm so happy to talk with you today! Are you ready to play a fun game with me?`,
-      metadata: { turnType: "greeting", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" },
-    },
-    {
-      text: `${prefix}Awesome! Let's start with something fun. Can you wave hello to me?`,
-      metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "wave" },
-    },
-    {
-      text: `${prefix}Great job! Now tell me, what color is the sky?`,
-      metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" },
-    },
-    {
-      text: `${prefix}You're doing so well! Can you say the word banana for me?`,
-      metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" },
-    },
-    {
-      text: `${prefix}That's wonderful! Now let's try something silly. Can you touch your nose?`,
-      metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "touch_nose" },
-    },
-    {
-      text: `${prefix}You're a superstar! What's your favorite animal?`,
-      metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" },
-    },
-    {
-      text: `${prefix}You did such an amazing job, ${childName}! Thank you so much for talking with me today! You're wonderful!`,
-      metadata: { turnType: "farewell", expectsResponse: false, responseRelevance: 0.5, shouldEnd: true, domain: "general" },
-    },
+  // Multiple greeting/question pools for variety
+  const greetings = [
+    `${prefix}Hi ${childName}! I'm so happy to talk with you today! Are you ready to play a fun game with me?`,
+    `${prefix}Hello ${childName}! It's so nice to meet you! Do you want to have some fun together?`,
+    `${prefix}Hey there, ${childName}! I've been waiting to play with you! Shall we get started?`,
   ];
 
-  const idx = Math.min(turnNumber, fallback.length - 1);
-  return { ...fallback[idx], fallback: true };
+  const midQuestions: Array<Omit<ConversationResponse, "fallback">> = [
+    { text: `${prefix}Awesome! Let's start with something fun. Can you wave hello to me?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "wave" } },
+    { text: `${prefix}Great job! Now tell me, what color is the sky?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
+    { text: `${prefix}You're doing so well! Can you say the word butterfly for me?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
+    { text: `${prefix}That's wonderful! Can you clap your hands for me?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "clap" } },
+    { text: `${prefix}You're a superstar! What's your favorite animal?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
+    { text: `${prefix}Amazing! Can you count to three with me? One, two...`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
+    { text: `${prefix}That's great! Now let's try something silly. Can you touch your nose?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "touch_nose" } },
+    { text: `${prefix}So cool! What's your favorite food?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
+    { text: `${prefix}Nice! Can you tell me what sound a cat makes?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
+    { text: `${prefix}You're doing great! Can you raise your arms up high?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "raise_arms" } },
+  ];
+
+  const farewell: Omit<ConversationResponse, "fallback"> = {
+    text: `${prefix}You did such an amazing job, ${childName}! Thank you so much for talking with me today! You're wonderful!`,
+    metadata: { turnType: "farewell", expectsResponse: false, responseRelevance: 0.5, shouldEnd: true, domain: "general" },
+  };
+
+  if (turnNumber === 0) {
+    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+    return {
+      text: greeting,
+      metadata: { turnType: "greeting", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" },
+      fallback: true,
+    };
+  }
+
+  if (turnNumber >= 6) {
+    return { ...farewell, fallback: true };
+  }
+
+  // Pick from mid-questions, cycling through with some randomness
+  const poolIdx = (turnNumber - 1) % midQuestions.length;
+  return { ...midQuestions[poolIdx], fallback: true };
 }
 
 /* ------------------------------------------------------------------ */

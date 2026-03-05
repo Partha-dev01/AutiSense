@@ -75,7 +75,8 @@ export default function BubblePopPage() {
   const spawnBubble = useCallback(
     (currentTarget: string, idStart: number, count: number): Bubble[] => {
       const result: Bubble[] = [];
-      const targetIdx = Math.random() < 0.5 ? Math.floor(Math.random() * count) : -1;
+      // Always guarantee at least one target bubble in each spawn
+      const targetIdx = Math.floor(Math.random() * count);
 
       for (let i = 0; i < count; i++) {
         const isTarget = i === targetIdx;
@@ -133,21 +134,35 @@ export default function BubblePopPage() {
     return () => clearInterval(iv);
   }, [screen, startTime]);
 
-  // Spawn new bubbles periodically
+  // Spawn new bubbles periodically — ensure at least 1 is always visible
   useEffect(() => {
     if (screen !== "play") return;
     const interval = Math.max(1200, 2800 - speedMult * 400);
     const iv = setInterval(() => {
       setBubbles((prev) => {
         const active = prev.filter((b) => !b.popped);
+        // Always spawn if no active bubbles (prevents blank screen)
         if (active.length >= maxBubbles) return prev;
-        const count = Math.min(2, maxBubbles - active.length);
+        const count = active.length === 0
+          ? Math.min(3, maxBubbles)
+          : Math.min(2, maxBubbles - active.length);
         const spawned = spawnBubble(target, nextId, count);
         setNextId((n) => n + count);
         return [...prev, ...spawned];
       });
     }, interval);
-    return () => clearInterval(iv);
+    // Also check more frequently for empty screen
+    const fastCheck = setInterval(() => {
+      setBubbles((prev) => {
+        const active = prev.filter((b) => !b.popped);
+        if (active.length > 0) return prev;
+        const count = Math.min(2, maxBubbles);
+        const spawned = spawnBubble(target, nextId, count);
+        setNextId((n) => n + count);
+        return [...prev, ...spawned];
+      });
+    }, 500);
+    return () => { clearInterval(iv); clearInterval(fastCheck); };
   }, [screen, target, nextId, maxBubbles, speedMult, spawnBubble]);
 
   // Clean up old popped bubbles
@@ -218,6 +233,10 @@ export default function BubblePopPage() {
           50% { transform: translateX(4px); }
           75% { transform: translateX(-3px); }
         }
+        @keyframes targetPulse {
+          0%, 100% { box-shadow: 0 0 0 0 var(--sage-200); }
+          50% { box-shadow: 0 0 0 8px transparent; }
+        }
       `}</style>
 
       <nav className="nav">
@@ -273,11 +292,12 @@ export default function BubblePopPage() {
             </div>
 
             <div style={{
-              fontFamily: "'Fredoka',sans-serif", fontSize: "1.4rem", fontWeight: 600,
-              color: "var(--text-primary)", marginBottom: 16, padding: "12px 20px",
-              background: "var(--sage-50)", borderRadius: "var(--r-lg)", border: "2px solid var(--sage-200)",
+              fontFamily: "'Fredoka',sans-serif", fontSize: "1.5rem", fontWeight: 600,
+              color: "var(--text-primary)", marginBottom: 16, padding: "14px 24px",
+              background: "var(--sage-50)", borderRadius: "var(--r-lg)", border: "3px solid var(--sage-300)",
+              animation: "targetPulse 2s ease-in-out infinite",
             }}>
-              Pop the <span style={{ color: "var(--sage-500)", fontSize: "1.6rem" }}>{target}</span>!
+              Pop the <span style={{ color: "var(--sage-500)", fontSize: "2.2rem", fontWeight: 700 }}>{target}</span>!
             </div>
 
             <div style={{

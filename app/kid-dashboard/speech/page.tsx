@@ -6,7 +6,10 @@ import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine"
 import { addGameActivity } from "../../lib/db/gameActivity.repository";
 import { updateStreak } from "../../lib/db/streak.repository";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
+import { speakText, checkMicSupport } from "../../lib/audio/ttsHelper";
 import NavLogo from "../../components/NavLogo";
+import UserMenu from "../../components/UserMenu";
+import ThemeToggle from "../../components/ThemeToggle";
 
 type Screen = "start" | "play" | "result";
 
@@ -41,6 +44,7 @@ export default function SpeechPracticePage() {
   const [listening, setListening] = useState(false);
   const [saved, setSaved] = useState(false);
   const [hasSpeechApi, setHasSpeechApi] = useState(true);
+  const [micError, setMicError] = useState<string | null>(null);
   const [playingAudio, setPlayingAudio] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -66,18 +70,22 @@ export default function SpeechPracticePage() {
 
   /* ---------- fetch words ---------- */
   const fetchWords = useCallback(async (count: number): Promise<string[]> => {
+    const needed = Math.max(3, count); // always at least 3 words
     try {
       const res = await fetch("/api/chat/generate-words", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "words", ageMonths: 60 }),
+        body: JSON.stringify({ mode: "words", ageMonths: 60, count: needed }),
       });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      const list: string[] = Array.isArray(data.words) ? data.words : FALLBACK_WORDS;
-      return shuffle(list).slice(0, count);
+      // API returns { items: [{text, emoji}] } not { words: [] }
+      const list: string[] = Array.isArray(data.items)
+        ? data.items.map((i: { text: string }) => i.text)
+        : FALLBACK_WORDS;
+      return shuffle(list).slice(0, needed);
     } catch {
-      return shuffle([...FALLBACK_WORDS]).slice(0, count);
+      return shuffle([...FALLBACK_WORDS]).slice(0, needed);
     }
   }, []);
 
@@ -99,28 +107,26 @@ export default function SpeechPracticePage() {
     setScreen("play");
   }, [fetchWords]);
 
-  /* ---------- play pronunciation ---------- */
+  /* ---------- play pronunciation (uses Polly → browser TTS fallback) ---------- */
   const playWord = useCallback(async (word: string) => {
     if (playingAudio) return;
     setPlayingAudio(true);
     try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: word }),
-      });
-      if (!res.ok) throw new Error("TTS error");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); setPlayingAudio(false); };
-      audio.onerror = () => { URL.revokeObjectURL(url); setPlayingAudio(false); };
-      await audio.play();
-    } catch {
+      await speakText(word);
+    } finally {
       setPlayingAudio(false);
     }
   }, [playingAudio]);
+
+  /* ---------- auto-play word when it changes ---------- */
+  useEffect(() => {
+    if (screen === "play" && currentWord) {
+      // Small delay so UI renders first
+      const t = setTimeout(() => playWord(currentWord), 400);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, wordIdx]);
 
   const advanceWord = useCallback(() => {
     if (wordIdx + 1 < words.length) { setWordIdx((i) => i + 1); setFeedback(null); setFeedbackOk(false); }
@@ -128,7 +134,15 @@ export default function SpeechPracticePage() {
   }, [wordIdx, words.length]);
 
   /* ---------- speech recognition attempt ---------- */
-  const attemptSpeech = useCallback(() => {
+  const attemptSpeech = useCallback(async () => {
+    // Check mic permissions first
+    const mic = await checkMicSupport();
+    if (!mic.supported || !mic.permitted) {
+      setMicError(mic.error || "Microphone not available");
+      return;
+    }
+    setMicError(null);
+
     const SR = (window as unknown as Record<string, unknown>).SpeechRecognition
       || (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
     if (!SR) return;
@@ -151,14 +165,14 @@ export default function SpeechPracticePage() {
         setFeedbackOk(true);
         setTimeout(advanceWord, 1500);
       } else {
-        setFeedback("Good try! Let\u2019s try again.");
+        setFeedback(`Good try! You said "${e.results[0][0].transcript}". Let\u2019s try again.`);
         setFeedbackOk(false);
       }
     };
 
     recognition.onerror = () => {
       setListening(false);
-      setFeedback("Good try! Let\u2019s try again.");
+      setFeedback("Could not hear you. Try again closer to the mic.");
       setFeedbackOk(false);
     };
 
@@ -195,14 +209,7 @@ export default function SpeechPracticePage() {
       <nav className="nav">
         <NavLogo />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 16px", fontSize: "0.9rem" }}
-            aria-label="Toggle theme"
-          >
-            {theme === "light" ? "Dark" : "Light"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
           <Link
             href="/kid-dashboard"
             className="btn btn-outline"
@@ -210,6 +217,7 @@ export default function SpeechPracticePage() {
           >
             Home
           </Link>
+          <UserMenu />
         </div>
       </nav>
 
@@ -293,6 +301,16 @@ export default function SpeechPracticePage() {
               }}>
                 {feedbackOk && <span style={{ fontSize: "1.6rem", marginRight: 8 }}>{"\u2705"}</span>}
                 {feedback}
+              </div>
+            )}
+
+            {micError && (
+              <div style={{
+                padding: "10px 16px", borderRadius: "var(--r-md)",
+                background: "var(--peach-100, #fff3e0)", border: "1px solid var(--peach-200, #ffe0b2)",
+                fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: 12,
+              }}>
+                {micError}
               </div>
             )}
 
