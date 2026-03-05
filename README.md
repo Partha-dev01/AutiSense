@@ -44,26 +44,30 @@ Cloud
 | On-Device AI | ONNX Runtime Web |
 | Cloud Database | AWS DynamoDB |
 | AI Reports | Amazon Bedrock |
-| Auth (Planned) | BetterAuth |
+| Auth | Custom Google OAuth 2.0 + DynamoDB sessions |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-/app          → Routes & API endpoints
-/components   → Pure UI components
-/lib
-  /identity   → Anonymous → BetterAuth-ready ID abstraction
-  /db         → Dexie schema & setup
-  /sync       → Offline sync logic
-  /ai         → Client-side AI utilities
-/server
-  /aws        → DynamoDB & Bedrock clients
-  /repositories
-  /services
-/workers      → ONNX inference Web Worker
-/types        → Shared domain models
+/app
+  /api           → 15 API routes (auth, chat, feed, nearby, report, sync, tts)
+  /auth          → Login page
+  /components    → 11 shared UI components
+  /contexts      → AuthContext (Google OAuth)
+  /dashboard     → Clinician dashboard + child profiles
+  /feed          → Community feed (posts, reactions)
+  /games         → 7 therapy games (clinician-facing)
+  /hooks         → 4 custom hooks (auth, camera, inference)
+  /intake        → 10-step screening flow
+  /kid-dashboard → Kids dashboard (7 games, AI chat, progress, reports, map)
+  /lib           → Business logic (auth, aws, camera, db, games, inference, reports, scoring, sync)
+  /types         → 6 type modules (biomarker, session, inference, etc.)
+/public          → Static assets + 4 ONNX models (~47MB)
+/server          → Lambda handler + DynamoDB setup script
+/tests           → 2 Playwright spec files (32 tests)
+/workers         → ONNX inference Web Worker
 ```
 
 ---
@@ -85,6 +89,10 @@ Cloud
   gazeScore: number,
   motorScore: number,
   vocalizationScore: number,
+  responseLatencyMs: number,
+  asdRiskScore: number,
+  bodyBehaviorClass: string,
+  faceBehaviorClass: string,
   timestamp: number
 }
 ```
@@ -93,8 +101,8 @@ Cloud
 
 ## 🔐 Identity Strategy
 
-**MVP:** Anonymous device-based `userId` (localStorage)  
-**Production:** Drop-in replacement via BetterAuth — no business logic changes required
+**MVP:** Anonymous device-based `userId` (localStorage)
+**Production:** Google OAuth 2.0 with DynamoDB sessions (implemented)
 
 ---
 

@@ -47,7 +47,7 @@ Browser (Client)
 │   ├── Dashboard + child profiles
 │   ├── 7 therapy games
 │   ├── Community feed
-│   ├── IndexedDB (Dexie v3)
+│   ├── IndexedDB (Dexie v5, 10 tables)
 │   └── DynamoDB sync bridge
 │
 └── Web Worker (InferenceWorker.ts)
@@ -63,7 +63,11 @@ Server (Amplify SSR / Lambda)
 ├── POST /api/report/pdf        → pdf-lib PDF generation
 ├── POST /api/tts               → Amazon Polly
 ├── GET/POST /api/auth/*        → Google OAuth + DynamoDB sessions
-└── GET/POST /api/feed          → Community feed CRUD
+├── GET/POST /api/feed          → Community feed CRUD
+├── POST /api/sync              → DynamoDB session sync
+├── POST /api/chat/generate-words → Dynamic word/sentence generation
+├── GET  /api/nearby            → Overpass API for nearby institutes
+└── GET  /api/report/weekly     → Weekly progress report generation
 ```
 
 ---
@@ -89,6 +93,194 @@ Server (Amplify SSR / Lambda)
 
 ---
 
+## Project Structure
+
+```
+AutiSense_2/
+├── .env.local                          — Local environment variables (not committed)
+├── .env.local.example                  — Template for required env vars
+├── .nvmrc                              — Node.js version pin
+├── DOCS.md                             — Full project documentation (this file)
+├── LICENSE                             — MIT license
+├── README.md                           — Quick-start readme
+├── SETUP_GUIDE.md                      — Deployment reference & AWS setup
+├── amplify.yml                         — AWS Amplify build config
+├── eslint.config.mjs                   — ESLint flat config (React 19 rules)
+├── next-env.d.ts                       — Next.js TypeScript declarations
+├── next.config.ts                      — Next.js config (env vars, headers, webpack)
+├── package.json                        — Dependencies & scripts
+├── playwright.config.ts                — Playwright test config
+├── postcss.config.mjs                  — PostCSS config (Tailwind v4)
+├── tsconfig.json                       — TypeScript config
+│
+├── app/
+│   ├── page.tsx                        — Landing page (feature cards, auth-aware CTA)
+│   ├── layout.tsx                      — Root layout (fonts, viewport, theme, providers)
+│   ├── globals.css                     — Design system (sage palette, CSS vars, Tailwind)
+│   ├── favicon.ico                     — App favicon
+│   │
+│   ├── api/
+│   │   ├── auth/
+│   │   │   ├── google/route.ts         — Initiate Google OAuth with CSRF state
+│   │   │   ├── callback/google/route.ts — OAuth callback, upsert user, create session
+│   │   │   ├── session/route.ts        — Get current authenticated user
+│   │   │   └── logout/route.ts         — Delete session cookie + DynamoDB record
+│   │   ├── chat/
+│   │   │   ├── conversation/route.ts   — AI chat via Bedrock Nova Lite
+│   │   │   └── generate-words/route.ts — Dynamic word/sentence generation
+│   │   ├── feed/route.ts               — Community feed CRUD (placeholder, uses IndexedDB)
+│   │   ├── nearby/route.ts             — Overpass API proxy for nearby institutes
+│   │   ├── report/
+│   │   │   ├── summary/route.ts        — Bedrock Nova Lite session summary
+│   │   │   ├── clinical/route.ts       — Bedrock Command R+ clinical report
+│   │   │   ├── pdf/route.ts            — PDF generation via pdf-lib
+│   │   │   └── weekly/route.ts         — Weekly progress report generation
+│   │   ├── sync/route.ts               — Upload session + biomarkers to DynamoDB
+│   │   └── tts/route.ts                — Text-to-speech via Amazon Polly
+│   │
+│   ├── auth/login/page.tsx             — Login page (Google button + privacy card)
+│   │
+│   ├── components/
+│   │   ├── AnimalAvatar.tsx            — SVG animal avatars with CSS animations (4 animals)
+│   │   ├── BottomNav.tsx               — Mobile bottom tab navigation (Lucide icons)
+│   │   ├── DetectorResultsPanel.tsx    — Inference results display (body/face/fusion)
+│   │   ├── DetectorVideoCanvas.tsx     — Video canvas with skeleton overlay
+│   │   ├── LeafletMap.tsx              — Interactive map (dynamic import, no SSR)
+│   │   ├── NavLogo.tsx                 — Logo/branding component
+│   │   ├── Providers.tsx               — Root context provider wrapper
+│   │   ├── SkipStageDialog.tsx         — Confirmation modal for skipping intake stages
+│   │   ├── StreakBadge.tsx             — Daily streak counter display
+│   │   ├── ThemeToggle.tsx             — Light/dark theme switch (Sun/Moon icons)
+│   │   └── UserMenu.tsx               — Top-right user menu with backdrop overlay
+│   │
+│   ├── contexts/AuthContext.tsx         — React context for Google OAuth auth state
+│   │
+│   ├── dashboard/
+│   │   ├── page.tsx                    — Clinician dashboard (session history, charts)
+│   │   └── child/[id]/page.tsx         — Individual child profile with bar charts
+│   │
+│   ├── feed/page.tsx                   — Community feed (posts, reactions, FAB compose)
+│   │
+│   ├── games/
+│   │   ├── page.tsx                    — Games hub (7 therapy games)
+│   │   ├── breathing/page.tsx          — Calm Breathing (guided breathing exercise)
+│   │   ├── color-sound/page.tsx        — Color & Sound (multisensory association)
+│   │   ├── emotion-match/page.tsx      — Emotion Quiz (scenario-based, 20 scenarios)
+│   │   ├── pattern-match/page.tsx      — Pattern Match (visual discrimination)
+│   │   ├── sequence/page.tsx           — Sequence Memory (Simon Says)
+│   │   ├── social-stories/page.tsx     — Social Stories (social interaction scenarios)
+│   │   └── sorting/page.tsx            — Category Sorting (classification)
+│   │
+│   ├── hooks/
+│   │   ├── useAuth.ts                  — Read auth context hook
+│   │   ├── useAuthGuard.ts             — Redirect if not authenticated
+│   │   ├── useActionCamera.ts          — Camera + YOLO + action detection hook
+│   │   └── useDetectorInference.ts     — Real-time detector inference with FPS tracking
+│   │
+│   ├── intake/
+│   │   ├── profile/page.tsx            — Step 1: Welcome & privacy consent
+│   │   ├── child-profile/page.tsx      — Step 2: Child info (name, age, language)
+│   │   ├── device-check/page.tsx       — Step 3: Camera + microphone verification
+│   │   ├── communication/page.tsx      — Step 4: Word Echo (speech recognition)
+│   │   ├── behavioral-observation/page.tsx — Step 5: Bubble Pop (reaction time)
+│   │   ├── preparation/page.tsx        — Step 6: Action Challenge (YOLO motor verify)
+│   │   ├── motor/page.tsx              — Step 7: Tap-the-target coordination
+│   │   ├── video-capture/page.tsx      — Step 8: ONNX behavioral video analysis
+│   │   ├── summary/page.tsx            — Step 9: Aggregated domain scores
+│   │   ├── report/page.tsx             — Step 10: AI-generated clinical report + PDF
+│   │   ├── visual-engagement/page.tsx  — (Archived) Visual engagement task
+│   │   └── audio/page.tsx              — (Archived) Audio assessment
+│   │
+│   ├── kid-dashboard/
+│   │   ├── layout.tsx                  — Layout wrapper (BottomNav, ThemeToggle, UserMenu)
+│   │   ├── page.tsx                    — Hub page (quick links, game cards, streak)
+│   │   ├── chat/page.tsx               — AI chat with animal avatars (4 animals, TTS)
+│   │   ├── detection/page.tsx          — Real-time behavior detector (elapsed timer)
+│   │   ├── nearby-help/page.tsx        — Nearby institutes map (Leaflet + Overpass API)
+│   │   ├── progress/page.tsx           — Activity stats (today/week/all-time)
+│   │   ├── reports/page.tsx            — Weekly progress reports (kid/parent views)
+│   │   ├── speech/page.tsx             — Speech practice (Polly TTS + recognition)
+│   │   └── games/
+│   │       ├── page.tsx                — Games hub (all games listed)
+│   │       ├── alphabet-pattern/page.tsx — Alphabet sequence recognition
+│   │       ├── bubble-pop/page.tsx     — Pop target bubbles (letter matching)
+│   │       ├── match-numbers/page.tsx  — Number-to-quantity matching
+│   │       ├── memory/page.tsx         — Card pair matching (3x3 grid, 4 pairs max)
+│   │       ├── social-stories-v2/page.tsx — Kid-friendly social scenarios
+│   │       └── tracing/page.tsx        — Motor skill tracing on HTML Canvas
+│   │
+│   ├── lib/
+│   │   ├── actions/actionDetector.ts   — Rule-based action detection from YOLO keypoints
+│   │   ├── audio/ttsHelper.ts          — Unified TTS (Polly → browser fallback)
+│   │   ├── auth/
+│   │   │   ├── config.ts              — Auth configuration (Google OAuth)
+│   │   │   ├── dynamodb.ts            — DynamoDB auth adapter (30s cooldown on errors)
+│   │   │   └── session.ts             — Session management (cookie, validate, destroy)
+│   │   ├── aws/credentials.ts          — Shared AWS credential helper (APP_* env vars)
+│   │   ├── camera/cameraUtils.ts       — 3-tier progressive getUserMedia + HTTPS check
+│   │   ├── data/
+│   │   │   ├── doctors.ts             — Doctor directory (specialty, contact, location)
+│   │   │   └── institutes.ts          — 50+ autism institutes across 12 Indian cities
+│   │   ├── db/
+│   │   │   ├── schema.ts             — Dexie v5 schema (10 tables, 5 migrations)
+│   │   │   ├── session.repository.ts  — Session CRUD
+│   │   │   ├── biomarker.repository.ts — Biomarker storage + age-normalized aggregation
+│   │   │   ├── childProfile.repository.ts — Child profile management
+│   │   │   ├── feed.repository.ts     — Feed posts + per-user reaction toggling
+│   │   │   ├── gameActivity.repository.ts — Game activity tracking
+│   │   │   ├── streak.repository.ts   — Daily streak management
+│   │   │   └── sync.repository.ts     — Sync queue management
+│   │   ├── games/difficultyEngine.ts   — Adaptive difficulty per child/game
+│   │   ├── identity/identity.ts        — Anonymous user ID generation (localStorage)
+│   │   ├── inference/
+│   │   │   ├── YoloEngine.ts          — YOLO26n-pose estimation (17 keypoints)
+│   │   │   ├── FeatureEncoder.ts      — Body feature extraction (86-dim)
+│   │   │   ├── TcnEngine.ts           — Body TCN classifier (6 behavior classes)
+│   │   │   ├── FaceDetector.ts        — Face ROI extraction
+│   │   │   ├── FerEngine.ts           — FER+ emotion classifier (8 emotions)
+│   │   │   ├── MediaPipeFaceLandmarker.ts — MediaPipe 478-landmark face mesh
+│   │   │   ├── FaceFeatureEncoder.ts  — Face feature extraction (64-dim)
+│   │   │   ├── FaceTcnEngine.ts       — Face TCN classifier (4 behavior classes)
+│   │   │   ├── FusionEngine.ts        — 70/30 body-face late fusion
+│   │   │   ├── MultimodalOrchestrator.ts — Full pipeline (body + face + fusion)
+│   │   │   ├── PipelineOrchestrator.ts — Body-only pipeline
+│   │   │   ├── backendDetector.ts     — Server-side detection fallback
+│   │   │   └── modelCache.ts          — ONNX model caching layer
+│   │   ├── reports/weeklyReport.ts     — Weekly summary HTML generation (kid + parent)
+│   │   ├── scoring/ageNormalization.ts — Age-adjusted biomarker scoring (4 brackets)
+│   │   ├── session/currentSession.ts   — Current screening session state
+│   │   └── sync/sync.ts               — IndexedDB ↔ DynamoDB sync logic
+│   │
+│   └── types/
+│       ├── biomarker.ts                — TaskId (12 types), Biomarker, BiomarkerAggregate
+│       ├── childProfile.ts             — ChildProfile (name, age, language, gender)
+│       ├── feedPost.ts                 — FeedPost (4 categories), FeedReaction
+│       ├── gameActivity.ts             — GameActivity, Streak, WeeklyReport, ChatSession
+│       ├── inference.ts                — Behavior classes, FaceResult, PipelineResult
+│       └── session.ts                  — Session, SessionStatus, SessionSyncPayload
+│
+├── public/
+│   ├── models/
+│   │   ├── yolo26n-pose-int8.onnx     — YOLO pose model (13MB, INT8)
+│   │   ├── pose-tcn-int8.onnx         — Body TCN model (274KB, INT8)
+│   │   ├── emotion-ferplus-8.onnx     — FER+ emotion model (34MB, FP32)
+│   │   └── face-tcn-int8.onnx         — Face TCN model (81KB, INT8)
+│   └── *.svg                           — Next.js default icons
+│
+├── server/
+│   ├── lambda/sync-handler.ts          — Lambda handler for DynamoDB sync
+│   └── scripts/setup-dynamodb.sh       — Shell script to create DynamoDB tables
+│
+├── tests/
+│   ├── app-pages.spec.ts              — Auth, dashboard, games, feed, API endpoint tests
+│   └── intake-flow.spec.ts            — Full 10-step intake navigation tests
+│
+└── workers/
+    └── inference.worker.ts             — ONNX inference Web Worker entry point
+```
+
+---
+
 ## Feature Map
 
 ### Core Features (Complete)
@@ -109,7 +301,7 @@ Server (Amplify SSR / Lambda)
 | 7 adaptive therapy games | Done | `app/games/*/page.tsx` |
 | Community feed | Done | `app/feed/page.tsx` |
 | Light/dark theme | Done | `app/globals.css` (`[data-theme]`) |
-| Offline-first IndexedDB | Done | `app/lib/db/schema.ts` (Dexie v3) |
+| Offline-first IndexedDB | Done | `app/lib/db/schema.ts` (Dexie v5, 10 tables) |
 | COOP/COEP headers for WASM | Done | `next.config.ts` |
 
 ### AWS Infrastructure (Complete)
@@ -212,7 +404,7 @@ All API routes have **mock fallbacks** — the app works without AWS credentials
 
 ## Data Layer
 
-### IndexedDB Schema (Dexie v3)
+### IndexedDB Schema (Dexie v5)
 
 | Table | Primary Key | Indexes | Purpose |
 |-------|-------------|---------|---------|
@@ -220,7 +412,12 @@ All API routes have **mock fallbacks** — the app works without AWS credentials
 | `biomarkers` | `++id` (auto) | `sessionId`, `userId`, `timestamp`, `taskId` | Per-task biomarker data |
 | `syncQueue` | `++id` (auto) | `sessionId`, `queuedAt`, `retryCount` | Offline sync queue |
 | `childProfiles` | `id` | `userId`, `createdAt` | Child profiles |
-| `feedPosts` | `id` | `category`, `createdAt` | Community feed posts |
+| `feedPosts` | `++id` (auto) | `userId`, `createdAt` | Community feed posts |
+| `feedReactions` | `++id` (auto) | `[postId+userId+type]`, `postId`, `userId` | Per-user reaction tracking |
+| `gameActivity` | `++id` (auto) | `childId`, `date`, `gameId` | Game session records |
+| `streaks` | `childId` | — | Daily play streak tracking |
+| `weeklyReports` | `++id` (auto) | `childId`, `weekStart` | Weekly progress summaries |
+| `chatHistory` | `++id` (auto) | `childId`, `createdAt` | AI chat conversations |
 
 ### Biomarker Fields
 
@@ -244,7 +441,7 @@ Session ID is stored in `localStorage` (`autisense-current-session-id`) at child
 
 | Game | Route | Cognitive Target | Difficulty Levels |
 |------|-------|-----------------|-------------------|
-| Emotion Match | `/games/emotion-match` | Emotional recognition | 5 (pairs scale) |
+| Emotion Quiz | `/games/emotion-match` | Scenario-based emotion recognition | 3 (adaptive, 5 emotions) |
 | Category Sorting | `/games/sorting` | Classification, reasoning | 5 (items scale) |
 | Sequence Memory | `/games/sequence` | Working memory | 5 (sequence length) |
 | Social Stories | `/games/social-stories` | Social interaction | 5 (scenario complexity) |
@@ -269,8 +466,12 @@ Difficulty engine (`app/lib/games/difficultyEngine.ts`) auto-adjusts based on re
 | POST | `/api/report/clinical` | Public | Generate clinical report via Bedrock Command R+ |
 | POST | `/api/report/pdf` | Public | Generate downloadable PDF |
 | POST | `/api/tts` | Public | Text-to-speech via Amazon Polly |
+| POST | `/api/chat/generate-words` | Public | Generate age-appropriate words/sentences via Bedrock |
 | GET | `/api/feed` | Public | List feed posts |
 | POST | `/api/feed` | Public | Create feed post |
+| GET | `/api/nearby` | Public | Find nearby doctors/institutes via Overpass API |
+| POST | `/api/sync` | Public | Sync session + biomarkers to DynamoDB |
+| GET | `/api/report/weekly` | Public | Generate/list weekly progress reports |
 
 ---
 
@@ -280,9 +481,9 @@ Difficulty engine (`app/lib/games/difficultyEngine.ts`) auto-adjusts based on re
 
 | File | Tests | Coverage |
 |------|-------|----------|
-| `tests/intake-flow.spec.ts` | 15 | Full 10-step intake flow navigation, form validation, back buttons, skip stage |
-| `tests/app-pages.spec.ts` | 15 | Auth, dashboard, all 7 games, feed, 4 API endpoints |
-| **Total** | **30** | **All passing** |
+| `tests/intake-flow.spec.ts` | 16 | Full 10-step intake flow navigation, form validation, back buttons, skip stage |
+| `tests/app-pages.spec.ts` | 16 | Auth, dashboard, all 7 games, feed, 5 API endpoints |
+| **Total** | **32** | **All passing** |
 
 ### Run Tests
 
@@ -412,6 +613,12 @@ npx playwright test    # Run all 30 tests
 | R15 | **Stages 4, 7, 9 overlap and lack differentiation** | Stage 4 (Communication) and Stage 9 (Audio) were both simple speech echo tests with hardcoded word lists. Stage 7 (Preparation) mixed motor actions with LLM conversation. Fix: Stage 4 → pure Word Echo with LLM-generated age-appropriate words + Polly TTS. Stage 7 → pure Motor Action Challenge with fixed 6-action sequence + live YOLO detection feedback (confidence bar, 5-dot frame counter, color-coded borders). Stage 9 → Sentence Echo + Comprehension (Part A: sentence repetition with word-overlap scoring, Part B: audio instruction following). |
 | R16 | **Stage 10 camera fails on mobile** | `getUserMedia()` with fixed resolution constraints fails on many mobile browsers. Also: no HTTPS check (required for camera on mobile), generic error messages, no retry mechanism. Fix: 3-tier progressive constraint negotiation (ideal 320×240 → facingMode only → any video). HTTPS early check. Specific error messages per DOMException type (NotAllowedError, NotFoundError, NotReadableError, SecurityError). Retry Camera + Skip buttons on failure. Shared `cameraUtils.ts` reused by Stage 7 and Stage 10. |
 | R17 | **Stages auto-advance without criteria verification** | Some stages allowed proceeding even when insufficient data was collected. Fix: minimum criteria gates on Stages 4 (2/6 words), 7 (3/6 actions), 9 (2/7 items), 10 (5 samples + 30s). Stages show "Let's try again!" card with Try Again/Skip buttons when criteria not met. |
+| R18 | **UserMenu dropdown overlaps content on mobile** | Added semi-transparent backdrop overlay (z-199) behind dropdown (z-200). Backdrop click closes menu. `app/components/UserMenu.tsx` |
+| R19 | **Emotion Match identical to Memory game** | Replaced card-flip game with scenario-based Emotion Quiz — 20 scenarios, 5 emotions, adaptive difficulty, sound feedback. Now saves game activity + updates streak. `app/games/emotion-match/page.tsx` |
+| R20 | **Streak not updating despite playing games** | childId mismatch: dashboard used `""` fallback but games used `"default"`. Changed dashboard fallback to `"default"`. `app/kid-dashboard/page.tsx` |
+| R21 | **Chat mic stops working after first voice input** | SpeechRecognition cleanup: stop+nullify old instance before creating new, 120ms delay for mic release, cleanup on unmount. Reordered input bar: mic first (64px, primary), text secondary. `app/kid-dashboard/chat/page.tsx` |
+| R22 | **Mobile browser zoom on input focus** | Added `viewport` export with `maximumScale: 1`, `userScalable: false` in `app/layout.tsx`. |
+| R23 | **Community feed infinite reactions / UI issues** | Per-user reaction tracking via `feedReactions` table (Dexie v5). Reactions toggle on/off per user. Posts displayed first, compose form behind FAB. Delete own posts with reaction cleanup. `app/feed/page.tsx`, `app/lib/db/feed.repository.ts`, `app/lib/db/schema.ts` |
 
 ---
 
@@ -721,3 +928,79 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 **Unchanged:** All 10 intake pages, all inference code, all 7 existing games, auth system, existing components.
 
 **Testing:** 31/31 Playwright tests pass. TypeScript clean. Build clean.
+
+### v2.1.0 — 2026-03-05 (Bug Fix & Polish)
+
+**New Components:**
+- `UserMenu.tsx` — top-right user menu with logout (replaces inline logout buttons)
+- `ThemeToggle.tsx` — light/dark toggle with Sun/Moon Lucide icons
+- `LeafletMap.tsx` — dynamic-import interactive map component (no SSR)
+- `app/lib/audio/ttsHelper.ts` — unified TTS helper (Polly → browser speechSynthesis fallback)
+
+**UI/UX Improvements:**
+- Increased base font to 17px across all pages
+- BottomNav: Lucide icons, rounded top corners, max-width 600px
+- Dashboard: quick links with Lucide icons, 4 recent/default game cards instead of 12-game grid
+- UserMenu added to kid-dashboard layout, landing page, and parent dashboard
+
+**Nearby Help Overhaul:**
+- Replaced static doctor directory with live Overpass API integration
+- New API route: `GET /api/nearby` (proxies Overpass queries)
+- Leaflet map with category-colored markers (Hospital, Therapy Center, Special School, Support Group)
+- "Near Me" geolocation with distance sorting
+- Renamed route: `/kid-dashboard/doctor-connect` → `/kid-dashboard/nearby-help` (redirect added)
+
+**Chat Fixes:**
+- Gender toggle removed (simplified to animal avatars only)
+- Added fallback mode indicator when Bedrock unavailable
+- Integrated `speakText` TTS helper for audio responses
+- Mic permission check with user-friendly error UI
+
+**Game Fixes:**
+- Speech: Fixed word fetch bug (`data.items` not `data.words`), auto-play audio, minimum 3 words
+- Color & Sound: Persistent AudioContext (no re-creation), TTS voice cue after tone
+- Bubble Pop: Guaranteed target letter in spawns, no blank screen, larger target display
+- Memory: Capped at 3×3 grid (4 pairs max)
+
+**Detection:**
+- Elapsed timer mode (removed 60-minute countdown hack)
+
+**Total API Routes:** 15 (added `/api/nearby`)
+
+**Files:** 20+ files modified across components, pages, lib, and API routes.
+
+### v2.1.1 — 2026-03-06 (Mobile UI Fixes, Emotion Quiz, Feed Redesign)
+
+**8 issues fixed from mobile testing:**
+
+1. **UserMenu dropdown overlap** — Added semi-transparent backdrop overlay behind dropdown for visual separation on mobile. Clicking backdrop closes menu.
+   - `app/components/UserMenu.tsx`
+
+2. **Emotion Match → Emotion Quiz** — Replaced card-flip matching game (identical to Memory game) with scenario-based Emotion Quiz. 20 scenarios, 5 emotion choices (Happy, Sad, Angry, Scared, Surprised), adaptive difficulty, sound feedback. Now correctly saves game activity + updates streak.
+   - `app/games/emotion-match/page.tsx` (full rewrite)
+   - `app/kid-dashboard/games/page.tsx` (updated description)
+   - `app/kid-dashboard/page.tsx` (updated card emoji/title)
+
+3. **Streak not updating** — Fixed childId mismatch: dashboard used `""` fallback but games used `"default"`. Changed dashboard fallback to `"default"`.
+   - `app/kid-dashboard/page.tsx`
+
+4. **Chat mic + viewport + input reorder**:
+   - Added `viewport` export in layout.tsx to prevent mobile zoom on input focus
+   - Fixed SpeechRecognition: cleanup old instance before new one, 120ms delay for mic release, nullify ref on callbacks, cleanup on unmount
+   - Reordered input bar: mic button first (64px, primary green), text input secondary
+   - `app/kid-dashboard/chat/page.tsx`, `app/layout.tsx`
+
+5. **Progress page** — Verified childId already uses `"default"` fallback; no change needed.
+
+6. **BottomNav/navbar overlap** — Resolved by Fix 1 (backdrop overlay).
+
+7. **Community Feed redesign**:
+   - Posts displayed first, compose form behind "New Post" button + floating action button (FAB)
+   - Per-user reaction tracking via new `feedReactions` IndexedDB table (schema v5)
+   - Reactions toggle on/off per user (filled/unfilled state)
+   - Delete own posts with reaction cleanup
+   - Cleaner card layout, category pills, empty state
+   - `app/feed/page.tsx` (full rewrite), `app/lib/db/feed.repository.ts`, `app/lib/db/schema.ts`, `app/types/feedPost.ts`
+
+**Files modified:** 11 files across components, games, pages, DB layer, and types.
+**Testing:** TypeScript clean. ESLint clean. Build clean.
