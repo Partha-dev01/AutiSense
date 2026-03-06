@@ -83,30 +83,31 @@ function buildSystemPrompt(childName: string, ageMonths: number, animalPersonali
     ? `\n\nPERSONALITY: ${personalityMap[animalPersonality]}\n`
     : "";
 
-  return `You are a warm, friendly voice assistant conducting a brief developmental screening conversation with a child named ${childName} who is ${ageStr} old.${personalityInstruction}
+  return `You are a warm, friendly animal buddy having a natural, playful conversation with a child named ${childName} who is ${ageStr} old.${personalityInstruction}
 
 RULES:
 1. Keep every response to 1-2 SHORT sentences. This will be spoken aloud by text-to-speech.
 2. Use simple, age-appropriate language for a ${years}-year-old.
-3. If this is the first turn, greet the child warmly using their name.
-4. Ask 5-7 questions or give instructions across these domains:
-   - social: "Can you wave hello to me?", "What's your best friend's name?"
-   - cognitive: "What color is the sky?", "Can you count to three?"
-   - language: "Can you say butterfly?", "Tell me about your favorite animal"
-   - motor: "Can you touch your nose?", "Clap your hands for me!"
-5. If the child doesn't respond or says "[no response]", simplify your next question and be extra encouraging.
-6. If the child responds well, you can ask slightly more complex questions.
-7. After 5-8 total assistant turns, end with a warm farewell.
-8. Never ask about medical history, diagnosis, or anything clinical.
-9. Be encouraging after responses — "Great job!", "That's wonderful!", "You're so smart!"
-10. For motor instructions, phrase them as fun games — "Let's play a game! Can you..."
+3. If this is the first turn, greet the child warmly using their name and ask how they're doing.
+4. Have a NATURAL conversation — talk about fun topics like:
+   - Their favorite things (animals, food, toys, games, colors)
+   - Imagination and pretend play ("If you could fly, where would you go?")
+   - Their day, friends, family, and things that make them happy
+   - Silly questions and jokes to make them laugh
+   - Stories and adventures you could go on together
+5. ALWAYS respond to what the child actually says. React naturally to their answers before asking something new.
+6. If the child says something unexpected or off-topic, go with it! Be playful and curious about what they said.
+7. If the child doesn't respond or says "[no response]", gently encourage them with a simpler, fun question.
+8. After 5-8 total assistant turns, end with a warm farewell.
+9. Never ask about medical history, diagnosis, or anything clinical.
+10. Be encouraging and genuine — celebrate their answers naturally, not with generic praise every time.
 
 You MUST respond with ONLY valid JSON (no markdown, no code blocks) in this exact format:
 {"text":"Your spoken response here","turnType":"greeting|question|instruction|follow_up|farewell","expectsResponse":true,"responseRelevance":0.5,"shouldEnd":false,"domain":"social|cognitive|language|motor|general","action":null}
 
 For responseRelevance: rate how relevant the child's LAST response was to your LAST question (0.0 = no response or completely irrelevant, 0.5 = somewhat relevant, 1.0 = perfect response). Use 0.5 for the first turn.
 For shouldEnd: set to true ONLY on your farewell turn (after 5-8 assistant turns).
-For action: when domain is "motor" and turnType is "instruction", include one of: "wave", "touch_nose", "clap", "raise_arms", "touch_head", "touch_ears". For non-motor turns, set to null.`;
+For action: set to null for normal conversation. Only use "wave", "clap", etc. if the conversation naturally leads to a fun physical game.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -129,22 +130,22 @@ function buildFallbackTurn(
 
   // Multiple greeting/question pools for variety
   const greetings = [
-    `${prefix}Hi ${childName}! I'm so happy to talk with you today! Are you ready to play a fun game with me?`,
-    `${prefix}Hello ${childName}! It's so nice to meet you! Do you want to have some fun together?`,
-    `${prefix}Hey there, ${childName}! I've been waiting to play with you! Shall we get started?`,
+    `${prefix}Hi ${childName}! I'm so happy to see you! What have you been up to today?`,
+    `${prefix}Hello ${childName}! I've been looking forward to chatting with you! How are you doing?`,
+    `${prefix}Hey ${childName}! It's so nice to talk with you! What's something fun that happened today?`,
   ];
 
   const midQuestions: Array<Omit<ConversationResponse, "fallback">> = [
-    { text: `${prefix}Awesome! Let's start with something fun. Can you wave hello to me?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "wave" } },
-    { text: `${prefix}Great job! Now tell me, what color is the sky?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
-    { text: `${prefix}You're doing so well! Can you say the word butterfly for me?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
-    { text: `${prefix}That's wonderful! Can you clap your hands for me?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "clap" } },
-    { text: `${prefix}You're a superstar! What's your favorite animal?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
-    { text: `${prefix}Amazing! Can you count to three with me? One, two...`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
-    { text: `${prefix}That's great! Now let's try something silly. Can you touch your nose?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "touch_nose" } },
-    { text: `${prefix}So cool! What's your favorite food?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
-    { text: `${prefix}Nice! Can you tell me what sound a cat makes?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
-    { text: `${prefix}You're doing great! Can you raise your arms up high?`, metadata: { turnType: "instruction", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "motor", action: "raise_arms" } },
+    { text: `${prefix}That's cool! So tell me, what's your favorite thing to play with?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
+    { text: `${prefix}Ooh, I love that! If you could have any superpower, what would it be?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
+    { text: `${prefix}That sounds amazing! Do you have a favorite cartoon or story?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
+    { text: `${prefix}So fun! If we could go on an adventure anywhere, where would you want to go?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
+    { text: `${prefix}I love talking with you! What makes you really, really happy?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
+    { text: `${prefix}That's awesome! What's your favorite yummy snack?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
+    { text: `${prefix}Yum! If you could be any animal in the whole world, which one would you pick?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
+    { text: `${prefix}Great choice! Do you have a best friend? What do you like to do together?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "social" } },
+    { text: `${prefix}That sounds like so much fun! What's the silliest thing that ever happened to you?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "language" } },
+    { text: `${prefix}Ha! That's funny! What do you want to be when you grow up?`, metadata: { turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "cognitive" } },
   ];
 
   const farewell: Omit<ConversationResponse, "fallback"> = {

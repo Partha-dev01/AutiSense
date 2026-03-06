@@ -230,7 +230,7 @@ export default function ChatPage() {
         </div>
       </nav>
 
-      <div className="main fade fade-1" style={{ maxWidth: 600, padding: "32px 24px 80px", display: "flex", flexDirection: "column", flex: 1 }}>
+      <div className="main fade fade-1" style={{ maxWidth: 600, padding: "16px 16px 8px", display: "flex", flexDirection: "column", flex: 1 }}>
 
         {/* ---- AVATAR SELECTION SCREEN ---- */}
         {screen === "select" && (
@@ -288,15 +288,15 @@ export default function ChatPage() {
         {screen === "chat" && animalInfo && animal && (
           <div className="fade fade-2" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             {/* Avatar header */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
-              <AnimalAvatar animal={animal} gender="boy"state={avatarState} size={120} />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 8 }}>
+              <AnimalAvatar animal={animal} gender="boy" state={avatarState} size={72} />
               <h2 style={{
-                fontFamily: fredoka, fontWeight: 600, fontSize: "1.1rem",
-                color: "var(--text-primary)", margin: "12px 0 2px",
+                fontFamily: fredoka, fontWeight: 600, fontSize: "1rem",
+                color: "var(--text-primary)", margin: "6px 0 1px",
               }}>
                 {animalInfo.name}
               </h2>
-              <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0, fontStyle: "italic" }}>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", margin: 0, fontStyle: "italic" }}>
                 {animalInfo.personality}
               </p>
               {fallbackMode && (
@@ -343,7 +343,7 @@ export default function ChatPage() {
             {/* Input bar — mic is primary, text is secondary */}
             <div style={{
               display: "flex", gap: 8, alignItems: "center",
-              padding: "12px 0 0", borderTop: "2px solid var(--border)",
+              padding: "10px 0 4px", borderTop: "2px solid var(--border)",
               overflow: "hidden",
             }}>
               <button
@@ -426,7 +426,7 @@ export default function ChatPage() {
         {screen === "end" && animal && animalInfo && (
           <div className="fade fade-2" style={{ textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-              <AnimalAvatar animal={animal} gender="boy"state="happy" size={120} />
+              <AnimalAvatar animal={animal} gender="boy" state="happy" size={100} />
             </div>
             <h1 className="page-title" style={{ fontFamily: fredoka }}>
               That was <em>fun!</em>
