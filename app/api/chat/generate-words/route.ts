@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
         accept: "application/json",
         body: JSON.stringify({
           messages: [{ role: "user", content: [{ text: prompt }] }],
-          inferenceConfig: { maxNewTokens: 500, temperature: 0.8 },
+          inferenceConfig: { maxTokens: 500, temperature: 0.8 },
         }),
       });
 

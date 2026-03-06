@@ -1004,3 +1004,34 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 
 **Files modified:** 11 files across components, games, pages, DB layer, and types.
 **Testing:** TypeScript clean. ESLint clean. Build clean.
+
+### v2.2.0 — 2026-03-06 (Game Staging, Nav Fix, Dark Mode, Feed Toggle)
+
+**Navigation & Layout (Phase 1):**
+- Landing page navbar: replaced inline auth nav with `<ThemeToggle>` + `<Link>Dashboard</Link>` + `<UserMenu />` — no more horizontal overflow when signed in
+- Chat input bar: reduced mic button (64px→48px) and send button (56px→44px), added `min-width: 0` on text input for small screens
+
+**Dark Mode Consistency (Phase 2):**
+- StreakBadge: replaced hardcoded light gradient with theme-aware CSS vars (`var(--feature-peach)`, `var(--bg-secondary)`)
+- Feed page: replaced text "Light"/"Dark" toggle with `<ThemeToggle>` component
+
+**Game Fixes — Critical Gameplay (Phase 3):**
+- **Bubble Pop**: converted `nextId` state to `useRef` to fix stale closure in spawn interval, removed redundant `fastCheck` 500ms interval, steady 1500ms spawn rate
+- **Tracing**: added 65% accuracy threshold — scribbles below threshold show "Try Again" instead of advancing; only passing attempts recorded in scores
+- **Color & Sound**: added 2-attempt system — wrong answer shows "Try Again" button (attempt 1), second wrong shows correct answer and auto-advances (attempt 2)
+
+**Game Fixes — Staged Difficulty (Phase 4):**
+- **Alphabet Pattern**: 3-stage progression — Stage 1 (rounds 1-2): 1 blank, Stage 2 (rounds 3-4): 2 blanks, Stage 3 (round 5): CVC word completion from 20-word pool
+- **Sequence Memory**: enhanced show-sequence animation — `scale(1.15)` with glow `boxShadow`, `opacity: 0.3` on inactive buttons, 300ms gap between items, "Watch! (X of Y)" indicator
+- **Speech Practice**: 3-stage progression — Stage 1 (items 1-3): single word, Stage 2 (items 4-6): 3-word phrase with current word highlighted, Stage 3 (items 7-9): full sentence
+
+**Intake & Progress Fixes (Phase 5):**
+- **Video Capture (Step 8)**: fixed `startingRef` not resetting on camera failure (blocked subsequent start attempts forever), added debug status bar showing Camera/Models/Inference status
+- **Progress page**: added de-duplication filter — entries with same `gameId` within 2-second window collapsed into single entry
+
+**Features & Polish (Phase 6):**
+- **Feed anonymous toggle**: new checkbox in compose form — "Post Anonymously" (default: checked). Unchecked posts show "Community Member" instead of "Anonymous"
+- **ThemeToggle consistency**: replaced text "Dark"/"Light" toggles with `<ThemeToggle>` component on all 18 game/feature pages (bubble-pop, alphabet-pattern, tracing, match-numbers, memory, social-stories-v2, emotion-match, color-sound, sequence, speech, talking, chat, progress, reports, nearby-help, child detail, plus landing and feed)
+
+**Files modified:** 22+ files across games, components, intake, feed, and dashboard pages.
+**Testing:** 42 Playwright tests (36 unauthenticated + 6 authenticated) all passing. TypeScript clean. Build clean.

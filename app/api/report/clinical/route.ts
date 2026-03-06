@@ -1,7 +1,7 @@
 /**
  * POST /api/report/clinical
  *
- * Generates a full DSM-5 aligned clinical report using Cohere Command R+
+ * Generates a full DSM-5 aligned clinical report using Amazon Nova Pro
  * via Amazon Bedrock. Falls back to a detailed mock report when AWS
  * credentials are not configured.
  *
@@ -205,13 +205,12 @@ Guidelines:
   try {
     const client = getBedrockClient();
     const invokeBody = JSON.stringify({
-      message: prompt,
-      max_tokens: 2048,
-      temperature: 0.5,
+      messages: [{ role: "user", content: [{ text: prompt }] }],
+      inferenceConfig: { maxTokens: 2048, temperature: 0.5 },
     });
 
     const command = new InvokeModelCommand({
-      modelId: "cohere.command-r-plus-v1:0",
+      modelId: "amazon.nova-pro-v1:0",
       contentType: "application/json",
       accept: "application/json",
       body: new TextEncoder().encode(invokeBody),
@@ -220,11 +219,9 @@ Guidelines:
     const response = await client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
-    // Cohere Command R+ returns: { text: "..." }
+    // Nova Pro returns: { output: { message: { content: [{ text: "..." }] } } }
     const reportText: string =
-      responseBody?.text ??
-      responseBody?.generations?.[0]?.text ??
-      "";
+      responseBody?.output?.message?.content?.[0]?.text ?? "";
 
     if (!reportText) {
       console.warn("[Report/Clinical] Empty response from Bedrock, using mock");
