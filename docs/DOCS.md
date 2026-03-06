@@ -30,7 +30,7 @@
 AutiSense is a Next.js 16 web application that provides AI-powered autism screening for children. It combines:
 
 - **Edge AI** — Real-time ONNX inference (YOLO pose detection + TCN behavior classification + FER+ emotion analysis) running entirely in the browser via Web Workers
-- **Generative AI** — Amazon Bedrock (Nova Lite + Cohere Command R+) for generating DSM-5 aligned clinical reports from biomarker data
+- **Generative AI** — Amazon Bedrock (Nova Lite + Nova Pro) for generating DSM-5 aligned clinical reports from biomarker data
 - **Offline-first data** — IndexedDB (Dexie.js) for local storage with DynamoDB sync when online
 - **Adaptive therapy** — 7 post-diagnosis games with dynamic difficulty adjustment
 
@@ -59,7 +59,7 @@ Browser (Client)
 Server (Amplify SSR / Lambda)
 ├── POST /api/chat/conversation → Amazon Bedrock Nova Lite (voice agent)
 ├── POST /api/report/summary    → Amazon Bedrock Nova Lite
-├── POST /api/report/clinical   → Amazon Bedrock Cohere Command R+
+├── POST /api/report/clinical   → Amazon Bedrock Nova Pro (hybrid template + AI insights)
 ├── POST /api/report/pdf        → pdf-lib PDF generation
 ├── POST /api/tts               → Amazon Polly
 ├── GET/POST /api/auth/*        → Google OAuth + DynamoDB sessions
@@ -132,7 +132,7 @@ AutiSense_2/
 │   │   ├── nearby/route.ts             — Overpass API proxy for nearby institutes
 │   │   ├── report/
 │   │   │   ├── summary/route.ts        — Bedrock Nova Lite session summary
-│   │   │   ├── clinical/route.ts       — Bedrock Command R+ clinical report
+│   │   │   ├── clinical/route.ts       — Bedrock Nova Pro clinical report
 │   │   │   ├── pdf/route.ts            — PDF generation via pdf-lib
 │   │   │   └── weekly/route.ts         — Weekly progress report generation
 │   │   ├── sync/route.ts               — Upload session + biomarkers to DynamoDB
@@ -312,7 +312,7 @@ AutiSense_2/
 | S3 bucket + ONNX models | Deployed | 4 models, ~47MB total |
 | IAM policies (3) | Created | Bedrock, Polly, DynamoDB+S3 |
 | IAM user + Amplify role | Created | For local dev + production |
-| Bedrock model access | Auto-enabled | Nova Lite + Command R+ |
+| Bedrock model access | Auto-enabled | Nova Lite + Nova Pro |
 | Budget alarm ($10/mo) | Active | Email alerts at 80% and 100% |
 | Amplify hosting | Live | Auto-deploy from GitHub main |
 
@@ -374,7 +374,7 @@ All inference runs client-side in a Web Worker via ONNX Runtime Web (WebGPU or W
 | Service | Usage | API Endpoint |
 |---------|-------|-------------|
 | **Bedrock** (Nova Lite) | Parent-friendly session summaries | `POST /api/report/summary` |
-| **Bedrock** (Command R+) | DSM-5 aligned clinical reports | `POST /api/report/clinical` |
+| **Bedrock** (Nova Pro) | DSM-5 aligned clinical reports | `POST /api/report/clinical` |
 | **Polly** | Neural TTS voice prompts (Joanna) | `POST /api/tts` |
 | **DynamoDB** | User accounts, auth sessions, biomarkers, child profiles, feed posts | Via AWS SDK v3 |
 | **S3** | ONNX model file hosting (presigned URLs) | Via `@aws-sdk/s3-request-presigner` |
@@ -463,7 +463,7 @@ Difficulty engine (`app/lib/games/difficultyEngine.ts`) auto-adjusts based on re
 | POST | `/api/auth/logout` | Public | Delete session |
 | POST | `/api/chat/conversation` | Public | Dynamic voice agent conversation via Bedrock Nova Lite |
 | POST | `/api/report/summary` | Public | Generate summary via Bedrock Nova Lite |
-| POST | `/api/report/clinical` | Public | Generate clinical report via Bedrock Command R+ |
+| POST | `/api/report/clinical` | Public | Generate clinical report via Bedrock Nova Pro |
 | POST | `/api/report/pdf` | Public | Generate downloadable PDF |
 | POST | `/api/tts` | Public | Text-to-speech via Amazon Polly |
 | POST | `/api/chat/generate-words` | Public | Generate age-appropriate words/sentences via Bedrock |
@@ -547,7 +547,7 @@ npx playwright test    # Run all 30 tests
 
 ### Phase 3 — Bedrock Reports (Complete)
 - [x] Summary API (Nova Lite) with mock fallback
-- [x] Clinical API (Command R+) with DSM-5 section extraction
+- [x] Clinical API (Nova Pro) with DSM-5 section extraction
 - [x] PDF generation with pdf-lib
 - [x] Amazon Polly TTS API
 - [x] Report page with dual report types + PDF download
@@ -629,7 +629,7 @@ npx playwright test    # Run all 30 tests
 **Added:**
 - Complete 12-step autism screening intake flow
 - Real-time ONNX behavioral video analysis (YOLO + TCN + FER+)
-- Amazon Bedrock AI report generation (Nova Lite summaries + Command R+ clinical reports)
+- Amazon Bedrock AI report generation (Nova Lite summaries + Nova Pro clinical reports)
 - PDF report download with scores and clinical text
 - Amazon Polly text-to-speech for child-facing prompts
 - Google OAuth 2.0 authentication with DynamoDB sessions
@@ -1004,6 +1004,24 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 
 **Files modified:** 11 files across components, games, pages, DB layer, and types.
 **Testing:** TypeScript clean. ESLint clean. Build clean.
+
+### v2.4.0 — 2026-03-06 (Bedrock Optimization — Hybrid Clinical Reports)
+
+**Clinical Report Optimization:**
+- Replaced full-prose LLM prompt with hybrid template + AI insights approach
+- Deterministic template (`buildMockReport`) generates the complete report with scores, thresholds, flags, and disclaimers
+- Nova Pro now returns only a small structured JSON with clinical interpretations (severity level, DSM-5 criterion mappings, clinical impression, priority recommendations, differential considerations)
+- `mergeAiInsights()` enriches the template sections with AI clinical depth
+- ~85% token reduction per clinical report (~400 tokens vs ~2700 previously)
+- `maxTokens` reduced from 2048 to 512
+- Fallback preserved: if Bedrock fails or JSON unparseable, returns template-only report
+
+**Bedrock Model Updates:**
+- Replaced Cohere Command R+ with Amazon Nova Pro for clinical reports (v2.3.0)
+- Fixed `maxNewTokens` → `maxTokens` in generate-words route (v2.3.0)
+- Updated all documentation references from Cohere to Nova Pro
+
+**Files modified:** `app/api/report/clinical/route.ts`, `docs/DOCS.md`, `docs/SETUP_GUIDE.md`, `docs/Amazon_usage.md`
 
 ### v2.2.0 — 2026-03-06 (Game Staging, Nav Fix, Dark Mode, Feed Toggle)
 

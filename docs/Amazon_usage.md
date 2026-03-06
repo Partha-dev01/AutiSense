@@ -7,7 +7,7 @@
 | Amazon Bedrock (Nova Lite) | `amazon.nova-lite-v1:0` | app/api/chat/conversation/route.ts | Used (fallback when quota=0) |
 | Amazon Bedrock (Nova Lite) | `amazon.nova-lite-v1:0` | app/api/chat/generate-words/route.ts | Used (fallback when quota=0) |
 | Amazon Bedrock (Nova Lite) | `amazon.nova-lite-v1:0` | app/api/report/summary/route.ts | Used (fallback when quota=0) |
-| Amazon Bedrock (Command R+) | `cohere.command-r-plus-v1:0` | app/api/report/clinical/route.ts | Used (fallback when quota=0) |
+| Amazon Bedrock (Nova Pro) | `amazon.nova-pro-v1:0` | app/api/report/clinical/route.ts | Active (hybrid template + AI insights) |
 | Amazon Polly | Neural TTS (Joanna) | app/api/tts/route.ts | Active, working |
 | ONNX Runtime (on-device) | 4 models in `public/models/` | app/lib/inference/ (13 files), workers/inference.worker.ts | Active, working |
 
@@ -36,6 +36,6 @@
 1. **AI voice conversation with child** (Step 7 screening + kid chat) — app/api/chat/conversation/route.ts — Nova Lite generates adaptive multi-turn questions across social/cognitive/language/motor domains
 2. **Dynamic word/sentence generation** (speech stages) — app/api/chat/generate-words/route.ts — Nova Lite generates age-appropriate vocabulary
 3. **Parent-friendly summary** (end of screening) — app/api/report/summary/route.ts — Nova Lite translates biomarker scores to plain language
-4. **DSM-5 clinical report** (end of screening) — app/api/report/clinical/route.ts — Command R+ generates full Criterion A/B/Motor/Recommendations report
+4. **DSM-5 clinical report** (end of screening) — app/api/report/clinical/route.ts — Nova Pro returns structured JSON insights merged with deterministic template (hybrid approach, ~85% fewer tokens)
 
 All 4 Bedrock routes have comprehensive mock fallbacks, so the app is fully functional even with your current quota=0 situation. The on-device ONNX inference (the core screening AI) needs zero cloud — it runs entirely in the browser.

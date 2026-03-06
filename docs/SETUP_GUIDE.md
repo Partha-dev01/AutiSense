@@ -22,7 +22,7 @@
 |---------|----------|--------|
 | DynamoDB | 7 tables (`autisense-*`) | ap-south-1 |
 | S3 | `autisense-models-762099405044` (4 ONNX models) | ap-south-1 |
-| Bedrock | Nova Lite + Command R+ | us-east-1 |
+| Bedrock | Nova Lite + Nova Pro | us-east-1 |
 | Polly | Joanna (Neural voice) | ap-south-1 |
 | Amplify | WEB_COMPUTE (Next.js SSR) | ap-south-1 |
 | IAM | `autisense-app` user + `AutiSenseAmplifyRole` | Global |
