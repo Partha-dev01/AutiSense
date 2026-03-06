@@ -122,6 +122,11 @@
 html {
   font-size: 17px;
   scroll-behavior: smooth;
+  overflow-y: auto;
+  scrollbar-width: none;          /* Firefox */
+}
+html::-webkit-scrollbar {
+  display: none;                  /* Chrome / Safari / Edge */
 }
 
 body {
