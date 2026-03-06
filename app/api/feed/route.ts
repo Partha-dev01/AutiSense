@@ -1,71 +1,269 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AUTH_CONFIG } from "@/app/lib/auth/config";
+import { getAuthSession, getUserById } from "@/app/lib/auth/dynamodb";
+import { getAppCredentials, getAppRegion } from "@/app/lib/aws/credentials";
 
-/**
- * Feed API route — for future DynamoDB sync.
- *
- * GET: List posts (from DynamoDB if available, fallback to IndexedDB on client)
- * POST: Create new post (write to DynamoDB when available)
- *
- * Currently returns placeholder responses since DynamoDB is not yet configured.
- * The client-side IndexedDB is the primary data source for now.
- */
+const TABLE = "autisense-feed-posts";
 
-// GET /api/feed — List posts
+// ─── In-memory fallback for local dev ────────────────────────────────
+interface MemoryPost {
+  id: string;
+  userId: string;
+  content: string;
+  category: string;
+  reactions: { heart: number; helpful: number; relate: number };
+  reactedBy: Record<string, string[]>; // { "heart": [userId1, ...], ... }
+  createdAt: number;
+  anonymous: boolean;
+}
+
+const memoryPosts: MemoryPost[] = [];
+
+// ─── DynamoDB client ─────────────────────────────────────────────────
+let dynamoFailed = false;
+
+async function getDynamo() {
+  const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
+  const { DynamoDBDocumentClient } = await import("@aws-sdk/lib-dynamodb");
+  const credentials = getAppCredentials();
+  const client = new DynamoDBClient({
+    region: getAppRegion("ap-south-1"),
+    ...(credentials && { credentials }),
+  });
+  return DynamoDBDocumentClient.from(client);
+}
+
+function shouldUseDynamo(): boolean {
+  if (
+    process.env.NODE_ENV === "development" &&
+    !process.env.AWS_ACCESS_KEY_ID &&
+    !process.env.APP_ACCESS_KEY_ID &&
+    !process.env.AWS_REGION
+  ) {
+    return false;
+  }
+  return !dynamoFailed;
+}
+
+// ─── Auth helper ─────────────────────────────────────────────────────
+async function getUser(request: NextRequest) {
+  const token = request.cookies.get(AUTH_CONFIG.sessionCookieName)?.value;
+  if (!token) return null;
+  try {
+    const session = await getAuthSession(token);
+    if (!session) return null;
+    return getUserById(session.userId);
+  } catch {
+    return null;
+  }
+}
+
+// ─── GET /api/feed — List posts ──────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get("limit") || "50", 10);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
   const category = searchParams.get("category") || undefined;
 
-  // TODO: Query DynamoDB when configured
-  // For now, return an empty array — client uses IndexedDB as primary store
+  if (shouldUseDynamo()) {
+    try {
+      const docClient = await getDynamo();
+      const { ScanCommand } = await import("@aws-sdk/lib-dynamodb");
+      const result = await docClient.send(
+        new ScanCommand({ TableName: TABLE, Limit: 200 }),
+      );
+      let posts = (result.Items || []) as MemoryPost[];
+      if (category) posts = posts.filter((p) => p.category === category);
+      posts.sort((a, b) => b.createdAt - a.createdAt);
+      return NextResponse.json({
+        posts: posts.slice(0, limit).map(sanitizePost),
+        source: "dynamodb",
+      });
+    } catch (err) {
+      console.error("[feed] DynamoDB GET failed, falling back:", err);
+      dynamoFailed = true;
+    }
+  }
+
+  // In-memory fallback
+  let posts = [...memoryPosts];
+  if (category) posts = posts.filter((p) => p.category === category);
+  posts.sort((a, b) => b.createdAt - a.createdAt);
   return NextResponse.json({
-    posts: [],
-    source: "placeholder",
-    message:
-      "DynamoDB not configured. Client should use IndexedDB as primary data source.",
-    params: { limit, category },
+    posts: posts.slice(0, limit).map(sanitizePost),
+    source: "memory",
   });
 }
 
-// POST /api/feed — Create a new post
+// ─── POST /api/feed — Create / React / Delete ────────────────────────
 export async function POST(request: NextRequest) {
+  const user = await getUser(request);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { content, category, anonymous } = body;
+    const { action } = body;
 
-    if (!content || typeof content !== "string" || !content.trim()) {
-      return NextResponse.json(
-        { error: "Content is required" },
-        { status: 400 },
-      );
-    }
-
-    const validCategories = ["tip", "milestone", "question", "resource"];
-    if (!validCategories.includes(category)) {
-      return NextResponse.json(
-        { error: `Category must be one of: ${validCategories.join(", ")}` },
-        { status: 400 },
-      );
-    }
-
-    // TODO: Write to DynamoDB when configured
-    // For now, acknowledge the post — client writes to IndexedDB
-    return NextResponse.json({
-      success: true,
-      source: "placeholder",
-      message:
-        "DynamoDB not configured. Post saved to IndexedDB on client only.",
-      post: {
-        content: content.trim(),
-        category,
-        anonymous: anonymous !== false,
-        createdAt: Date.now(),
-      },
-    });
+    if (action === "react") return handleReaction(body, user.id);
+    if (action === "delete") return handleDelete(body, user.id);
+    return handleCreate(body, user.id);
   } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
+}
+
+// ─── Create post ─────────────────────────────────────────────────────
+async function handleCreate(body: Record<string, unknown>, userId: string) {
+  const { content, category, anonymous } = body;
+  if (!content || typeof content !== "string" || !content.trim()) {
+    return NextResponse.json({ error: "Content is required" }, { status: 400 });
+  }
+  const validCategories = ["tip", "milestone", "question", "resource"];
+  if (!validCategories.includes(category as string)) {
+    return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+  }
+
+  const post: MemoryPost = {
+    id: crypto.randomUUID(),
+    userId,
+    content: (content as string).trim(),
+    category: category as string,
+    reactions: { heart: 0, helpful: 0, relate: 0 },
+    reactedBy: { heart: [], helpful: [], relate: [] },
+    createdAt: Date.now(),
+    anonymous: anonymous !== false,
+  };
+
+  if (shouldUseDynamo()) {
+    try {
+      const docClient = await getDynamo();
+      const { PutCommand } = await import("@aws-sdk/lib-dynamodb");
+      await docClient.send(new PutCommand({ TableName: TABLE, Item: post }));
+      return NextResponse.json({ success: true, post: sanitizePost(post), source: "dynamodb" });
+    } catch (err) {
+      console.error("[feed] DynamoDB PUT failed, falling back:", err);
+      dynamoFailed = true;
+    }
+  }
+
+  memoryPosts.push(post);
+  return NextResponse.json({ success: true, post: sanitizePost(post), source: "memory" });
+}
+
+// ─── React to a post ─────────────────────────────────────────────────
+async function handleReaction(body: Record<string, unknown>, userId: string) {
+  const { postId, type } = body;
+  if (!postId || !["heart", "helpful", "relate"].includes(type as string)) {
+    return NextResponse.json({ error: "Invalid reaction" }, { status: 400 });
+  }
+
+  const reactionType = type as "heart" | "helpful" | "relate";
+
+  if (shouldUseDynamo()) {
+    try {
+      const docClient = await getDynamo();
+      const { GetCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+      const result = await docClient.send(
+        new GetCommand({ TableName: TABLE, Key: { id: postId } }),
+      );
+      const post = result.Item as MemoryPost | undefined;
+      if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+      const reactedBy = post.reactedBy || { heart: [], helpful: [], relate: [] };
+      const users = reactedBy[reactionType] || [];
+      const already = users.includes(userId);
+
+      if (already) {
+        // Remove reaction
+        const newUsers = users.filter((u: string) => u !== userId);
+        await docClient.send(
+          new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: postId },
+            UpdateExpression: "SET reactions.#t = reactions.#t - :one, reactedBy.#t = :users",
+            ExpressionAttributeNames: { "#t": reactionType },
+            ExpressionAttributeValues: { ":one": 1, ":users": newUsers },
+          }),
+        );
+        return NextResponse.json({ toggled: false });
+      } else {
+        // Add reaction
+        await docClient.send(
+          new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: postId },
+            UpdateExpression: "SET reactions.#t = reactions.#t + :one, reactedBy.#t = list_append(if_not_exists(reactedBy.#t, :empty), :user)",
+            ExpressionAttributeNames: { "#t": reactionType },
+            ExpressionAttributeValues: { ":one": 1, ":user": [userId], ":empty": [] },
+          }),
+        );
+        return NextResponse.json({ toggled: true });
+      }
+    } catch (err) {
+      console.error("[feed] DynamoDB reaction failed, falling back:", err);
+      dynamoFailed = true;
+    }
+  }
+
+  // In-memory fallback
+  const post = memoryPosts.find((p) => p.id === postId);
+  if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+  if (!post.reactedBy) post.reactedBy = { heart: [], helpful: [], relate: [] };
+  const users = post.reactedBy[reactionType] || [];
+  const already = users.includes(userId);
+  if (already) {
+    post.reactedBy[reactionType] = users.filter((u) => u !== userId);
+    post.reactions[reactionType] = Math.max(0, post.reactions[reactionType] - 1);
+    return NextResponse.json({ toggled: false });
+  } else {
+    post.reactedBy[reactionType] = [...users, userId];
+    post.reactions[reactionType] += 1;
+    return NextResponse.json({ toggled: true });
+  }
+}
+
+// ─── Delete post ─────────────────────────────────────────────────────
+async function handleDelete(body: Record<string, unknown>, userId: string) {
+  const { postId } = body;
+  if (!postId) return NextResponse.json({ error: "postId required" }, { status: 400 });
+
+  if (shouldUseDynamo()) {
+    try {
+      const docClient = await getDynamo();
+      const { GetCommand, DeleteCommand } = await import("@aws-sdk/lib-dynamodb");
+      const result = await docClient.send(
+        new GetCommand({ TableName: TABLE, Key: { id: postId } }),
+      );
+      const post = result.Item as MemoryPost | undefined;
+      if (!post || post.userId !== userId) {
+        return NextResponse.json({ error: "Not found or not authorized" }, { status: 403 });
+      }
+      await docClient.send(new DeleteCommand({ TableName: TABLE, Key: { id: postId } }));
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      console.error("[feed] DynamoDB delete failed, falling back:", err);
+      dynamoFailed = true;
+    }
+  }
+
+  const idx = memoryPosts.findIndex((p) => p.id === postId && p.userId === userId);
+  if (idx === -1) return NextResponse.json({ error: "Not found or not authorized" }, { status: 403 });
+  memoryPosts.splice(idx, 1);
+  return NextResponse.json({ success: true });
+}
+
+// ─── Sanitize post for client (strip reactedBy, expose user's reactions) ─
+function sanitizePost(post: MemoryPost) {
+  return {
+    id: post.id,
+    userId: post.userId,
+    content: post.content,
+    category: post.category,
+    reactions: post.reactions,
+    reactedBy: post.reactedBy || { heart: [], helpful: [], relate: [] },
+    createdAt: post.createdAt,
+    anonymous: post.anonymous,
+  };
 }

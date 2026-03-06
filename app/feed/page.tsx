@@ -2,16 +2,24 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { createPost, listPosts, toggleReaction, getUserReactions, deletePost } from "../lib/db/feed.repository";
-import { getCurrentUserId } from "../lib/identity/identity";
 import { useAuthGuard } from "../hooks/useAuthGuard";
-import type { FeedPost } from "../types/feedPost";
 import NavLogo from "../components/NavLogo";
 import ThemeToggle from "../components/ThemeToggle";
 import UserMenu from "../components/UserMenu";
 import { Plus, X, Send, Trash2 } from "lucide-react";
 
-type Category = "all" | FeedPost["category"];
+type Category = "all" | "tip" | "milestone" | "question" | "resource";
+
+interface FeedPost {
+  id: string;
+  userId: string;
+  content: string;
+  category: "tip" | "milestone" | "question" | "resource";
+  reactions: { heart: number; helpful: number; relate: number };
+  reactedBy: Record<string, string[]>;
+  createdAt: number;
+  anonymous: boolean;
+}
 
 const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: "all", label: "All", emoji: "📋" },
@@ -29,9 +37,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const REACTION_CONFIG = [
-  { type: "heart" as const, emoji: "❤️", filledEmoji: "❤️", label: "Love" },
-  { type: "helpful" as const, emoji: "🙏", filledEmoji: "🙏", label: "Helpful" },
-  { type: "relate" as const, emoji: "🤝", filledEmoji: "🤝", label: "Relate" },
+  { type: "heart" as const, emoji: "❤️", label: "Love" },
+  { type: "helpful" as const, emoji: "🙏", label: "Helpful" },
+  { type: "relate" as const, emoji: "🤝", label: "Relate" },
 ];
 
 export default function FeedPage() {
@@ -46,15 +54,11 @@ export default function FeedPage() {
   const [userId, setUserId] = useState("");
   const [showCompose, setShowCompose] = useState(false);
   const [anonymous, setAnonymous] = useState(true);
-  const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const saved =
       (typeof window !== "undefined" && localStorage.getItem("autisense-theme")) || "light";
     setTheme(saved as "light" | "dark");
-    if (typeof window !== "undefined") {
-      setUserId(getCurrentUserId());
-    }
   }, []);
 
   useEffect(() => {
@@ -62,21 +66,32 @@ export default function FeedPage() {
     if (typeof window !== "undefined") localStorage.setItem("autisense-theme", theme);
   }, [theme]);
 
+  // Get current user ID from session
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.user?.id) setUserId(data.user.id);
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
+
   const loadPosts = useCallback(async () => {
     try {
-      const [all, reactions] = await Promise.all([listPosts(100), getUserReactions()]);
-      setPosts(all);
-      setUserReactions(reactions);
+      const res = await fetch("/api/feed?limit=50");
+      const data = await res.json();
+      setPosts(data.posts || []);
     } catch {
-      // IndexedDB may not be available
+      // API unavailable
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+    if (isAuthenticated) loadPosts();
+  }, [isAuthenticated, loadPosts]);
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -90,7 +105,11 @@ export default function FeedPage() {
     if (!content.trim() || posting) return;
     setPosting(true);
     try {
-      await createPost(content.trim(), category, anonymous);
+      await fetch("/api/feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: content.trim(), category, anonymous }),
+      });
       setContent("");
       setShowCompose(false);
       await loadPosts();
@@ -101,21 +120,26 @@ export default function FeedPage() {
     }
   };
 
-  const handleReaction = async (
-    postId: number,
-    type: "heart" | "helpful" | "relate",
-  ) => {
+  const handleReaction = async (postId: string, type: "heart" | "helpful" | "relate") => {
     try {
-      await toggleReaction(postId, type);
+      await fetch("/api/feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "react", postId, type }),
+      });
       await loadPosts();
     } catch {
       // Failed to toggle reaction
     }
   };
 
-  const handleDelete = async (postId: number) => {
+  const handleDelete = async (postId: string) => {
     try {
-      await deletePost(postId);
+      await fetch("/api/feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", postId }),
+      });
       await loadPosts();
     } catch {
       // Failed to delete
@@ -136,9 +160,9 @@ export default function FeedPage() {
     return `${days}d ago`;
   };
 
-  const hasReacted = (postId: number | undefined, type: string) => {
-    if (postId == null) return false;
-    return userReactions.has(`${postId}-${type}`);
+  const hasReacted = (post: FeedPost, type: string) => {
+    if (!userId || !post.reactedBy) return false;
+    return (post.reactedBy[type] || []).includes(userId);
   };
 
   return (
@@ -199,7 +223,7 @@ export default function FeedPage() {
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="What's on your mind? All posts are anonymous..."
+              placeholder="What's on your mind? Share with the community..."
               className="input"
               style={{
                 minHeight: 80,
@@ -434,11 +458,11 @@ export default function FeedPage() {
                 >
                   <div style={{ display: "flex", gap: 6 }}>
                     {REACTION_CONFIG.map((r) => {
-                      const reacted = hasReacted(post.id, r.type);
+                      const reacted = hasReacted(post, r.type);
                       return (
                         <button
                           key={r.type}
-                          onClick={() => post.id != null && handleReaction(post.id, r.type)}
+                          onClick={() => handleReaction(post.id, r.type)}
                           style={{
                             background: reacted ? "var(--sage-100)" : "none",
                             border: reacted ? "1.5px solid var(--sage-300)" : "1.5px solid transparent",
@@ -465,7 +489,7 @@ export default function FeedPage() {
 
                   {post.userId === userId && (
                     <button
-                      onClick={() => post.id != null && handleDelete(post.id)}
+                      onClick={() => handleDelete(post.id)}
                       style={{
                         background: "none",
                         border: "none",
@@ -497,7 +521,7 @@ export default function FeedPage() {
         )}
       </div>
 
-      {/* Floating Action Button (mobile) — only shows when compose is hidden */}
+      {/* Floating Action Button (mobile) */}
       {!showCompose && (
         <button
           onClick={() => setShowCompose(true)}

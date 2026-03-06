@@ -589,7 +589,7 @@ npx playwright test    # Run all 30 tests
 | 3 | Video capture requires camera permission — no graceful fallback UI | Low | Open | Page shows "Start Video Analysis" but camera denial has no user-friendly error |
 | 4 | SpeechRecognition not available in all browsers | Low | Open | Communication + Audio stages fall back to "missed" after timeout on unsupported browsers |
 | 5 | ONNX models loaded from public/ not S3 in production | Low | Open | Models bundled with the app (~47MB). S3 presigned URL loading is implemented but not wired to video-capture page |
-| 6 | Feed posts are local-only (IndexedDB) | Low | Open | DynamoDB sync for feed posts not yet implemented. Community links now redirect to AI Chat (v2.5.0 R40). |
+| 6 | ~~Feed posts are local-only (IndexedDB)~~ | Low | **Resolved** | v2.5.1: Feed now uses DynamoDB (`autisense-feed-posts` table) via `/api/feed` API route. Posts, reactions, and deletes are shared across all users. In-memory fallback for local dev. |
 | 7 | Dashboard charts show empty state for new users | Low | Open | No sample/demo data — charts appear blank until user completes at least one screening |
 
 ### Resolved Issues
@@ -639,6 +639,9 @@ npx playwright test    # Run all 30 tests
 | R41 | **Landing page logo not clickable** | Logo was a `<span>` with no click handler. Fix: wrapped in `<Link href="/">`. `app/page.tsx` |
 | R42 | **Intake pages use emojis instead of icons** | Device-check, profile, and summary intake pages used emoji strings for visual indicators. Fix: replaced with Lucide React icons (Camera, Lock, BarChart3, Trash2, Mic, Globe, Eye, Hand, AlertCircle). `app/intake/profile/page.tsx`, `app/intake/device-check/page.tsx`, `app/intake/summary/page.tsx` |
 | R43 | **Daily progress/streak not updating for 4 games** | Sorting, Color & Sound, Breathing, and Pattern Match games called `saveDifficulty` but never called `addGameActivity` or `updateStreak`. Fix: added result-saving `useEffect` with `addGameActivity` + `updateStreak` to all four games. `app/games/sorting/page.tsx`, `app/games/color-sound/page.tsx`, `app/games/breathing/page.tsx`, `app/games/pattern-match/page.tsx` |
+| R44 | **Community feed local-only — posts not shared across users** | Feed used IndexedDB (Dexie) for posts and reactions — each user only saw their own posts. Fix: implemented DynamoDB-backed `/api/feed` API route with full CRUD (create, list, react, delete). Feed page now calls server API instead of IndexedDB. Reaction tracking stored per-post in `reactedBy` map. In-memory fallback for local dev. DynamoDB table: `autisense-feed-posts` (PK: `id`). `app/api/feed/route.ts`, `app/feed/page.tsx` |
+| R45 | **Dashboard shows duplicate "AI Chat" quick link** | Community quick link was changed to AI Chat in v2.5.0, but AI Chat already existed — creating two identical entries. Fix: restored Community link pointing to `/feed`, kept single AI Chat entry. `app/kid-dashboard/page.tsx` |
+| R46 | **Landing page community links pointed to chat** | v2.5.0 redirected community links to `/kid-dashboard/chat`. Now that feed works cross-user, restored links to `/feed`. Updated CTA card and footer. `app/page.tsx` |
 
 ---
 
@@ -1071,6 +1074,22 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 - `app/intake/report/page.tsx` (AI status badges + fallback warning)
 
 **Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
+
+### v2.5.1 — 2026-03-07 (Community Feed Cross-User, Dashboard Fix)
+
+**Community Feed — Now Shared Across Users:**
+- Replaced IndexedDB-only feed with DynamoDB-backed `/api/feed` API route
+- Posts, reactions, and deletes now shared across all authenticated users
+- Reaction tracking per-post via `reactedBy` map (no separate reactions table needed)
+- In-memory fallback for local development without AWS credentials
+- DynamoDB table: `autisense-feed-posts` (PK: `id`, PAY_PER_REQUEST)
+
+**Dashboard & Navigation Fixes:**
+- Fixed duplicate "AI Chat" in dashboard quick links — restored Community link to `/feed`
+- Restored landing page CTA and footer links to `/feed` (was redirected to chat in v2.5.0)
+
+**Files modified:** 4 files (`app/api/feed/route.ts`, `app/feed/page.tsx`, `app/kid-dashboard/page.tsx`, `app/page.tsx`)
+**Resolved issues:** R44–R46
 
 ### v2.5.0 — 2026-03-06 (Desktop Fixes, Game Fixes, Detection, Report Accuracy, UI Polish)
 

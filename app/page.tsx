@@ -292,10 +292,10 @@ export default function LandingPage() {
               <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>Therapy Games</div>
               <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>7 adaptive games</div>
             </Link>
-            <Link href="/kid-dashboard/chat" className="card" style={{ padding: "22px 18px", textDecoration: "none", textAlign: "center" }}>
-              <div style={{ fontSize: "1.8rem", marginBottom: 10 }}>{"\u{1F916}"}</div>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>AI Chat</div>
-              <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Talk with our assistant</div>
+            <Link href="/feed" className="card" style={{ padding: "22px 18px", textDecoration: "none", textAlign: "center" }}>
+              <div style={{ fontSize: "1.8rem", marginBottom: 10 }}>{"\u{1F465}"}</div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>Community</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Tips, milestones & support</div>
             </Link>
           </div>
         </section>
@@ -598,7 +598,7 @@ export default function LandingPage() {
           <span>{"\u00B7"}</span>
           <Link href="/games">Games</Link>
           <span>{"\u00B7"}</span>
-          <Link href="/kid-dashboard/chat">Chat</Link>
+          <Link href="/feed">Community</Link>
           <span>{"\u00B7"}</span>
           {isAuthenticated ? (
             <button
