@@ -42,6 +42,8 @@ function ReportPage() {
   const [sections, setSections] = useState<ClinicalSections | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [aiEnriched, setAiEnriched] = useState<boolean | null>(null);
+  const [usingFallbackBio, setUsingFallbackBio] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(paramSessionId);
   const [session, setSession] = useState<Session | null>(null);
   const [biomarkers, setBiomarkers] = useState<BiomarkerAggregate | null>(null);
@@ -97,9 +99,12 @@ function ReportPage() {
     setReportReady(false);
     setReportText("");
     setSections(null);
+    setAiEnriched(null);
 
     try {
       // Build a fallback biomarker object if none loaded from DB
+      const isFallback = !biomarkers;
+      setUsingFallbackBio(isFallback);
       const bio: BiomarkerAggregate = biomarkers ?? {
         sessionId: sessionId ?? "unknown",
         avgGazeScore: 0.5,
@@ -125,6 +130,7 @@ function ReportPage() {
 
         const data = await res.json();
         setReportText(data.summary);
+        setAiEnriched(data.fallback === false);
         setReportReady(true);
       } else {
         const res = await fetch("/api/report/clinical", {
@@ -145,6 +151,7 @@ function ReportPage() {
         const data = await res.json();
         setReportText(data.report);
         setSections(data.sections ?? null);
+        setAiEnriched(data.aiEnriched === true);
         setReportReady(true);
       }
     } catch (err) {
@@ -369,11 +376,36 @@ function ReportPage() {
               <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.3rem", marginBottom: 8 }}>
                 {reportType === "summary" ? "Summary generated!" : "Report generated!"}
               </h2>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: 20 }}>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: 12 }}>
                 {reportType === "summary"
                   ? "Your screening summary is ready below."
                   : "Your DSM-5 aligned clinical report is ready. Download it as a PDF and share it with your child's specialist."}
               </p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 12 }}>
+                {aiEnriched !== null && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "4px 12px", borderRadius: "var(--r-full)",
+                    fontSize: "0.75rem", fontWeight: 700,
+                    background: aiEnriched ? "var(--sage-100)" : "var(--peach-100)",
+                    color: aiEnriched ? "var(--sage-600)" : "var(--peach-300)",
+                    border: `1.5px solid ${aiEnriched ? "var(--sage-200)" : "var(--peach-300)"}`,
+                  }}>
+                    {aiEnriched ? "\u2728 AI-Enriched (Nova Pro)" : "\u26A0\uFE0F Template Only \u2014 AI unavailable"}
+                  </span>
+                )}
+                {usingFallbackBio && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "4px 12px", borderRadius: "var(--r-full)",
+                    fontSize: "0.75rem", fontWeight: 700,
+                    background: "var(--peach-100)", color: "var(--peach-300)",
+                    border: "1.5px solid var(--peach-300)",
+                  }}>
+                    No screening data \u2014 using placeholder values
+                  </span>
+                )}
+              </div>
               <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                 <button
                   className="btn btn-primary"

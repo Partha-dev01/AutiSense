@@ -255,12 +255,12 @@ export async function POST(req: NextRequest) {
     const insights = parseInsights(text);
     if (!insights) {
       console.warn("[Report/Clinical] Could not parse AI insights, using template only");
-      return NextResponse.json(baseReport);
+      return NextResponse.json({ ...baseReport, aiEnriched: false });
     }
 
-    return NextResponse.json(mergeAiInsights(baseReport, insights));
+    return NextResponse.json({ ...mergeAiInsights(baseReport, insights), aiEnriched: true });
   } catch (err) {
     console.error("[Report/Clinical] Bedrock invocation failed:", err);
-    return NextResponse.json(baseReport);
+    return NextResponse.json({ ...baseReport, aiEnriched: false });
   }
 }

@@ -98,10 +98,10 @@ Important guidelines:
       responseBody?.completion ??
       buildMockSummary(biomarkers);
 
-    return NextResponse.json({ summary });
+    return NextResponse.json({ summary, fallback: false });
   } catch (err) {
     console.error("[Report/Summary] Bedrock invocation failed:", err);
     // Graceful degradation: return mock summary on error
-    return NextResponse.json({ summary: buildMockSummary(biomarkers) });
+    return NextResponse.json({ summary: buildMockSummary(biomarkers), fallback: true });
   }
 }
