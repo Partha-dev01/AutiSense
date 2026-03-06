@@ -223,7 +223,7 @@ export default function ChatPage() {
         <NavLogo />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
-          <Link href="/kid-dashboard" className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.85rem" }}>
+          <Link href="/kid-dashboard" className="btn btn-outline" style={{ minHeight: 36, padding: "6px 12px", fontSize: "0.82rem" }}>
             Home
           </Link>
           <UserMenu />
