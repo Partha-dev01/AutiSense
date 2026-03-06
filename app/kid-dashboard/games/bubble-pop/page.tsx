@@ -88,7 +88,7 @@ export default function BubblePopPage() {
           id: idStart + i,
           label,
           x: 8 + Math.random() * 74,
-          duration: (5 + Math.random() * 3) / (0.8 + speedMult * 0.2),
+          duration: (7 + Math.random() * 4) / (0.8 + speedMult * 0.2),
           delay: Math.random() * 1.5,
           size: 56 + Math.floor(Math.random() * 20),
           color: pickRandom(BUBBLE_COLORS),
@@ -280,11 +280,11 @@ export default function BubblePopPage() {
               background: "var(--sage-50)", borderRadius: "var(--r-lg)", border: "3px solid var(--sage-300)",
               animation: "targetPulse 2s ease-in-out infinite",
             }}>
-              Pop the <span style={{ color: "var(--sage-500)", fontSize: "2.2rem", fontWeight: 700 }}>{target}</span>!
+              Pop the <span style={{ color: "var(--sage-500)", fontSize: "2.8rem", fontWeight: 700, lineHeight: 1 }}>{target}</span>!
             </div>
 
             <div style={{
-              position: "relative", width: "100%", height: 380,
+              position: "relative", width: "100%", height: 440,
               borderRadius: "var(--r-lg)", border: "2px solid var(--border)",
               background: "var(--card)", overflow: "hidden",
             }}>

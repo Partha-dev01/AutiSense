@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Camera, Mic, Globe } from "lucide-react";
 
 const STEPS = [
   "Welcome", "Profile", "Device", "Communicate", "Behavior",
@@ -22,25 +23,31 @@ interface DeviceCheck {
 export default function DeviceCheckPage() {
   const router = useRouter();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const iconMap: Record<string, React.ReactNode> = {
+    camera: <Camera size={18} />,
+    microphone: <Mic size={18} />,
+    browser: <Globe size={18} />,
+  };
+
   const [checks, setChecks] = useState<DeviceCheck[]>([
     {
       id: "camera",
       label: "Camera access",
-      emoji: "📷",
+      emoji: "",
       description: "Needed to observe movement and facial expressions",
       status: "idle",
     },
     {
       id: "microphone",
       label: "Microphone access",
-      emoji: "🎙️",
+      emoji: "",
       description: "Used for audio-based screening tasks",
       status: "idle",
     },
     {
       id: "browser",
       label: "Browser compatibility",
-      emoji: "🌐",
+      emoji: "",
       description: "Checking for required features (WebAssembly, etc.)",
       status: "idle",
     },
@@ -201,7 +208,7 @@ export default function DeviceCheckPage() {
           {checks.map((check) => (
             <div key={check.id} className={`check-row ${check.status}`}>
               <div className={`check-icon ${check.status}`}>
-                {check.status === "idle" && check.emoji}
+                {check.status === "idle" && iconMap[check.id]}
                 {check.status === "checking" && ""}
                 {check.status === "pass" && "✓"}
                 {check.status === "fail" && "✕"}

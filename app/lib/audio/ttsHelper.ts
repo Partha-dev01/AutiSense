@@ -101,16 +101,30 @@ export async function checkMicSupport(): Promise<{
     };
   }
 
+  // Use Permissions API to check mic access without creating a hardware stream.
+  // This avoids a race condition on Windows/Chrome where getUserMedia holds the
+  // mic hardware just long enough to block SpeechRecognition.start().
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    // Stop the stream immediately — we just needed the permission
-    stream.getTracks().forEach((t) => t.stop());
+    if (navigator.permissions) {
+      const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      if (status.state === "granted") {
+        return { supported: true, permitted: true };
+      }
+      if (status.state === "denied") {
+        return {
+          supported: true,
+          permitted: false,
+          error: "Microphone access denied. Please allow microphone in your browser settings.",
+        };
+      }
+      // "prompt" — permission not yet decided. Assume permitted and let
+      // SpeechRecognition itself trigger the permission prompt.
+      return { supported: true, permitted: true };
+    }
+    // Permissions API unavailable — optimistically assume permitted.
     return { supported: true, permitted: true };
   } catch {
-    return {
-      supported: true,
-      permitted: false,
-      error: "Microphone access denied. Please allow microphone in your browser settings.",
-    };
+    // Permissions query failed — assume permitted and let recognition handle it.
+    return { supported: true, permitted: true };
   }
 }

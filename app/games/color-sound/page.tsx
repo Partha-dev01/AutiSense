@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+import { addGameActivity } from "../../lib/db/gameActivity.repository";
+import { updateStreak } from "../../lib/db/streak.repository";
 import { speakText } from "../../lib/audio/ttsHelper";
 import NavLogo from "../../components/NavLogo";
 import ThemeToggle from "../../components/ThemeToggle";
@@ -189,6 +191,16 @@ export default function ColorSoundPage() {
 
   const finalScore =
     maxRounds > 0 ? Math.round((correct / maxRounds) * 100) : 0;
+
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (screen !== "result" || saved) return;
+    setSaved(true);
+    const childId = (typeof window !== "undefined" && localStorage.getItem("autisense-active-child-id")) || "default";
+    const config = getDifficulty("color-sound", childId);
+    addGameActivity(childId, "color-sound", finalScore, Math.floor(elapsed / 1000), config.level);
+    updateStreak(childId);
+  }, [screen, saved, finalScore, elapsed]);
 
   return (
     <div className="page">

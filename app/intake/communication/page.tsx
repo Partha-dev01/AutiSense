@@ -171,7 +171,10 @@ export default function CommunicationPage() {
       setWordState("missed");
     };
 
-    recognition.start();
+    // Small delay to avoid hardware contention after TTS playback releases audio
+    setTimeout(() => {
+      try { recognition.start(); } catch { /* ignore */ }
+    }, 200);
 
     timerRef.current = setTimeout(() => {
       stopRecognition();

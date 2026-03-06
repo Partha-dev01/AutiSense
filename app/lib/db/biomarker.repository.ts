@@ -98,9 +98,9 @@ export async function aggregateBiomarkers(
   const motorRows = rows.filter((r) => TASK_DOMAINS[r.taskId]?.motor);
   const vocalRows = rows.filter((r) => TASK_DOMAINS[r.taskId]?.vocal);
 
-  const rawAvgGaze = gazeRows.length > 0 ? avg(gazeRows.map((r) => r.gazeScore)) : 0.75;
-  const rawAvgMotor = motorRows.length > 0 ? avg(motorRows.map((r) => r.motorScore)) : 0.75;
-  const rawAvgVocal = vocalRows.length > 0 ? avg(vocalRows.map((r) => r.vocalizationScore)) : 0.75;
+  const rawAvgGaze = gazeRows.length > 0 ? avg(gazeRows.map((r) => r.gazeScore)) : 0.5;
+  const rawAvgMotor = motorRows.length > 0 ? avg(motorRows.map((r) => r.motorScore)) : 0.5;
+  const rawAvgVocal = vocalRows.length > 0 ? avg(vocalRows.map((r) => r.vocalizationScore)) : 0.5;
   const avgLatency = latencies.length > 0 ? avg(latencies) : null;
 
   // Apply age normalization if ageMonths provided

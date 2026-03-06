@@ -589,7 +589,7 @@ npx playwright test    # Run all 30 tests
 | 3 | Video capture requires camera permission — no graceful fallback UI | Low | Open | Page shows "Start Video Analysis" but camera denial has no user-friendly error |
 | 4 | SpeechRecognition not available in all browsers | Low | Open | Communication + Audio stages fall back to "missed" after timeout on unsupported browsers |
 | 5 | ONNX models loaded from public/ not S3 in production | Low | Open | Models bundled with the app (~47MB). S3 presigned URL loading is implemented but not wired to video-capture page |
-| 6 | Feed posts are local-only (IndexedDB) | Low | Open | DynamoDB sync for feed posts not yet implemented |
+| 6 | Feed posts are local-only (IndexedDB) | Low | Open | DynamoDB sync for feed posts not yet implemented. Community links now redirect to AI Chat (v2.5.0 R40). |
 | 7 | Dashboard charts show empty state for new users | Low | Open | No sample/demo data — charts appear blank until user completes at least one screening |
 
 ### Resolved Issues
@@ -619,6 +619,26 @@ npx playwright test    # Run all 30 tests
 | R21 | **Chat mic stops working after first voice input** | SpeechRecognition cleanup: stop+nullify old instance before creating new, 120ms delay for mic release, cleanup on unmount. Reordered input bar: mic first (64px, primary), text secondary. `app/kid-dashboard/chat/page.tsx` |
 | R22 | **Mobile browser zoom on input focus** | Added `viewport` export with `maximumScale: 1`, `userScalable: false` in `app/layout.tsx`. |
 | R23 | **Community feed infinite reactions / UI issues** | Per-user reaction tracking via `feedReactions` table (Dexie v5). Reactions toggle on/off per user. Posts displayed first, compose form behind FAB. Delete own posts with reaction cleanup. `app/feed/page.tsx`, `app/lib/db/feed.repository.ts`, `app/lib/db/schema.ts` |
+| R24 | **UserMenu dropdown unclickable on mobile (Nothing Phone 3a Pro, Samsung)** | CSS stacking context issue: `.page > * { z-index: 1 }` in globals.css created separate stacking contexts for all page children, preventing `.nav`'s dropdown (z-index: 200) from rendering above `.main`. Fix: added `position: relative; z-index: 10` to `.nav` rule. `app/globals.css` |
+| R25 | **Dashboard game cards cut off behind BottomNav** | Dashboard `.main` had only 24px bottom padding — Featured Games section disappeared behind the 64px fixed BottomNav. Fix: increased inline padding to `24px 20px 80px`. `app/kid-dashboard/page.tsx` |
+| R26 | **Chat Home button oversized on mobile** | Home button in chat nav used `minHeight: 40, padding: 8px 14px, fontSize: 0.85rem` — too large for mobile viewports. Fix: reduced to `minHeight: 36, padding: 6px 12px, fontSize: 0.82rem`. `app/kid-dashboard/chat/page.tsx` |
+| R27 | **BottomNav icons touching bottom edge on gesture-bar phones** | `height: 64` with `paddingBottom: env(safe-area-inset-bottom, 0px)` didn't grow for gesture navigation bars. Fix: changed to `minHeight: 64` + `paddingBottom: max(8px, env(safe-area-inset-bottom, 8px))` so nav grows for gesture bars and always has baseline padding. `app/components/BottomNav.tsx` |
+| R28 | **Top navbar cramped on mobile with safe-area override** | The `@supports (padding-top: env(safe-area-inset-top))` rule set `padding-top: max(12px, ...)` which overrode the 480px breakpoint's padding. Also missing `min-height`. Fix: changed safe-area padding to `max(20px, env(...))`, added `min-height: 64px` to `.nav`. `app/globals.css` |
+| R29 | **PDF reports identical across different screening sessions** | When no IndexedDB biomarker data exists for a session, the report page uses hardcoded fallback values `{avgGazeScore: 0.5, avgMotorScore: 0.5, avgVocalizationScore: 0.5, overallScore: 50}` — every report built from these looks the same. Root cause was NOT a Nova Pro failure (Playwright tests confirmed both Nova Pro and Nova Lite are active). Fix: added `aiEnriched: boolean` to clinical API response, `fallback: boolean` to summary API response, and UI badges showing AI enrichment status + fallback biomarker warning. `app/api/report/clinical/route.ts`, `app/api/report/summary/route.ts`, `app/intake/report/page.tsx` |
+| R30 | **Desktop mic not working (SpeechRecognition race condition)** | `checkMicSupport()` in `ttsHelper.ts` created a temp `getUserMedia` stream, stopped it, then `SpeechRecognition.start()` was called — race condition on Windows/Chrome where mic hardware wasn't released fast enough. Fix: replaced `getUserMedia` with `navigator.permissions.query({name: 'microphone'})`. Added 200ms delay before `recognition.start()` in speech and communication pages. Added `interimResults: true` and `settled` flag to prevent double-handling. `app/lib/audio/ttsHelper.ts`, `app/kid-dashboard/speech/page.tsx`, `app/intake/communication/page.tsx` |
+| R31 | **Live Detection modality buttons confusing on desktop** | Users had to manually select face/body/both toggle on detection page. Fix: removed toggle buttons, auto-detect modality based on viewport width (`< 768px → face`, `≥ 768px → both`). Added resize listener for dynamic updates. Changed `useDetectorInference` default from `"body"` to `"both"`. `app/kid-dashboard/detection/page.tsx`, `app/hooks/useDetectorInference.ts` |
+| R32 | **Action detection canvas doesn't fit screen during screening** | Stage 7 camera container used fixed `width: 320, height: 240` — overflowed or was tiny on various viewports. Fix: changed to responsive `width: "100%", maxWidth: 400, aspectRatio: "4/3"` with `object-fit: cover`. `app/intake/preparation/page.tsx` |
+| R33 | **CLAP and RAISE ARMS detection too strict** | Desktop webcam distance made action detection thresholds too tight. Fix: relaxed clap wrist-distance threshold from `0.3 * scale` to `0.45 * scale`, relaxed raise_arms margin from `0.05 * scale` to `0.02 * scale`, lowered `REQUIRED_CONSECUTIVE` from 12 to 10 frames. `app/lib/actions/actionDetector.ts` |
+| R34 | **Sequence Memory no "Try Again" on wrong answer** | Wrong answer went straight to result screen after 1s timeout. Fix: added intermediate "feedback" phase showing correct sequence with color blocks, "Try Again" (replays same round) and "End Game" buttons. `app/games/sequence/page.tsx` |
+| R35 | **Bubble Pop bubbles too fast / small target** | Bubbles floated off-screen before users could tap on some viewports. Fix: increased float duration from `5+3s` to `7+4s`, enlarged target letter display from `2.2rem` to `2.8rem`, increased play area height from `380px` to `440px`. `app/kid-dashboard/games/bubble-pop/page.tsx` |
+| R36 | **Social Stories dark mode broken** | Feedback text used hardcoded `var(--peach-300)` which was invisible in dark mode. Fix: changed wrong-answer feedback color to `var(--text-secondary)`. `app/games/social-stories/page.tsx` |
+| R37 | **Progress shows multiple entries per game per day** | Previous 2-second dedup window was too narrow — rapid replays still created duplicate entries. Fix: changed to per-game-per-day dedup keeping best score per game per calendar day. `app/kid-dashboard/progress/page.tsx` |
+| R38 | **Report accuracy inflated when skipping stages** | Unmeasured biomarker domains defaulted to `0.5` but domain-aware averaging fallback was `0.75` when no tasks measured a domain. Fix: changed fallback from `0.75` to `0.5` so skipped screenings show honest ~50% scores. `app/lib/db/biomarker.repository.ts` |
+| R39 | **PDF clinical text cut off at right margin** | `wrapText` margin was `CONTENT_WIDTH - 10` and font was `9.5pt` — text truncated on right edge. Fix: increased margin to `CONTENT_WIDTH - 20` and reduced clinical font from `9.5pt` to `9pt`. `app/api/report/pdf/route.ts` |
+| R40 | **Community feed links point to non-functional /feed page** | Feed is IndexedDB-only (Known Issue #6) so community links were misleading. Fix: redirected all community/feed links to `/kid-dashboard/chat` (AI Chat). Updated landing page CTA, dashboard quick links, and footer. `app/page.tsx`, `app/kid-dashboard/page.tsx` |
+| R41 | **Landing page logo not clickable** | Logo was a `<span>` with no click handler. Fix: wrapped in `<Link href="/">`. `app/page.tsx` |
+| R42 | **Intake pages use emojis instead of icons** | Device-check, profile, and summary intake pages used emoji strings for visual indicators. Fix: replaced with Lucide React icons (Camera, Lock, BarChart3, Trash2, Mic, Globe, Eye, Hand, AlertCircle). `app/intake/profile/page.tsx`, `app/intake/device-check/page.tsx`, `app/intake/summary/page.tsx` |
+| R43 | **Daily progress/streak not updating for 4 games** | Sorting, Color & Sound, Breathing, and Pattern Match games called `saveDifficulty` but never called `addGameActivity` or `updateStreak`. Fix: added result-saving `useEffect` with `addGameActivity` + `updateStreak` to all four games. `app/games/sorting/page.tsx`, `app/games/color-sound/page.tsx`, `app/games/breathing/page.tsx`, `app/games/pattern-match/page.tsx` |
 
 ---
 
@@ -1022,6 +1042,67 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 - Updated all documentation references from Cohere to Nova Pro
 
 **Files modified:** `app/api/report/clinical/route.ts`, `docs/DOCS.md`, `docs/SETUP_GUIDE.md`, `docs/Amazon_usage.md`
+
+### v2.4.1 — 2026-03-06 (Mobile UI Fixes + Report Generation Indicators)
+
+**Mobile UI Fixes (tested on Nothing Phone 3a Pro + Samsung):**
+- **UserMenu dropdown unclickable**: CSS stacking context from `.page > *` rule isolated nav's z-index. Added `position: relative; z-index: 10` to `.nav`.
+- **Dashboard cards behind BottomNav**: Increased `.main` bottom padding from 24px to 80px for BottomNav clearance.
+- **Chat Home button too large**: Reduced button dimensions for mobile viewports.
+- **BottomNav icons touching edge**: Changed `height: 64` to `minHeight: 64` with `paddingBottom: max(8px, env(safe-area-inset-bottom, 8px))` for gesture bar clearance.
+- **Top navbar cramped**: Added `min-height: 64px`, fixed safe-area override from `max(12px, ...)` to `max(20px, ...)`.
+
+**Report Generation Indicators:**
+- Added `aiEnriched: boolean` field to `/api/report/clinical` response (3 paths: AI success -> true, parse failure -> false, Bedrock error -> false)
+- Added `fallback: boolean` field to `/api/report/summary` response (Bedrock success -> false, error -> true)
+- Report page now shows status badges:
+  - Green: "AI-Enriched (Nova Pro)" when Bedrock succeeds
+  - Amber: "Template Only -- AI unavailable" when Bedrock fails
+  - Amber: "No screening data -- using placeholder values" when no real biomarker data exists
+- Playwright tests confirmed Nova Pro and Nova Lite are both active on production
+
+**Files modified:**
+- `app/globals.css` (nav z-index, min-height, safe-area padding)
+- `app/kid-dashboard/page.tsx` (bottom padding 80px)
+- `app/kid-dashboard/chat/page.tsx` (Home button sizing)
+- `app/components/BottomNav.tsx` (minHeight + gesture bar padding)
+- `app/api/report/clinical/route.ts` (aiEnriched boolean)
+- `app/api/report/summary/route.ts` (fallback boolean)
+- `app/intake/report/page.tsx` (AI status badges + fallback warning)
+
+**Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
+
+### v2.5.0 — 2026-03-06 (Desktop Fixes, Game Fixes, Detection, Report Accuracy, UI Polish)
+
+**Phase 1 — Desktop Mic Fix:**
+- Replaced `getUserMedia` temp stream in `checkMicSupport()` with `navigator.permissions.query({name: 'microphone'})` — eliminates hardware race condition on Windows/Chrome
+- Added 200ms delay before `SpeechRecognition.start()` in speech and communication pages
+- Added `interimResults: true` and `settled` flag to prevent double-handling of results
+
+**Phase 2 — Detection Fixes:**
+- Removed face/body/both toggle buttons from live detection page — auto-detects modality based on viewport width (`< 768px → face`, `≥ 768px → both`) with resize listener
+- Changed `useDetectorInference` default modality from `"body"` to `"both"`
+- Made Stage 7 (preparation) camera container responsive: `width: "100%", maxWidth: 400, aspectRatio: "4/3"`
+- Relaxed action detection thresholds: clap wrist-distance `0.3→0.45 * scale`, raise_arms margin `0.05→0.02 * scale`, `REQUIRED_CONSECUTIVE` `12→10`
+
+**Phase 3 — Game Fixes:**
+- **Sequence Memory**: added "Try Again" option on wrong answer — shows correct sequence with color blocks, retry replays same round
+- **Bubble Pop**: increased float duration (`5+3s→7+4s`), enlarged target display (`2.2→2.8rem`), taller play area (`380→440px`)
+- **Social Stories**: fixed dark mode feedback color (`var(--peach-300)→var(--text-secondary)`)
+
+**Phase 4 — Progress & Reports:**
+- Progress page dedup changed from 2-second window to per-game-per-day (keeps best score)
+- Biomarker unmeasured domain defaults changed from `0.75` to `0.5` — skipped screenings now show honest ~50% scores
+- PDF clinical text: increased wrap margin (`CONTENT_WIDTH - 10→20`), reduced font (`9.5→9pt`)
+
+**Phase 5 — UI Polish:**
+- Community/feed links redirected to `/kid-dashboard/chat` (AI Chat) on landing page + dashboard
+- Landing page logo wrapped in `<Link href="/">`
+- Intake pages (profile, device-check, summary): replaced emojis with Lucide React icons
+- Added `addGameActivity` + `updateStreak` to 4 games missing daily progress tracking: sorting, color-sound, breathing, pattern-match
+
+**Files modified:** ~20 files across lib, games, intake, dashboard, hooks, and API routes.
+**Resolved issues:** R30–R43 (14 issues).
 
 ### v2.2.0 — 2026-03-06 (Game Staging, Nav Fix, Dark Mode, Feed Toggle)
 

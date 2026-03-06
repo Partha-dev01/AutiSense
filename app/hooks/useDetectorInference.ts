@@ -31,7 +31,7 @@ export function useDetectorInference(
   const [error, setError] = useState<string | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   const [backend, setBackend] = useState("");
-  const [modality, setModalityState] = useState<Modality>("body");
+  const [modality, setModalityState] = useState<Modality>("both");
 
   const workerRef = useRef<Worker | null>(null);
   const busyRef = useRef(false);

@@ -184,32 +184,48 @@ export default function SpeechPracticePage() {
     setFeedback(null);
     const recognition = new (SR as new () => SpeechRec)();
     recognition.lang = "en-US";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
 
-    recognition.onresult = (e: { results: { transcript: string }[][] }) => {
-      const transcript = e.results[0][0].transcript.toLowerCase();
+    let settled = false;
+
+    recognition.onresult = (e: { results: { transcript: string; isFinal?: boolean }[][] }) => {
+      if (settled) return;
+      const result = e.results[0];
+      const transcript = result[0].transcript.toLowerCase();
       const target = words[wordIdx].toLowerCase();
-      setListening(false);
 
-      if (transcript.includes(target)) {
-        setScore((s) => s + 1);
-        setFeedback("Great job!");
-        setFeedbackOk(true);
-        setTimeout(advanceWord, 1500);
-      } else {
-        setFeedback(`Good try! You said "${e.results[0][0].transcript}". Let\u2019s try again.`);
-        setFeedbackOk(false);
+      // Accept on final result or interim match
+      if ((result as unknown as { isFinal?: boolean }).isFinal || transcript.includes(target)) {
+        settled = true;
+        try { recognition.stop(); } catch { /* ignore */ }
+        setListening(false);
+
+        if (transcript.includes(target)) {
+          setScore((s) => s + 1);
+          setFeedback("Great job!");
+          setFeedbackOk(true);
+          setTimeout(advanceWord, 1500);
+        } else {
+          setFeedback(`Good try! You said "${result[0].transcript}". Let\u2019s try again.`);
+          setFeedbackOk(false);
+        }
       }
     };
 
     recognition.onerror = () => {
+      if (settled) return;
+      settled = true;
       setListening(false);
       setFeedback("Could not hear you. Try again closer to the mic.");
       setFeedbackOk(false);
     };
 
-    recognition.onend = () => setListening(false);
-    recognition.start();
+    recognition.onend = () => { if (!settled) setListening(false); };
+
+    // Small delay to avoid hardware contention after mic permission check
+    setTimeout(() => {
+      try { recognition.start(); } catch { setListening(false); }
+    }, 200);
   }, [words, wordIdx, advanceWord]);
 
   const fallbackMark = useCallback(() => {

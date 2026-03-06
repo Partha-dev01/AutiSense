@@ -128,7 +128,7 @@ function detectClap(
   if (!confOk(conf, L_WRIST, R_WRIST))
     return { hit: false, proximity: 0 };
   const d = dist(kp(kps, L_WRIST), kp(kps, R_WRIST));
-  const threshold = 0.3 * scale; // Tightened: require hands closer together
+  const threshold = 0.45 * scale; // Relaxed for desktop webcam distance
   return { hit: d < threshold, proximity: Math.max(0, 1 - d / threshold) };
 }
 
@@ -139,7 +139,7 @@ function detectRaiseArms(
 ): { hit: boolean; proximity: number } {
   if (!confOk(conf, L_WRIST, R_WRIST, L_SHOULDER, R_SHOULDER))
     return { hit: false, proximity: 0 };
-  const margin = 0.05 * scale;
+  const margin = 0.02 * scale; // Relaxed: wrists just need to be above shoulders
   const lUp = kps[L_WRIST * 2 + 1] < kps[L_SHOULDER * 2 + 1] - margin;
   const rUp = kps[R_WRIST * 2 + 1] < kps[R_SHOULDER * 2 + 1] - margin;
   return { hit: lUp && rUp, proximity: (lUp ? 0.5 : 0) + (rUp ? 0.5 : 0) };
@@ -229,7 +229,7 @@ export function detectAction(
 
 // ── Sustained detection tracker ─────────────────────────────────────
 
-const REQUIRED_CONSECUTIVE = 12;
+const REQUIRED_CONSECUTIVE = 10;
 
 export class ActionTracker {
   private consecutiveHits = 0;

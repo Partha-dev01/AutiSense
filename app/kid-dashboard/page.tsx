@@ -10,7 +10,7 @@ import StreakBadge from "../components/StreakBadge";
 import NavLogo from "../components/NavLogo";
 import UserMenu from "../components/UserMenu";
 import ThemeToggle from "../components/ThemeToggle";
-import { Mic, Camera, Bot, MapPin, ClipboardList, Users } from "lucide-react";
+import { Mic, Camera, Bot, MapPin, ClipboardList } from "lucide-react";
 import type { ChildProfile } from "../types/childProfile";
 import type { Streak } from "../types/gameActivity";
 
@@ -23,7 +23,7 @@ const quickLinks = [
   { href: "/kid-dashboard/chat", icon: Bot, label: "AI Chat", color: "var(--feature-lavender)" },
   { href: "/kid-dashboard/nearby-help", icon: MapPin, label: "Nearby", color: "var(--feature-green)" },
   { href: "/intake/profile", icon: ClipboardList, label: "Screening", color: "var(--feature-peach)" },
-  { href: "/feed", icon: Users, label: "Community", color: "var(--feature-blue)" },
+  { href: "/kid-dashboard/chat", icon: Bot, label: "AI Chat", color: "var(--feature-blue)" },
 ];
 
 const gameCards = [

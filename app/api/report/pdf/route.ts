@@ -472,7 +472,7 @@ export async function POST(req: NextRequest) {
     page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 1, color: SAGE_500 });
     y -= 14;
 
-    const wrappedLines = wrapText(report, helvetica, 9.5, CONTENT_WIDTH - 10);
+    const wrappedLines = wrapText(report, helvetica, 9, CONTENT_WIDTH - 20);
     const LINE_HEIGHT = 13;
 
     for (const line of wrappedLines) {
@@ -493,23 +493,23 @@ export async function POST(req: NextRequest) {
         y -= 10;
         ensureSpace(LINE_HEIGHT + 14);
         page.drawRectangle({ x: MARGIN + 4, y: y - 3, width: 3, height: 14, color: SAGE_500 });
-        page.drawText(line, { x: MARGIN + 12, y, size: 10.5, font: helveticaBold, color: SAGE_600 });
+        page.drawText(line, { x: MARGIN + 12, y, size: 10, font: helveticaBold, color: SAGE_600 });
       } else if (isSubHeader) {
         y -= 4;
         ensureSpace(LINE_HEIGHT + 6);
-        page.drawText(line, { x: MARGIN + 4, y, size: 9.5, font: helveticaBold, color: TEXT_PRIMARY });
+        page.drawText(line, { x: MARGIN + 4, y, size: 9, font: helveticaBold, color: TEXT_PRIMARY });
       } else if (isFlagLine) {
         const isFlagged = /FLAGGED/i.test(line);
-        page.drawText(line, { x: MARGIN + 4, y, size: 9.5, font: helveticaBold, color: isFlagged ? PEACH_400 : SAGE_500 });
+        page.drawText(line, { x: MARGIN + 4, y, size: 9, font: helveticaBold, color: isFlagged ? PEACH_400 : SAGE_500 });
       } else if (isBullet) {
-        page.drawText(line, { x: MARGIN + 16, y, size: 9.5, font: helvetica, color: TEXT_SECONDARY });
+        page.drawText(line, { x: MARGIN + 16, y, size: 9, font: helvetica, color: TEXT_SECONDARY });
       } else if (line === "") {
         // blank line — spacing only
       } else if (line.startsWith("IMPORTANT")) {
         y -= 4;
-        page.drawText(line, { x: MARGIN + 4, y, size: 9, font: helveticaBold, color: TEXT_SECONDARY });
+        page.drawText(line, { x: MARGIN + 4, y, size: 8.5, font: helveticaBold, color: TEXT_SECONDARY });
       } else {
-        page.drawText(line, { x: MARGIN + 4, y, size: 9.5, font: helvetica, color: TEXT_SECONDARY });
+        page.drawText(line, { x: MARGIN + 4, y, size: 9, font: helvetica, color: TEXT_SECONDARY });
       }
 
       y -= LINE_HEIGHT;

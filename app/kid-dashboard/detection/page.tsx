@@ -31,8 +31,16 @@ export default function DetectionPage() {
   const startingRef = useRef(false);
   const finalResultRef = useRef<PipelineResult | null>(null);
 
-  const { result, isModelLoaded, error, modelError, backend, modality, setModality } =
+  const { result, isModelLoaded, error, modelError, backend, setModality } =
     useDetectorInference(videoRef, canvasRef, camReady && started && !stopped);
+
+  // Auto-detect modality: face-only on mobile, both on desktop
+  useEffect(() => {
+    const pick = () => setModality(window.innerWidth < 768 ? "face" : "both");
+    pick();
+    window.addEventListener("resize", pick);
+    return () => window.removeEventListener("resize", pick);
+  }, [setModality]);
 
   // Persist latest result for the stopped summary screen
   useEffect(() => {
@@ -278,37 +286,6 @@ export default function DetectionPage() {
                   isCamReady={camReady}
                   isModelLoaded={isModelLoaded}
                 />
-
-                {/* Modality toggle */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginTop: 12,
-                    justifyContent: "center",
-                  }}
-                >
-                  {(["body", "face", "both"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setModality(m)}
-                      className={
-                        modality === m ? "btn btn-primary" : "btn btn-outline"
-                      }
-                      style={{
-                        minHeight: 36,
-                        padding: "6px 16px",
-                        fontSize: "0.8rem",
-                      }}
-                    >
-                      {m === "body"
-                        ? "Body"
-                        : m === "face"
-                          ? "Face"
-                          : "Both"}
-                    </button>
-                  ))}
-                </div>
 
                 {/* Errors */}
                 {(camError || modelError || error) && (

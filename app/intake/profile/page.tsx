@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Camera, Lock, BarChart3, Trash2 } from "lucide-react";
 
 const STEPS = [
   "Welcome", "Profile", "Device", "Communicate", "Behavior",
@@ -29,22 +30,22 @@ export default function IntakeStartPage() {
 
   const privacyPoints = [
     {
-      emoji: "📷",
+      icon: <Camera size={20} />,
       title: "Camera stays on your phone",
       body: "Used only during tasks. Never recorded or uploaded anywhere.",
     },
     {
-      emoji: "🔒",
+      icon: <Lock size={20} />,
       title: "Raw data deleted immediately",
       body: "Video and audio are wiped the moment each task ends. Only numbers remain.",
     },
     {
-      emoji: "📊",
+      icon: <BarChart3 size={20} />,
       title: "Only scores are ever sent",
       body: "Anonymous numerical scores sync to our servers — no photos, no video, no personal details.",
     },
     {
-      emoji: "🗑️",
+      icon: <Trash2 size={20} />,
       title: "Delete everything, any time",
       body: "You can remove all your data from the Settings page at any time.",
     },
@@ -141,7 +142,7 @@ export default function IntakeStartPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {privacyPoints.map((p) => (
               <div
-                key={p.emoji}
+                key={p.title}
                 style={{ display: "flex", gap: 14, alignItems: "flex-start" }}
               >
                 <div
@@ -154,11 +155,11 @@ export default function IntakeStartPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "1.3rem",
                     flexShrink: 0,
+                    color: "var(--sage-500)",
                   }}
                 >
-                  {p.emoji}
+                  {p.icon}
                 </div>
                 <div>
                   <div

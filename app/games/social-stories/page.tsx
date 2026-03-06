@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+import { addGameActivity } from "../../lib/db/gameActivity.repository";
+import { updateStreak } from "../../lib/db/streak.repository";
 import NavLogo from "../../components/NavLogo";
 import ThemeToggle from "../../components/ThemeToggle";
 
@@ -288,6 +290,19 @@ export default function SocialStoriesPage() {
     }
   };
 
+  // Save game activity on result
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (screen !== "result" || saved) return;
+    setSaved(true);
+    const childId =
+      (typeof window !== "undefined" && localStorage.getItem("autisense-active-child-id")) || "default";
+    const fs = scenarios.length > 0 ? Math.round((correct / scenarios.length) * 100) : 0;
+    const config = getDifficulty("social-stories", childId);
+    addGameActivity(childId, "social-stories", fs, Math.floor(elapsed / 1000), config.level);
+    updateStreak(childId);
+  }, [screen, saved, correct, scenarios.length, elapsed]);
+
   const finalScore =
     scenarios.length > 0 ? Math.round((correct / scenarios.length) * 100) : 0;
 
@@ -417,7 +432,7 @@ export default function SocialStoriesPage() {
                       style={{
                         marginTop: 8,
                         fontSize: "0.85rem",
-                        color: opt.correct ? "var(--sage-600)" : "var(--peach-300)",
+                        color: opt.correct ? "var(--sage-600)" : "var(--text-secondary)",
                         fontWeight: 600,
                       }}
                     >

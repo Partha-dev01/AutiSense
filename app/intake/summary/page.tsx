@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Eye, Hand, Mic, AlertCircle } from "lucide-react";
 import { aggregateBiomarkers } from "../../lib/db/biomarker.repository";
 import { getSession, completeSession } from "../../lib/db/session.repository";
 import { isOnline, flushSyncQueue } from "../../lib/sync/sync";
@@ -384,19 +385,19 @@ function SummaryPage() {
               {
                 label: "Social gaze",
                 value: aggregate.avgGazeScore,
-                icon: "👁️",
+                icon: <Eye size={20} />,
                 domain: "Social Communication",
               },
               {
                 label: "Motor coordination",
                 value: aggregate.avgMotorScore,
-                icon: "🖐️",
+                icon: <Hand size={20} />,
                 domain: "Motor & Repetitive Behaviour",
               },
               {
                 label: "Vocalization",
                 value: aggregate.avgVocalizationScore,
-                icon: "🎙️",
+                icon: <Mic size={20} />,
                 domain: "Communication Response",
               },
             ].map((item) => {
@@ -430,7 +431,7 @@ function SummaryPage() {
                           marginBottom: 2,
                         }}
                       >
-                        <span style={{ fontSize: "1.2rem" }}>{item.icon}</span>
+                        <span style={{ color: "var(--sage-500)", display: "flex" }}>{item.icon}</span>
                         <span style={{ fontWeight: 700, fontSize: "0.97rem" }}>
                           {item.label}
                         </span>
@@ -497,7 +498,7 @@ function SummaryPage() {
                     marginBottom: 8,
                   }}
                 >
-                  ⚠️ Areas flagged for specialist review
+                  <span style={{ display: "inline-flex", verticalAlign: "middle", marginRight: 6 }}><AlertCircle size={16} /></span>Areas flagged for specialist review
                 </p>
                 <ul
                   style={{

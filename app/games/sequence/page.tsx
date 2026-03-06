@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+import { addGameActivity } from "../../lib/db/gameActivity.repository";
+import { updateStreak } from "../../lib/db/streak.repository";
 import NavLogo from "../../components/NavLogo";
 import ThemeToggle from "../../components/ThemeToggle";
 
@@ -132,11 +134,8 @@ export default function SequenceGamePage() {
     const pos = newInput.length - 1;
 
     if (newInput[pos] !== sequence[pos]) {
-      // Wrong
+      // Wrong — show feedback with try-again option
       setPhase("feedback");
-      const finalScore = Math.round((score / maxRounds) * 100);
-      saveDifficulty("sequence", "default", finalScore);
-      setTimeout(() => setScreen("result"), 1000);
       return;
     }
 
@@ -165,6 +164,32 @@ export default function SequenceGamePage() {
       }, 800);
     }
   };
+
+  // Retry same round (replay same sequence)
+  const retryRound = useCallback(() => {
+    setPlayerInput([]);
+    playSequence(sequence, getDifficulty("sequence", "default").speed);
+  }, [sequence, playSequence]);
+
+  // End game from wrong-answer screen
+  const endGame = useCallback(() => {
+    const fs = Math.round((score / maxRounds) * 100);
+    saveDifficulty("sequence", "default", fs);
+    setScreen("result");
+  }, [score, maxRounds]);
+
+  // Save game activity on result
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (screen !== "result" || saved) return;
+    setSaved(true);
+    const childId =
+      (typeof window !== "undefined" && localStorage.getItem("autisense-active-child-id")) || "default";
+    const fs = Math.round((score / Math.max(1, maxRounds)) * 100);
+    const config = getDifficulty("sequence", childId);
+    addGameActivity(childId, "sequence", fs, Math.floor(elapsed / 1000), config.level);
+    updateStreak(childId);
+  }, [screen, saved, score, maxRounds, elapsed]);
 
   const finalScore = Math.round((score / Math.max(1, maxRounds)) * 100);
 
@@ -272,6 +297,34 @@ export default function SequenceGamePage() {
               {phase === "input" &&
                 `${playerInput.length} / ${sequence.length} entered`}
             </div>
+
+            {/* Wrong answer — show correct sequence + retry/end */}
+            {phase === "feedback" && (
+              <div className="card fade fade-1" style={{
+                marginTop: 16, padding: "20px 24px", textAlign: "center",
+                background: "var(--peach-50)", borderColor: "var(--peach-300)",
+              }}>
+                <p style={{ fontWeight: 700, fontSize: "1rem", color: "var(--text-primary)", marginBottom: 8 }}>
+                  Oops! The correct sequence was:
+                </p>
+                <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
+                  {sequence.map((c, i) => (
+                    <div key={i} style={{
+                      width: 36, height: 36, borderRadius: 8,
+                      background: COLORS[c].bg, border: "2px solid var(--border)",
+                    }} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button onClick={retryRound} className="btn btn-primary" style={{ minHeight: 44, padding: "8px 24px" }}>
+                    Try Again
+                  </button>
+                  <button onClick={endGame} className="btn btn-outline" style={{ minHeight: 44, padding: "8px 24px" }}>
+                    End Game
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

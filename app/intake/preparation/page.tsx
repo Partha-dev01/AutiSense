@@ -309,14 +309,15 @@ export default function PreparationPage() {
               <>
                 {cameraActive && !cameraError ? (
                   <div style={{
-                    position: "relative", width: 320, height: 240,
+                    position: "relative", width: "100%", maxWidth: 400,
+                    aspectRatio: "4/3",
                     margin: "0 auto 12px", borderRadius: 16, overflow: "hidden",
                     border: `3px solid ${actionPhase === "detected" ? "var(--sage-400)" : actionPhase === "countdown" ? "var(--sky-300)" : getConfidenceColor(actionResult?.confidence || 0)}`,
                     transition: "border-color 0.2s",
                   }}>
                     <video
                       ref={videoRef}
-                      style={{ width: 320, height: 240, objectFit: "cover", transform: "scaleX(-1)", display: "block" }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)", display: "block" }}
                       playsInline muted autoPlay
                     />
                     <canvas
@@ -324,7 +325,7 @@ export default function PreparationPage() {
                       width={320} height={240}
                       style={{
                         position: "absolute", top: 0, left: 0,
-                        width: 320, height: 240, transform: "scaleX(-1)", pointerEvents: "none",
+                        width: "100%", height: "100%", transform: "scaleX(-1)", pointerEvents: "none",
                       }}
                     />
 
@@ -383,7 +384,7 @@ export default function PreparationPage() {
                   </div>
                 ) : (
                   <div style={{
-                    width: 320, height: 120, margin: "0 auto 12px", borderRadius: 16,
+                    width: "100%", maxWidth: 400, height: 120, margin: "0 auto 12px", borderRadius: 16,
                     background: "var(--bg-card)", border: "2px dashed var(--border-card)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexDirection: "column", gap: 8,
@@ -410,10 +411,10 @@ export default function PreparationPage() {
                   </div>
                 )}
 
-                {/* 12-dot frame counter (matches REQUIRED_CONSECUTIVE = 12) */}
+                {/* 10-dot frame counter (matches REQUIRED_CONSECUTIVE = 10) */}
                 {actionPhase === "detecting" && (
                   <div style={{ display: "flex", gap: 3, justifyContent: "center", marginBottom: 8 }}>
-                    {Array.from({ length: 12 }, (_, i) => (
+                    {Array.from({ length: 10 }, (_, i) => (
                       <div key={i} style={{
                         width: 14, height: 14, borderRadius: "50%",
                         background: i < consecutiveHits ? "var(--sage-500)" : "var(--bg-elevated)",

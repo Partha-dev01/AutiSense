@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+import { addGameActivity } from "../../lib/db/gameActivity.repository";
+import { updateStreak } from "../../lib/db/streak.repository";
 import NavLogo from "../../components/NavLogo";
 import ThemeToggle from "../../components/ThemeToggle";
 
@@ -154,6 +156,16 @@ export default function SortingGamePage() {
 
   const score =
     total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (screen !== "result" || saved) return;
+    setSaved(true);
+    const childId = (typeof window !== "undefined" && localStorage.getItem("autisense-active-child-id")) || "default";
+    const config = getDifficulty("sorting", childId);
+    addGameActivity(childId, "sorting", score, Math.floor(elapsed / 1000), config.level);
+    updateStreak(childId);
+  }, [screen, saved, score, elapsed]);
 
   return (
     <div className="page">

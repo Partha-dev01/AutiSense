@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { saveDifficulty } from "../../lib/games/difficultyEngine";
+import { getDifficulty, saveDifficulty } from "../../lib/games/difficultyEngine";
+import { addGameActivity } from "../../lib/db/gameActivity.repository";
+import { updateStreak } from "../../lib/db/streak.repository";
 import NavLogo from "../../components/NavLogo";
 import ThemeToggle from "../../components/ThemeToggle";
 
@@ -131,6 +133,16 @@ export default function BreathingGamePage() {
       if (ambientRef.current) { ambientRef.current.stop(); ambientRef.current = null; }
     };
   }, []);
+
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (screen !== "result" || saved) return;
+    setSaved(true);
+    const childId = (typeof window !== "undefined" && localStorage.getItem("autisense-active-child-id")) || "default";
+    const config = getDifficulty("breathing", childId);
+    addGameActivity(childId, "breathing", 100, Math.floor(elapsed / 1000), config.level);
+    updateStreak(childId);
+  }, [screen, saved, elapsed]);
 
   return (
     <div className="page">

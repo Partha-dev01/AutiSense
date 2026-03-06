@@ -45,16 +45,16 @@ function gameName(id: string): string {
   return id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** De-duplicate entries with same gameId + completedAt within 2 seconds */
+/** Keep only the best score per game per day */
 function dedup(acts: GameActivity[]): GameActivity[] {
-  const seen = new Set<string>();
-  return acts.filter((a) => {
-    const bucket = Math.floor(a.completedAt / 2000);
-    const key = `${a.gameId}:${bucket}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const best = new Map<string, GameActivity>();
+  for (const a of acts) {
+    const day = new Date(a.completedAt).toDateString();
+    const key = `${a.gameId}:${day}`;
+    const prev = best.get(key);
+    if (!prev || a.score > prev.score) best.set(key, a);
+  }
+  return Array.from(best.values()).sort((a, b) => b.completedAt - a.completedAt);
 }
 
 const sc: React.CSSProperties = {
