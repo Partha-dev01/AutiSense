@@ -29,10 +29,10 @@ export default function BottomNav() {
         display: "flex",
         justifyContent: "space-around",
         alignItems: "center",
-        height: 64,
+        minHeight: 64,
         width: "100%",
         maxWidth: 600,
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingBottom: "max(8px, env(safe-area-inset-bottom, 8px))",
         boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
       }}
     >
