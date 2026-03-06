@@ -92,7 +92,7 @@ export default function ChatPage() {
       });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      if (data.fallback) setFallbackMode(true);
+      setFallbackMode(!!data.fallback);
       return { text: data.text || "That was fun! Let's talk again soon!", shouldEnd: data.metadata?.shouldEnd === true };
     } catch {
       setFallbackMode(true);
@@ -230,7 +230,7 @@ export default function ChatPage() {
         </div>
       </nav>
 
-      <div className="main fade fade-1" style={{ maxWidth: 600, padding: "32px 24px 80px" }}>
+      <div className="main fade fade-1" style={{ maxWidth: 600, padding: "32px 24px 80px", display: "flex", flexDirection: "column", flex: 1 }}>
 
         {/* ---- AVATAR SELECTION SCREEN ---- */}
         {screen === "select" && (
@@ -286,7 +286,7 @@ export default function ChatPage() {
 
         {/* ---- CHAT SCREEN ---- */}
         {screen === "chat" && animalInfo && animal && (
-          <div className="fade fade-2" style={{ display: "flex", flexDirection: "column", minHeight: "60vh" }}>
+          <div className="fade fade-2" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             {/* Avatar header */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
               <AnimalAvatar animal={animal} gender="boy"state={avatarState} size={120} />
@@ -314,7 +314,7 @@ export default function ChatPage() {
             {/* Messages container */}
             <div style={{
               flex: 1, overflowY: "auto", display: "flex", flexDirection: "column",
-              gap: 12, padding: "12px 0", marginBottom: 16, maxHeight: "40vh",
+              gap: 12, padding: "12px 0", marginBottom: 8, minHeight: 0,
             }}>
               {messages.map((msg, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: msg.role === "assistant" ? "flex-start" : "flex-end" }}>

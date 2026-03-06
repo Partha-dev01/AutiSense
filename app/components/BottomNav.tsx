@@ -50,7 +50,7 @@ export default function BottomNav() {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 2,
+              gap: 4,
               textDecoration: "none",
               color: isActive ? "var(--sage-600)" : "var(--text-muted)",
               minWidth: 56,

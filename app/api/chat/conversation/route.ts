@@ -268,9 +268,14 @@ export async function POST(req: NextRequest) {
 
     for (const msg of messages) {
       if (msg.role === "assistant") {
+        // Wrap plain-text assistant messages in JSON so Nova stays in JSON-output mode
+        const isJson = msg.content.trimStart().startsWith("{");
+        const wrapped = isJson
+          ? msg.content
+          : JSON.stringify({ text: msg.content, turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "general", action: null });
         novaMessages.push({
           role: "assistant",
-          content: [{ text: msg.content }],
+          content: [{ text: wrapped }],
         });
       } else {
         novaMessages.push({
