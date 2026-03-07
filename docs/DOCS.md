@@ -1096,7 +1096,10 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 - Increased hard timeout from 8s to 10s
 - Removed temporary debug panel (diagnosis complete — issue was mic coexistence)
 
-**Files modified:** 2 files (`app/intake/communication/page.tsx`, `docs/DOCS.md`)
+**Documentation:**
+- Rewrote `docs/Amazon_usage.md` — comprehensive AWS architecture reference with 4 Mermaid diagrams (high-level architecture, Bedrock data flow, auth sequence, screening data flow), full service inventory, all 7 DynamoDB tables with schema, 14 API routes matrix, credentials strategy, environment variables reference, cost estimates
+
+**Files modified:** 3 files (`app/intake/communication/page.tsx`, `docs/Amazon_usage.md`, `docs/DOCS.md`)
 **Resolved issues:** R58
 
 ### v2.5.2 — 2026-03-07 (Action Detection Fix)
