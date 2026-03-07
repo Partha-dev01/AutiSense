@@ -235,7 +235,12 @@ export default function AudioAssessmentPage() {
     };
 
     recognition.onend = () => {
-      if (!settled) { settled = true; setItemState("missed"); }
+      if (settled) return;
+      // Chrome fires onend even in continuous mode after silence.
+      // Restart — only the hard timeout should mark missed.
+      try { recognition.start(); } catch {
+        if (!settled) { settled = true; setItemState("missed"); }
+      }
     };
 
     // Small delay for desktop hardware

@@ -316,14 +316,19 @@ export default function CommunicationPage() {
     };
 
     recognition.onerror = (e: any) => {
-      // "no-speech" is expected — just keep waiting for the timeout
+      if (settled) return;
+      // no-speech / aborted are expected — onend will handle restart
       if (e.error === "no-speech" || e.error === "aborted") return;
-      if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
+      settled = true; stopRecognition(); setWordState("missed");
     };
 
     recognition.onend = () => {
-      // Only mark missed if the hard timeout triggered the stop
-      if (!settled) { settled = true; setWordState("missed"); }
+      if (settled) return;
+      // Chrome fires onend even in continuous mode after silence.
+      // Restart recognition — only the hard timeout should mark missed.
+      try { recognition.start(); } catch {
+        if (!settled) { settled = true; setWordState("missed"); }
+      }
     };
 
     // Mic is already warm from getUserMedia — just a small safety delay

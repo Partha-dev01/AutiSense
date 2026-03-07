@@ -217,18 +217,23 @@ export default function SpeechPracticePage() {
       }
     };
 
-    recognition.onerror = (err: any) => {
+    recognition.onerror = (err: { error?: string }) => {
       if (settled) return;
-      // "no-speech" / "aborted" are normal with continuous mode
       if (err?.error === "no-speech" || err?.error === "aborted") return;
       settled = true;
+      try { recognition.stop(); } catch { /* ignore */ }
       setListening(false);
       setFeedback("Could not hear you. Try again closer to the mic.");
       setFeedbackOk(false);
     };
 
     recognition.onend = () => {
-      if (!settled) { settled = true; setListening(false); }
+      if (settled) return;
+      // Chrome fires onend even in continuous mode after silence.
+      // Restart — only the hard timeout should end listening.
+      try { recognition.start(); } catch {
+        if (!settled) { settled = true; setListening(false); }
+      }
     };
 
     // 500ms delay to let audio hardware fully release on desktop after TTS/mic check
