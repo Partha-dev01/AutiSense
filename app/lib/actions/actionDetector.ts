@@ -146,13 +146,15 @@ function detectTouchNose(
     const wy = kps[idx * 2 + 1];
     // Horizontal: how far from face center (normalized by shoulder width)
     const dx = Math.abs(wx - faceCenterX) / Math.max(shoulderWidth, 0.01);
-    // Vertical: how far above shoulders (in 0-1 frame units, positive = above)
+    // Vertical: how far above shoulders (positive = above). COCO wrist keypoint
+    // is at the wrist joint, not fingertips — when touching face, wrist is still
+    // well below chin. Allow wrist up to 15% of frame BELOW shoulder line.
     const dy = shoulderY - wy;
     const hProx = Math.max(0, 1 - dx);
-    const vProx = Math.max(0, Math.min(1, (dy + 0.02) / 0.10));
+    const vProx = Math.max(0, Math.min(1, (dy + 0.15) / 0.20));
     const prox = Math.min(hProx, vProx);
-    // Hit: within shoulder width horizontally, at or above shoulder height
-    const isHit = dx < 0.8 && dy > -0.02;
+    // Hit: within shoulder width horizontally, wrist anywhere from chin to forehead
+    const isHit = dx < 0.8 && dy > -0.15;
     detail += `${label}:dx=${dx.toFixed(2)} dy=${dy.toFixed(3)} hp=${hProx.toFixed(2)} vp=${vProx.toFixed(2)} `;
     if (prox > bestProx) bestProx = prox;
     if (isHit) bestHit = true;
@@ -203,19 +205,21 @@ function detectClap(
 
   if (hasL && hasR) {
     const d = dist(kp(kps, L_WRIST), kp(kps, R_WRIST));
-    // In 0-1 space: wrists at rest ~0.3-0.5 apart, when clapping <0.05
-    const hitThreshold = 0.15;
-    const proximityRange = 0.35;
+    // COCO wrist keypoints are at wrist joints, NOT fingertips. When palms
+    // touch, wrist-to-wrist is still ~forearm-width apart (~0.15-0.25 in 0-1).
+    // At rest with arms down, distance is ~0.3-0.5.
+    const hitThreshold = 0.28;
+    const proximityRange = 0.45;
 
     // Dynamic: hands approaching over 2 frames
     if (history.length >= 2) {
       const prev = history[history.length - 1];
       if (prev) {
         const prevD = dist(kp(prev, L_WRIST), kp(prev, R_WRIST));
-        if (prevD > d && d < 0.20) {
+        if (prevD > d && d < 0.35) {
           const approach = prevD - d;
-          if (approach > 0.01) {
-            return { hit: true, proximity: Math.min(1, approach / 0.03), detail: `dynamic d=${d.toFixed(3)} prev=${prevD.toFixed(3)} approach=${approach.toFixed(3)}` };
+          if (approach > 0.008) {
+            return { hit: true, proximity: Math.min(1, approach / 0.02), detail: `dynamic d=${d.toFixed(3)} prev=${prevD.toFixed(3)} approach=${approach.toFixed(3)}` };
           }
         }
       }
@@ -236,11 +240,11 @@ function detectClap(
         ? (kps[L_SHOULDER * 2] + kps[R_SHOULDER * 2]) / 2
         : lsOk ? kps[L_SHOULDER * 2] : kps[R_SHOULDER * 2];
       const dCenter = Math.abs(kps[wristIdx * 2] - midX);
-      const centerThreshold = 0.08;
+      const centerThreshold = 0.12;
       if (dCenter < centerThreshold) {
         return { hit: true, proximity: Math.max(0.5, 1 - dCenter / centerThreshold), detail: `1wrist-center dC=${dCenter.toFixed(3)} thr=${centerThreshold}` };
       }
-      return { hit: false, proximity: Math.max(0.1, 0.5 * (1 - dCenter / 0.20)), detail: `1wrist dC=${dCenter.toFixed(3)}` };
+      return { hit: false, proximity: Math.max(0.1, 0.5 * (1 - dCenter / 0.25)), detail: `1wrist dC=${dCenter.toFixed(3)}` };
     }
   }
 
@@ -324,8 +328,8 @@ function detectTouchHead(
     if (!ok) continue;
     const dx = Math.abs(kps[idx * 2] - faceCenterX) / Math.max(shoulderWidth, 0.01);
     const dy = shoulderY - kps[idx * 2 + 1];
-    const prox = Math.min(Math.max(0, 1 - dx), Math.max(0, Math.min(1, (dy + 0.04) / 0.10)));
-    if (dx < 1.0 && dy > -0.04) hit = true;
+    const prox = Math.min(Math.max(0, 1 - dx), Math.max(0, Math.min(1, (dy + 0.15) / 0.20)));
+    if (dx < 1.0 && dy > -0.15) hit = true;
     if (prox > bestProx) bestProx = prox;
     detail += `${label}:dx=${dx.toFixed(2)} dy=${dy.toFixed(3)} `;
   }

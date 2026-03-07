@@ -1087,6 +1087,22 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 
 **Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
 
+### v2.6.4 — 2026-03-07 (Action Detection — COCO Wrist-Joint Compensation)
+
+**Problem**: COCO wrist keypoints are at the **wrist joint**, not fingertips. When touching face, the wrist is still ~15% of frame below the chin. When clapping, wrist-to-wrist distance is ~forearm-width even with palms touching.
+
+**Touch nose/head — relaxed vertical threshold:**
+- `dy > -0.02` (must be at shoulder height) → `dy > -0.15` (wrist can be 15% of frame below shoulders)
+- vProx ramp: `(dy + 0.15) / 0.20` — starts showing proximity when hand is at chest level
+- Now detects when hand is raised to face area without needing fingertips at nose level
+
+**Clap — wider wrist distance:**
+- hitThreshold: `0.15` → `0.28` (accounts for forearm width between wrist joints)
+- Dynamic approach: distance gate `0.20` → `0.35`, approach delta `0.01` → `0.008`
+- Single-wrist center: `0.08` → `0.12`
+
+**File:** `app/lib/actions/actionDetector.ts`
+
 ### v2.6.3 — 2026-03-07 (Action Detection — Coordinate Normalization + UI Flicker Fix)
 
 **Root cause found**: Keypoints are in **320x240 pixel space** from YOLO, but all thresholds were tuned as if coordinates were normalized 0-1. This made some thresholds absurdly easy (always fire) and others impossible (never fire). The UI also flickered because timer-based debounce fought against 30fps frame updates.
