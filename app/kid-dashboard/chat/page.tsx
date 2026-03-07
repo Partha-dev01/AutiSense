@@ -1,25 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
-
-interface SpeechRec {
-  continuous: boolean;
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onresult: ((e: any) => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  onstart: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
 import AnimalAvatar from "../../components/AnimalAvatar";
 import { db } from "../../lib/db/schema";
-import { speakText, checkMicSupport } from "../../lib/audio/ttsHelper";
+import { speakText } from "../../lib/audio/ttsHelper";
 import NavLogo from "../../components/NavLogo";
 import UserMenu from "../../components/UserMenu";
 import ThemeToggle from "../../components/ThemeToggle";
@@ -57,8 +43,13 @@ export default function ChatPage() {
   const [isListening, setIsListening] = useState(false);
   const [fallbackMode, setFallbackMode] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRec | null>(null);
+
+  // Voice refs — copied from working communication page pattern
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendMessageRef = useRef<(text: string) => Promise<void>>(null!);
 
   /* ---- theme ---- */
@@ -84,7 +75,7 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ---- TTS playback (Polly → browser fallback) ---- */
+  /* ---- TTS playback (Polly -> browser fallback) ---- */
   const playTTS = (text: string): Promise<void> => speakText(text);
 
   /* ---- fetch AI turn ---- */
@@ -154,85 +145,89 @@ export default function ChatPage() {
     setTimeout(() => setScreen("end"), 1800);
   };
 
-  /* ---- voice input ---- */
-  // Cleanup previous recognition on unmount
-  useEffect(() => {
-    return () => {
-      try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+  /* ---- voice input — exact copy of communication page's working pattern ---- */
+
+  const stopRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
-    };
+    }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
   }, []);
 
-  const toggleListening = async () => {
-    if (isListening) {
-      try { recognitionRef.current?.stop(); } catch { /* ignore */ }
-      recognitionRef.current = null;
-      setIsListening(false);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { stopRecognition(); };
+  }, [stopRecognition]);
+
+  const startListening = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setMicError("Speech recognition is not supported in this browser. Try Chrome.");
       return;
     }
 
-    const mic = await checkMicSupport();
-    if (!mic.supported || !mic.permitted) {
-      setMicError(mic.error || "Microphone not available");
-      return;
-    }
-    setMicError(null);
-
-    const SR =
-      (window as unknown as Record<string, unknown>).SpeechRecognition ||
-      (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
-    if (!SR) return;
-
-    // Clean up any leftover instance before creating a new one
-    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
-    recognitionRef.current = null;
-
-    // Small delay to let the browser release the previous mic session
-    await new Promise((r) => setTimeout(r, 200));
-
-    const recognition = new (SR as new () => SpeechRec)();
+    const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.lang = "en-US";
     recognition.interimResults = true;
+    recognition.lang = "en-US";
     recognition.maxAlternatives = 3;
+    recognitionRef.current = recognition;
 
     let settled = false;
     let accumulated = "";
 
     const finish = (text: string) => {
+      if (settled) return;
       settled = true;
-      try { recognition.stop(); } catch { /* ignore */ }
-      recognitionRef.current = null;
+      stopRecognition();
       setIsListening(false);
-      if (text.trim()) sendMessageRef.current(text.trim());
+      if (text.trim()) {
+        sendMessageRef.current(text.trim());
+      }
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       if (settled) return;
+
       // Accumulate full transcript from all results
       let full = "";
       for (let i = 0; i < event.results.length; i++) {
         full += event.results[i][0].transcript;
       }
       accumulated = full;
+      setTranscript(full);
 
-      // Check ANY result for isFinal (not just the latest)
+      // Check ALL results for isFinal — check all alternatives too
       for (let i = 0; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
+          // Also check alternatives for better transcript
+          for (let j = 0; j < event.results[i].length; j++) {
+            const alt = event.results[i][j].transcript;
+            if (alt.trim()) {
+              accumulated = full; // use full accumulated
+              break;
+            }
+          }
           finish(accumulated);
           return;
         }
       }
     };
 
-    recognition.onerror = (e: { error: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (e: any) => {
       if (settled) return;
       if (e.error === "not-allowed" || e.error === "audio-capture") {
         settled = true;
-        recognitionRef.current = null;
+        stopRecognition();
         setIsListening(false);
-        setMicError("Microphone access denied");
+        setMicError("Microphone access denied. Please allow microphone in browser settings.");
       }
     };
 
@@ -246,17 +241,19 @@ export default function ChatPage() {
         } catch {
           // If same-instance restart fails, try a fresh instance
           try {
-            const Fresh = new (SR as new () => SpeechRec)();
-            Fresh.continuous = true;
-            Fresh.lang = "en-US";
-            Fresh.interimResults = true;
-            Fresh.maxAlternatives = 3;
-            Fresh.onresult = recognition.onresult;
-            Fresh.onerror = recognition.onerror;
-            Fresh.onend = recognition.onend;
-            Fresh.onstart = recognition.onstart;
-            recognitionRef.current = Fresh;
-            Fresh.start();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const Fresh = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!Fresh) return;
+            const fresh = new Fresh();
+            fresh.continuous = true;
+            fresh.interimResults = true;
+            fresh.lang = "en-US";
+            fresh.maxAlternatives = 3;
+            fresh.onresult = recognition.onresult;
+            fresh.onerror = recognition.onerror;
+            fresh.onend = recognition.onend;
+            recognitionRef.current = fresh;
+            fresh.start();
           } catch {
             // All restarts failed — send what we have
             finish(accumulated);
@@ -265,15 +262,14 @@ export default function ChatPage() {
       }, 250);
     };
 
-    recognitionRef.current = recognition;
-
     // Hard timeout: 10 seconds — send whatever we've accumulated
-    setTimeout(() => {
-      if (settled) return;
-      finish(accumulated);
+    timerRef.current = setTimeout(() => {
+      if (!settled) {
+        finish(accumulated);
+      }
     }, 10000);
 
-    // Start with retry pattern (matches working communication page)
+    // Start with retry pattern (copied from communication page)
     const tryStart = (delay: number, attempt: number) => {
       setTimeout(() => {
         if (settled) return;
@@ -285,8 +281,40 @@ export default function ChatPage() {
       }, delay);
     };
     tryStart(300, 0);
+  }, [stopRecognition]);
+
+  const toggleListening = useCallback(async () => {
+    if (isListening) {
+      stopRecognition();
+      setIsListening(false);
+      setTranscript("");
+      return;
+    }
+
+    // Check mic support
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setMicError("Speech recognition is not supported in this browser. Try Chrome.");
+      return;
+    }
+
+    // Check mic permission via Permissions API (no getUserMedia race condition)
+    try {
+      if (navigator.permissions) {
+        const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        if (status.state === "denied") {
+          setMicError("Microphone access denied. Please allow microphone in browser settings.");
+          return;
+        }
+      }
+    } catch { /* ignore — let SpeechRecognition handle it */ }
+
+    setMicError(null);
+    setTranscript("");
     setIsListening(true);
-  };
+    startListening();
+  }, [isListening, stopRecognition, startListening]);
 
   /* ---- auth guard ---- */
   if (authLoading || !isAuthenticated) {
@@ -481,13 +509,46 @@ export default function ChatPage() {
               </button>
             </div>
 
+            {/* Live listening indicator + transcript (copied from communication page) */}
             {isListening && (
-              <p style={{
-                textAlign: "center", fontSize: "0.85rem", color: "#e74c3c",
-                fontWeight: 600, marginTop: 8, fontFamily: fredoka,
-              }}>
-                Listening... speak now!
-              </p>
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  padding: "8px 20px", borderRadius: "var(--r-full)",
+                  background: "var(--sage-50)", border: "2px solid var(--sage-300)",
+                  marginBottom: 8,
+                }}>
+                  <div style={{
+                    width: 10, height: 10, borderRadius: "50%", background: "#e53e3e",
+                    animation: "pulse-dot 1s ease-in-out infinite",
+                  }} />
+                  <span style={{ fontWeight: 700, color: "var(--sage-600)", fontSize: "0.85rem" }}>
+                    Listening... speak now!
+                  </span>
+                </div>
+
+                {/* Show live transcript */}
+                {transcript && (
+                  <div style={{
+                    padding: "10px 16px", borderRadius: 12,
+                    background: "var(--sage-50)", border: "2px solid var(--sage-300)",
+                  }}>
+                    <div style={{
+                      fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 700,
+                      marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em",
+                    }}>
+                      Heard:
+                    </div>
+                    <p style={{
+                      fontSize: "1.2rem", fontWeight: 700,
+                      color: "var(--sage-600)",
+                      fontFamily: fredoka, margin: 0,
+                    }}>
+                      {"\u201C"}{transcript}{"\u201D"}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
 
             {micError && (
@@ -542,11 +603,15 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* pulse animation for mic indicator */}
+      {/* animations */}
       <style jsx>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(1.3); }
+        }
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.8); }
         }
       `}</style>
     </div>
