@@ -283,6 +283,8 @@ export default function CommunicationPage() {
     recognitionRef.current = recognition;
 
     let settled = false;
+    const listenStart = Date.now();
+    const MIN_LISTEN_MS = 3000; // minimum 3s before declaring "missed"
 
     recognition.onresult = (event: any) => {
       const result = Array.from(event.results)
@@ -311,11 +313,22 @@ export default function CommunicationPage() {
     };
 
     recognition.onerror = () => {
-      if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
+      if (settled) return;
+      // If ended too early (no speech detected yet), restart recognition
+      if (Date.now() - listenStart < MIN_LISTEN_MS) {
+        try { recognition.start(); } catch { settled = true; stopRecognition(); setWordState("missed"); }
+        return;
+      }
+      settled = true; stopRecognition(); setWordState("missed");
     };
 
     recognition.onend = () => {
-      if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
+      if (settled) return;
+      if (Date.now() - listenStart < MIN_LISTEN_MS) {
+        try { recognition.start(); } catch { settled = true; stopRecognition(); setWordState("missed"); }
+        return;
+      }
+      settled = true; stopRecognition(); setWordState("missed");
     };
 
     // Mic is already warm from getUserMedia — just a small safety delay

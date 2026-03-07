@@ -187,6 +187,8 @@ export default function SpeechPracticePage() {
     recognition.interimResults = true;
 
     let settled = false;
+    const listenStart = Date.now();
+    const MIN_LISTEN_MS = 3000; // minimum 3s before declaring failure
 
     recognition.onresult = (e: { results: { transcript: string; isFinal?: boolean }[][] }) => {
       if (settled) return;
@@ -214,13 +216,25 @@ export default function SpeechPracticePage() {
 
     recognition.onerror = () => {
       if (settled) return;
+      // Restart if ended too early (no speech detected yet)
+      if (Date.now() - listenStart < MIN_LISTEN_MS) {
+        try { recognition.start(); } catch { settled = true; setListening(false); setFeedback("Could not hear you. Try again closer to the mic."); setFeedbackOk(false); }
+        return;
+      }
       settled = true;
       setListening(false);
       setFeedback("Could not hear you. Try again closer to the mic.");
       setFeedbackOk(false);
     };
 
-    recognition.onend = () => { if (!settled) setListening(false); };
+    recognition.onend = () => {
+      if (settled) return;
+      if (Date.now() - listenStart < MIN_LISTEN_MS) {
+        try { recognition.start(); } catch { settled = true; setListening(false); }
+        return;
+      }
+      settled = true; setListening(false);
+    };
 
     // 500ms delay to let audio hardware fully release on desktop after TTS/mic check
     setTimeout(() => {

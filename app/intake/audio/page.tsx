@@ -194,12 +194,17 @@ export default function AudioAssessmentPage() {
     recognition.lang = "en-US";
     recognitionRef.current = recognition;
 
+    let settled = false;
+    const listenStart = Date.now();
+    const MIN_LISTEN_MS = 3000; // minimum 3s before declaring "missed"
+
     recognition.onresult = (event: any) => {
       const result = Array.from(event.results)
         .map((r: any) => r[0].transcript)
         .join("");
       setTranscript(result);
-      if (event.results[0]?.isFinal) {
+      if (event.results[0]?.isFinal && !settled) {
+        settled = true;
         stopRecognition();
         if (isPart === "A") {
           const score = sentenceMatchScore(expectedText, result);
@@ -222,15 +227,30 @@ export default function AudioAssessmentPage() {
     };
 
     recognition.onerror = () => {
-      stopRecognition();
-      setItemState("missed");
+      if (settled) return;
+      if (Date.now() - listenStart < MIN_LISTEN_MS) {
+        try { recognition.start(); } catch { settled = true; stopRecognition(); setItemState("missed"); }
+        return;
+      }
+      settled = true; stopRecognition(); setItemState("missed");
     };
 
-    recognition.start();
+    recognition.onend = () => {
+      if (settled) return;
+      if (Date.now() - listenStart < MIN_LISTEN_MS) {
+        try { recognition.start(); } catch { settled = true; stopRecognition(); setItemState("missed"); }
+        return;
+      }
+      settled = true; stopRecognition(); setItemState("missed");
+    };
+
+    // Small delay for desktop hardware
+    setTimeout(() => {
+      try { recognition.start(); } catch { setItemState("missed"); }
+    }, 400);
 
     timerRef.current = setTimeout(() => {
-      stopRecognition();
-      setItemState("missed");
+      if (!settled) { settled = true; stopRecognition(); setItemState("missed"); }
     }, 12000);
   }, [advanceItem, stopRecognition]);
 
