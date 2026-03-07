@@ -15,7 +15,7 @@ const STEPS = [
 const STEP_IDX = 5;
 
 const ACTIONS: ActionId[] = ["wave", "touch_nose", "clap", "raise_arms"];
-const ACTION_TIMEOUT_MS = 15_000;
+const ACTION_TIMEOUT_MS = 20_000;
 const SUCCESS_DISPLAY_MS = 1500;
 const COUNTDOWN_SECONDS = 3;
 const MIN_DETECTED = 2; // Criteria gate
@@ -40,6 +40,11 @@ export default function PreparationPage() {
   const [results, setResults] = useState<Map<number, boolean>>(new Map());
   const [timeoutSeconds, setTimeoutSeconds] = useState(Math.ceil(ACTION_TIMEOUT_MS / 1000));
   const [forceComplete, setForceComplete] = useState(false);
+
+  const [displayStatus, setDisplayStatus] = useState<string>("looking");
+  const [displayHits, setDisplayHits] = useState(0);
+  const stableStatusRef = useRef<string>("looking");
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -68,6 +73,38 @@ export default function PreparationPage() {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
   }, []);
 
+  // Debounce status text to prevent flickering
+  const hasKeypoints = keypoints && keypoints.length >= 34;
+  const statusCategory = !hasKeypoints ? "no_keypoints"
+    : consecutiveHits >= 6 ? "almost"
+    : (actionResult?.confidence || 0) > 0.3 ? "closer"
+    : "looking";
+
+  useEffect(() => {
+    if (actionPhase !== "detecting") {
+      stableStatusRef.current = "looking";
+      setDisplayStatus("looking");
+      return;
+    }
+    if (statusCategory === stableStatusRef.current) return;
+
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = setTimeout(() => {
+      stableStatusRef.current = statusCategory;
+      setDisplayStatus(statusCategory);
+    }, 500);
+
+    return () => { if (statusTimerRef.current) { clearTimeout(statusTimerRef.current); statusTimerRef.current = null; } };
+  }, [statusCategory, actionPhase]);
+
+  // Debounce hits display — update only on significant change
+  useEffect(() => {
+    if (consecutiveHits === 0 || consecutiveHits >= 8 || Math.abs(consecutiveHits - displayHits) >= 2) {
+      setDisplayHits(consecutiveHits);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consecutiveHits]);
+
   // Start the countdown for current action
   const startCountdown = useCallback(() => {
     setActionPhase("countdown");
@@ -89,8 +126,11 @@ export default function PreparationPage() {
         let t = Math.ceil(ACTION_TIMEOUT_MS / 1000);
         tickRef.current = setInterval(() => {
           t--;
+          if (t <= 0) {
+            if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
+            t = 0;
+          }
           setTimeoutSeconds(t);
-          if (t <= 0 && tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
         }, 1000);
 
         // Timeout
@@ -210,7 +250,6 @@ export default function PreparationPage() {
   const meta = ACTION_META[currentAction];
   const detectedCount = Array.from(results.values()).filter(Boolean).length;
   const meetsCriteria = detectedCount >= MIN_DETECTED;
-  const hasKeypoints = keypoints && keypoints.length >= 34;
 
   return (
     <div className="page">
@@ -411,32 +450,33 @@ export default function PreparationPage() {
                   </div>
                 )}
 
-                {/* 10-dot frame counter (matches REQUIRED_CONSECUTIVE = 10) */}
+                {/* 8-dot frame counter (matches REQUIRED_CONSECUTIVE = 8) */}
                 {actionPhase === "detecting" && (
                   <div style={{ display: "flex", gap: 3, justifyContent: "center", marginBottom: 8 }}>
-                    {Array.from({ length: 10 }, (_, i) => (
+                    {Array.from({ length: 8 }, (_, i) => (
                       <div key={i} style={{
                         width: 14, height: 14, borderRadius: "50%",
-                        background: i < consecutiveHits ? "var(--sage-500)" : "var(--bg-elevated)",
+                        background: i < displayHits ? "var(--sage-500)" : "var(--bg-elevated)",
                         border: "2px solid var(--sage-300)",
-                        transition: "background 0.2s",
+                        transition: "background 0.3s",
                       }} />
                     ))}
                   </div>
                 )}
 
-                {/* Status text */}
+                {/* Status text (debounced to prevent flicker) */}
                 {actionPhase === "detecting" && (
                   <p style={{
                     fontSize: "0.9rem", fontWeight: 700, marginBottom: 8,
-                    color: !hasKeypoints ? "var(--text-muted)"
-                      : consecutiveHits >= 5 ? "var(--sage-600)"
-                      : (actionResult?.confidence || 0) > 0 ? "var(--sky-400)"
+                    color: displayStatus === "no_keypoints" ? "var(--text-muted)"
+                      : displayStatus === "almost" ? "var(--sage-600)"
+                      : displayStatus === "closer" ? "var(--sky-400)"
                       : "var(--text-muted)",
+                    transition: "color 0.3s",
                   }}>
-                    {!hasKeypoints ? "Step into view so we can see you!"
-                      : consecutiveHits >= 7 ? "Almost there! Keep holding..."
-                      : (actionResult?.confidence || 0) > 0.3 ? "Getting closer!"
+                    {displayStatus === "no_keypoints" ? "Step into view so we can see you!"
+                      : displayStatus === "almost" ? "Almost there! Keep holding..."
+                      : displayStatus === "closer" ? "Getting closer!"
                       : `Looking for: ${meta.label}...`}
                   </p>
                 )}
@@ -454,7 +494,7 @@ export default function PreparationPage() {
                 {actionPhase === "detecting" && (
                   <div style={{ marginTop: 8 }}>
                     <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 8 }}>
-                      Time remaining: {timeoutSeconds}s
+                      Time remaining: {Math.max(0, timeoutSeconds)}s
                     </p>
                     <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                       {(!cameraActive || cameraError) && (

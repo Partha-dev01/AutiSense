@@ -229,7 +229,7 @@ export function detectAction(
 
 // ── Sustained detection tracker ─────────────────────────────────────
 
-const REQUIRED_CONSECUTIVE = 10;
+const REQUIRED_CONSECUTIVE = 8;
 
 export class ActionTracker {
   private consecutiveHits = 0;
@@ -253,10 +253,10 @@ export class ActionTracker {
 
     const result = detectAction(keypoints, confidence, action, this.history);
 
-    if (result.detected && result.confidence > 0.4) {
+    if (result.detected && result.confidence > 0.3) {
       this.consecutiveHits++;
     } else {
-      this.consecutiveHits = Math.max(0, this.consecutiveHits - 2);
+      this.consecutiveHits = Math.max(0, this.consecutiveHits - 1);
     }
 
     if (this.consecutiveHits >= REQUIRED_CONSECUTIVE) {

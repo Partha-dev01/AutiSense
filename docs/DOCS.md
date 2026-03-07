@@ -650,6 +650,7 @@ npx playwright test    # Run all 30 tests
 | R52 | **Word not shown during playback/listening states** | The word text and emoji were only shown contextually per state. Fix: word emoji and text are now always prominently displayed at top of card regardless of state (playing, listening, matched, missed). `app/intake/communication/page.tsx` |
 | R53 | **No audio visualizer during listening** | Listening state only showed a pulsing dot. Fix: added real-time mic visualizer using shared `getUserMedia` stream + `AudioContext` + `AnalyserNode` — renders 5 reactive bars on a canvas that respond to actual microphone input (voice frequency range). Uses retina-ready 2x canvas with manual rounded rect for browser compat. CSS animated bars during TTS playback, red pulsing recording indicator. Speech practice page gets animated bar visualizer in button. `app/intake/communication/page.tsx`, `app/kid-dashboard/speech/page.tsx` |
 | R54 | **Speech recognition fires "no match" too quickly on desktop** | Chrome fires `onend` even with `continuous: true` after brief silence periods. Fix: `onend` handler now auto-restarts recognition (`recognition.start()`) instead of marking missed. This is valid because the instance IS restartable once `onend` has fully fired. Only the hard timeout (8-10s via `setTimeout`) calls `stopRecognition()` + marks missed. `onerror` ignores "no-speech"/"aborted" (expected in continuous mode). Result: mic stays open for the full 8 seconds, giving the user proper time to speak. Applied to all 3 audio pages: Word Echo, Speech Practice, Audio Intake. |
+| R55 | **Action detection challenge: flickery UI, negative timer, detection too difficult** | Three issues: (1) Timer displayed negative values (e.g. "-154s") because tick interval decremented past 0 before clearing. Fix: clamp `t` to 0 and clear interval before calling `setTimeoutSeconds`. (2) Status text ("Looking for...", "Getting closer!", "Almost there!") flickered rapidly every frame as detection confidence oscillated. Fix: debounced status with 500ms hold — status category must be stable for 500ms before text updates. Progress dots also debounced (only update on ≥2 hit change). (3) Detection nearly impossible: `REQUIRED_CONSECUTIVE` was 10, miss penalty was -2 (vs +1 on hit), and confidence gate was 0.4. Fix: lowered to 8 required hits, -1 miss penalty (1:1 ratio), 0.3 confidence gate (matches individual detector thresholds). Timeout increased from 15s to 20s per action. `app/intake/preparation/page.tsx`, `app/lib/actions/actionDetector.ts` |
 
 ---
 
@@ -1082,6 +1083,19 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 - `app/intake/report/page.tsx` (AI status badges + fallback warning)
 
 **Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
+
+### v2.5.2 — 2026-03-07 (Action Detection Fix)
+
+**Action Detection Challenge — Stability & Usability:**
+- Fixed negative timer display: tick interval now clamps to 0 and clears before updating state
+- Fixed rapid UI flicker: status text ("Looking for...", "Getting closer!", "Almost there!") is debounced with 500ms hold — must be stable before text changes
+- Progress dots debounced: only update on significant hit change (≥2 difference or boundary values)
+- Reduced detection difficulty: `REQUIRED_CONSECUTIVE` 10→8, miss penalty -2→-1, confidence gate 0.4→0.3
+- Increased per-action timeout from 15s to 20s
+- Updated dot indicator from 10 to 8 dots to match new threshold
+
+**Files modified:** 3 files (`app/intake/preparation/page.tsx`, `app/lib/actions/actionDetector.ts`, `docs/DOCS.md`)
+**Resolved issues:** R55
 
 ### v2.5.1 — 2026-03-07 (Community Feed Cross-User, Dashboard Fix)
 
