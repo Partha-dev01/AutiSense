@@ -1,9 +1,14 @@
 import { test, expect } from "@playwright/test";
+import fs from "fs";
 
 const BASE = "https://main.d2n7pu2vtgi8yc.amplifyapp.com";
+const AUTH_STATE = "tests/auth-state.json";
+
+// Skip all tests if auth state file doesn't exist (e.g. in CI)
+test.skip(!fs.existsSync(AUTH_STATE), "No auth-state.json — skipping auth tests");
 
 test.use({
-  storageState: "tests/auth-state.json",
+  storageState: AUTH_STATE,
   viewport: { width: 375, height: 812 },
 });
 
