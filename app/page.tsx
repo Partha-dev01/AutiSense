@@ -35,8 +35,8 @@ export default function LandingPage() {
     {
       emoji: "\u{1F4F6}",
       color: "var(--feature-blue)",
-      title: "Works without internet",
-      body: "Complete the full autism screening offline. Results sync automatically when you reconnect.",
+      title: "Edge-first processing",
+      body: "AI models run directly on your device for instant results. Cloud features enhance the experience when connected.",
     },
     {
       emoji: "\u{1F4CB}",
@@ -231,7 +231,7 @@ export default function LandingPage() {
         >
           {isAuthenticated
             ? "Sign in to save progress, access therapy games, and join the community."
-            : "Takes about 15 minutes \u00A0\u00B7\u00A0 Works offline \u00A0\u00B7\u00A0 No account needed"}
+            : "Takes about 15 minutes \u00A0\u00B7\u00A0 Edge-first AI \u00A0\u00B7\u00A0 No account needed"}
         </p>
 
         {!isAuthenticated && (
