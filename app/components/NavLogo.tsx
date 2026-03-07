@@ -8,8 +8,7 @@ export default function NavLogo() {
 
   return (
     <Link href={isAuthenticated ? "/kid-dashboard" : "/"} className="logo">
-      <img src="/logo.jpeg" alt="" className="logo-icon logo-light" />
-      <img src="/logo-dark.jpeg" alt="" className="logo-icon logo-dark" />
+      <img src="/logo.jpeg" alt="" className="logo-icon" />
       <span>Auti<em>Sense</em></span>
     </Link>
   );
