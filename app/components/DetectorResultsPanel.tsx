@@ -28,6 +28,9 @@ export default function DetectorResultsPanel({ result, isModelLoaded, backend, t
   const progressPct = mode === "elapsed" ? 0 : ((totalTime - timeLeft) / totalTime) * 100;
   const isElapsedMode = mode === "elapsed";
 
+  const hasFaceData = !!result?.face?.faceBehavior;
+  const hasBodyData = !!result?.behavior;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Top row: Timer + ASD Gauge side by side */}
@@ -93,23 +96,23 @@ export default function DetectorResultsPanel({ result, isModelLoaded, backend, t
       {/* Body + Face behavior — side by side */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {/* Body behavior bars */}
-        <div className="card" style={{ padding: "14px 16px" }}>
-          <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.9rem", marginBottom: 10 }}>
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.95rem", marginBottom: 12 }}>
             Body Behavior
           </h3>
-          {result?.behavior ? (
-            Array.from(result.behavior.probabilities).map((p, i) => (
-              <div key={i} style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
+          {hasBodyData ? (
+            Array.from(result!.behavior!.probabilities).map((p, i) => (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", marginBottom: 3 }}>
                   <span style={{
-                    fontWeight: i === result.behavior!.predictedClass ? 700 : 500,
-                    color: i === result.behavior!.predictedClass ? "var(--text-primary)" : "var(--text-secondary)",
+                    fontWeight: i === result!.behavior!.predictedClass ? 700 : 500,
+                    color: i === result!.behavior!.predictedClass ? "var(--text-primary)" : "var(--text-secondary)",
                   }}>
                     {BEHAVIOR_LABELS[BEHAVIOR_CLASSES[i]]}
                   </span>
-                  <span style={{ color: "var(--text-muted)" }}>{(p * 100).toFixed(1)}%</span>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{(p * 100).toFixed(1)}%</span>
                 </div>
-                <div style={{ height: 5, background: "var(--sage-100)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: 6, background: "var(--sage-100)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{
                     height: "100%", width: `${p * 100}%`,
                     background: BEHAVIOR_COLORS[BEHAVIOR_CLASSES[i]],
@@ -119,25 +122,25 @@ export default function DetectorResultsPanel({ result, isModelLoaded, backend, t
               </div>
             ))
           ) : (
-            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Waiting for data...</p>
+            <LoadingSkeleton lines={6} />
           )}
         </div>
 
         {/* Face behavior bars */}
-        <div className="card" style={{ padding: "14px 16px" }}>
-          <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.9rem", marginBottom: 10 }}>
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.95rem", marginBottom: 12 }}>
             Face Analysis
           </h3>
-          {result?.face?.faceBehavior ? (
-            Array.from(result.face.faceBehavior.probabilities).map((p, i) => (
-              <div key={i} style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 2 }}>
+          {hasFaceData ? (
+            Array.from(result!.face!.faceBehavior!.probabilities).map((p, i) => (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", marginBottom: 3 }}>
                   <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}>
                     {FACE_BEHAVIOR_LABELS[FACE_BEHAVIOR_CLASSES[i]]}
                   </span>
-                  <span style={{ color: "var(--text-muted)" }}>{(p * 100).toFixed(1)}%</span>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{(p * 100).toFixed(1)}%</span>
                 </div>
-                <div style={{ height: 5, background: "var(--sage-100)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: 6, background: "var(--sage-100)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{
                     height: "100%", width: `${p * 100}%`,
                     background: FACE_BEHAVIOR_COLORS[FACE_BEHAVIOR_CLASSES[i]],
@@ -147,7 +150,7 @@ export default function DetectorResultsPanel({ result, isModelLoaded, backend, t
               </div>
             ))
           ) : (
-            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Waiting for data...</p>
+            <LoadingSkeleton lines={4} />
           )}
         </div>
       </div>
@@ -172,6 +175,45 @@ function RiskBar({ label, value, color }: { label: string; value: number; color:
       <div style={{ height: 5, background: "var(--sage-100)", borderRadius: 3, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${value * 100}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
       </div>
+    </div>
+  );
+}
+
+function LoadingSkeleton({ lines }: { lines: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <div key={i}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", marginBottom: 4,
+          }}>
+            <div style={{
+              width: `${50 + (i % 3) * 15}%`, height: 10, borderRadius: 4,
+              background: "var(--sage-100)",
+              animation: "skeletonPulse 1.4s ease-in-out infinite",
+              animationDelay: `${i * 0.1}s`,
+            }} />
+            <div style={{
+              width: 32, height: 10, borderRadius: 4,
+              background: "var(--sage-100)",
+              animation: "skeletonPulse 1.4s ease-in-out infinite",
+              animationDelay: `${i * 0.1 + 0.05}s`,
+            }} />
+          </div>
+          <div style={{
+            height: 6, borderRadius: 3,
+            background: "var(--sage-100)",
+            animation: "skeletonPulse 1.4s ease-in-out infinite",
+            animationDelay: `${i * 0.1 + 0.1}s`,
+          }} />
+        </div>
+      ))}
+      <style>{`
+        @keyframes skeletonPulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -653,12 +653,12 @@ body {
 }
 @media (min-width: 1024px) {
   .video-capture-grid {
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 320px 1fr;
   }
 }
 .main-wide {
   flex: 1;
-  max-width: 1100px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: 32px 28px 80px;
