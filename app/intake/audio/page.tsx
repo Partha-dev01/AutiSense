@@ -192,23 +192,44 @@ export default function AudioAssessmentPage() {
     recognition.continuous = true;       // keep listening — don't stop on silence
     recognition.interimResults = true;
     recognition.lang = "en-US";
+    recognition.maxAlternatives = 3;
     recognitionRef.current = recognition;
 
     let settled = false;
 
     recognition.onresult = (event: any) => {
-      // Collect all transcripts across all results
+      // Collect all transcripts across all results + alternatives
       let full = "";
       for (let i = 0; i < event.results.length; i++) {
         full += event.results[i][0].transcript;
       }
       setTranscript(full);
 
+      if (settled) return;
+
+      // Check all results and all alternatives
+      const checkAllAlternatives = (): string => {
+        let best = full;
+        for (let i = 0; i < event.results.length; i++) {
+          for (let j = 0; j < event.results[i].length; j++) {
+            const alt = event.results[i][j]?.transcript || "";
+            if (alt.trim()) best = best || alt;
+          }
+        }
+        return best;
+      };
+
+      const allText = checkAllAlternatives();
+
       // Check the latest final result
       const latest = event.results[event.results.length - 1];
-      if (latest?.isFinal && !settled) {
+      if (latest?.isFinal) {
         if (isPart === "A") {
-          const score = sentenceMatchScore(expectedText, full);
+          // Check score against full transcript AND all alternatives
+          const score = Math.max(
+            sentenceMatchScore(expectedText, full),
+            sentenceMatchScore(expectedText, allText),
+          );
           if (score >= 0.4) {
             settled = true;
             stopRecognition();

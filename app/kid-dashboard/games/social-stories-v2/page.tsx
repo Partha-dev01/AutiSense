@@ -331,8 +331,8 @@ export default function SocialStoriesV2Page() {
                     bg = "var(--sage-100)";
                     border = "2px solid var(--sage-400)";
                   } else if (isChosen && choice.points < 3) {
-                    bg = "var(--peach-50, #fff5f0)";
-                    border = "2px solid var(--peach-200, #ffcdb2)";
+                    bg = "var(--peach-50)";
+                    border = "2px solid var(--peach-200)";
                   } else if (isBest) {
                     bg = "var(--sage-50)";
                     border = "2px dashed var(--sage-300)";
@@ -385,11 +385,11 @@ export default function SocialStoriesV2Page() {
                   padding: "16px 20px",
                   borderRadius: "var(--r-lg)",
                   marginBottom: 16,
-                  background: chosen.points === 3 ? "var(--sage-50)" : "var(--peach-50, #fff5f0)",
+                  background: chosen.points === 3 ? "var(--sage-50)" : "var(--peach-50)",
                   border:
                     chosen.points === 3
                       ? "2px solid var(--sage-200)"
-                      : "2px solid var(--peach-200, #ffcdb2)",
+                      : "2px solid var(--peach-200)",
                 }}
               >
                 <p

@@ -5,12 +5,15 @@ import { useState, useEffect, useRef } from "react";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 
 interface SpeechRec {
+  continuous: boolean;
   lang: string;
   interimResults: boolean;
   maxAlternatives: number;
-  onresult: ((e: { results: { transcript: string }[][] }) => void) | null;
-  onerror: (() => void) | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onresult: ((e: any) => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
+  onstart: (() => void) | null;
   start: () => void;
   stop: () => void;
 }
@@ -184,27 +187,78 @@ export default function ChatPage() {
     await new Promise((r) => setTimeout(r, 120));
 
     const recognition = new (SR as new () => SpeechRec)();
+    recognition.continuous = true;
     recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
 
-    recognition.onresult = (event: { results: { transcript: string }[][] }) => {
-      const transcript = event.results[0]?.[0]?.transcript;
-      if (transcript) sendMessage(transcript);
-      recognitionRef.current = null;
-      setIsListening(false);
+    let settled = false;
+    let accumulated = "";
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      // Accumulate full transcript from all results
+      let full = "";
+      for (let i = 0; i < event.results.length; i++) {
+        full += event.results[i][0].transcript;
+      }
+      accumulated = full;
+
+      // Check for final results — send the best transcript
+      const latest = event.results[event.results.length - 1];
+      if (latest?.isFinal && !settled) {
+        settled = true;
+        try { recognition.stop(); } catch { /* ignore */ }
+        recognitionRef.current = null;
+        setIsListening(false);
+        if (accumulated.trim()) sendMessage(accumulated.trim());
+      }
     };
-    recognition.onerror = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
+
+    recognition.onerror = (e: { error: string }) => {
+      if (settled) return;
+      if (e.error === "not-allowed" || e.error === "audio-capture") {
+        settled = true;
+        recognitionRef.current = null;
+        setIsListening(false);
+        setMicError("Microphone access denied");
+      }
     };
+
     recognition.onend = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
+      if (settled) return;
+      // Restart if not settled (recognition ended prematurely)
+      setTimeout(() => {
+        if (settled) return;
+        try {
+          recognition.start();
+        } catch {
+          // If restart fails, send what we have
+          settled = true;
+          recognitionRef.current = null;
+          setIsListening(false);
+          if (accumulated.trim()) sendMessage(accumulated.trim());
+        }
+      }, 250);
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+
+    // Hard timeout: 10 seconds — send whatever we've accumulated
+    setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try { recognition.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+      setIsListening(false);
+      if (accumulated.trim()) sendMessage(accumulated.trim());
+    }, 10000);
+
+    // Start with small delay
+    setTimeout(() => {
+      if (settled) return;
+      try { recognition.start(); } catch { /* ignore */ }
+    }, 150);
     setIsListening(true);
   };
 

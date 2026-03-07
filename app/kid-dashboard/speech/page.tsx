@@ -186,8 +186,27 @@ export default function SpeechPracticePage() {
     recognition.lang = "en-US";
     recognition.interimResults = true;
     (recognition as any).continuous = true; // keep listening — don't stop on silence
+    (recognition as any).maxAlternatives = 3;
 
     let settled = false;
+
+    const fuzzyWordMatch = (word: string, target: string): boolean => {
+      if (word === target) return true;
+      if (word.includes(target) || target.includes(word)) return true;
+      if (target.length > 2 && word.length > 2 && Math.abs(word.length - target.length) <= 1) {
+        let diff = 0;
+        const longer = word.length >= target.length ? word : target;
+        const shorter = word.length >= target.length ? target : word;
+        let si = 0;
+        for (let li = 0; li < longer.length && si < shorter.length; li++) {
+          if (longer[li] !== shorter[si]) { diff++; } else { si++; }
+        }
+        diff += shorter.length - si;
+        if (diff <= 1) return true;
+      }
+      if (target.length >= 3 && word.startsWith(target.substring(0, 3))) return true;
+      return false;
+    };
 
     recognition.onresult = (e: { results: { transcript: string; isFinal?: boolean }[][] }) => {
       if (settled) return;
@@ -198,8 +217,26 @@ export default function SpeechPracticePage() {
       }
       const target = words[wordIdx].toLowerCase();
 
-      // Check for match in any result (interim or final)
-      if (full.toLowerCase().includes(target)) {
+      // Check ALL results across all alternatives for fuzzy match
+      for (let i = 0; i < e.results.length; i++) {
+        const alts = e.results[i] as unknown as { transcript: string }[];
+        for (let j = 0; j < (alts.length || 1); j++) {
+          const alt = (alts[j]?.transcript || "").toLowerCase().trim();
+          if (!alt) continue;
+          if (alt.includes(target)) { markMatch(); return; }
+          for (const w of alt.split(/\s+/)) {
+            if (fuzzyWordMatch(w, target)) { markMatch(); return; }
+          }
+        }
+      }
+
+      // Also check full accumulated transcript
+      if (full.toLowerCase().includes(target)) { markMatch(); return; }
+      for (const w of full.toLowerCase().split(/\s+/)) {
+        if (fuzzyWordMatch(w, target)) { markMatch(); return; }
+      }
+
+      function markMatch() {
         settled = true;
         try { recognition.stop(); } catch { /* ignore */ }
         setListening(false);
@@ -207,13 +244,6 @@ export default function SpeechPracticePage() {
         setFeedback("Great job!");
         setFeedbackOk(true);
         setTimeout(advanceWord, 1500);
-        return;
-      }
-
-      // On final result that doesn't match, show feedback but keep listening
-      const latest = e.results[e.results.length - 1];
-      if ((latest as unknown as { isFinal?: boolean }).isFinal) {
-        // Not a match on this segment — user can keep trying until timeout
       }
     };
 
