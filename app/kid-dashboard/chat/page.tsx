@@ -180,15 +180,29 @@ export default function ChatPage() {
 
     let settled = false;
     let accumulated = "";
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finish = (text: string) => {
       if (settled) return;
       settled = true;
+      if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
       stopRecognition();
       setIsListening(false);
       if (text.trim()) {
         sendMessageRef.current(text.trim());
       }
+    };
+
+    // Debounce: after final result, wait 2s of silence before sending.
+    // If more speech arrives, reset the timer. This lets users speak
+    // full sentences on mobile where isFinal fires after short pauses.
+    const scheduleSend = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (!settled && accumulated.trim()) {
+          finish(accumulated);
+        }
+      }, 2000);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,20 +217,24 @@ export default function ChatPage() {
       accumulated = full;
       setTranscript(full);
 
-      // Check ALL results for isFinal — check all alternatives too
+      // Check if any result is final — start silence debounce
+      let hasFinal = false;
       for (let i = 0; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          // Also check alternatives for better transcript
-          for (let j = 0; j < event.results[i].length; j++) {
-            const alt = event.results[i][j].transcript;
-            if (alt.trim()) {
-              accumulated = full; // use full accumulated
-              break;
-            }
+        if (event.results[i].isFinal) { hasFinal = true; break; }
+      }
+
+      if (hasFinal) {
+        // Got a final result — wait 2s for more speech, then send
+        scheduleSend();
+      } else if (silenceTimer) {
+        // Got interim result while waiting — reset the silence timer
+        // (user is still speaking)
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          if (!settled && accumulated.trim()) {
+            finish(accumulated);
           }
-          finish(accumulated);
-          return;
-        }
+        }, 2000);
       }
     };
 
@@ -225,6 +243,7 @@ export default function ChatPage() {
       if (settled) return;
       if (e.error === "not-allowed" || e.error === "audio-capture") {
         settled = true;
+        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
         stopRecognition();
         setIsListening(false);
         setMicError("Microphone access denied. Please allow microphone in browser settings.");
@@ -262,12 +281,12 @@ export default function ChatPage() {
       }, 250);
     };
 
-    // Hard timeout: 10 seconds — send whatever we've accumulated
+    // Hard timeout: 15 seconds — send whatever we've accumulated
     timerRef.current = setTimeout(() => {
       if (!settled) {
         finish(accumulated);
       }
-    }, 10000);
+    }, 15000);
 
     // Start with retry pattern (copied from communication page)
     const tryStart = (delay: number, attempt: number) => {
