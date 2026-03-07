@@ -325,21 +325,18 @@ export default function CommunicationPage() {
       }
     };
 
-    let retryCount = 0;
     recognition.onend = () => {
       if (settled) return;
       // Chrome fires onend even in continuous mode after silence.
-      // Restart recognition — only the hard timeout should mark missed.
-      retryCount++;
-      if (retryCount > 5) { if (!settled) { settled = true; setWordState("missed"); } return; }
-      // Create a fresh instance if restart fails
+      // NEVER mark missed here — only the hard timeout should do that.
+      // Always restart, no retry limit.
       setTimeout(() => {
         if (settled) return;
         try { recognition.start(); } catch {
-          // Fresh instance as last resort
+          // Fresh instance if old one is dead
           try {
             const Fresh = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (!Fresh) { settled = true; setWordState("missed"); return; }
+            if (!Fresh) return; // hard timeout will handle it
             const fresh = new Fresh();
             fresh.continuous = true;
             fresh.interimResults = true;
@@ -350,23 +347,24 @@ export default function CommunicationPage() {
             fresh.onend = recognition.onend;
             recognitionRef.current = fresh;
             fresh.start();
-          } catch { if (!settled) { settled = true; setWordState("missed"); } }
+          } catch { /* hard timeout will handle it */ }
         }
-      }, 200);
+      }, 250);
     };
 
-    // Mic is already warm from getUserMedia — just a small safety delay
-    setTimeout(() => {
-      try { recognition.start(); } catch {
-        // Retry once after a longer delay
-        setTimeout(() => {
-          if (settled) return;
-          try { recognition.start(); } catch { if (!settled) { settled = true; setWordState("missed"); } }
-        }, 500);
-      }
-    }, 300);
+    // Start recognition — retry with increasing delay if needed
+    const tryStart = (delay: number, attempt: number) => {
+      setTimeout(() => {
+        if (settled) return;
+        try { recognition.start(); } catch {
+          if (attempt < 3) tryStart(delay + 300, attempt + 1);
+          // else hard timeout will handle it
+        }
+      }, delay);
+    };
+    tryStart(300, 0);
 
-    // Hard timeout: 8 seconds to speak
+    // Hard timeout: ONLY way to mark missed — real wall-clock 8 seconds
     timerRef.current = setTimeout(() => {
       if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
     }, 8000);

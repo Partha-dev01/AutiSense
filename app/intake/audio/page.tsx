@@ -237,18 +237,15 @@ export default function AudioAssessmentPage() {
       }
     };
 
-    let retryCount = 0;
     recognition.onend = () => {
       if (settled) return;
-      retryCount++;
-      if (retryCount > 5) { if (!settled) { settled = true; setItemState("missed"); } return; }
+      // NEVER mark missed here — only the hard timeout should do that.
       setTimeout(() => {
         if (settled) return;
         try { recognition.start(); } catch {
-          // Fresh instance as last resort
           try {
             const Fresh = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (!Fresh) { settled = true; setItemState("missed"); return; }
+            if (!Fresh) return; // hard timeout will handle it
             const fresh = new Fresh();
             fresh.continuous = true;
             fresh.interimResults = true;
@@ -258,20 +255,21 @@ export default function AudioAssessmentPage() {
             fresh.onend = recognition.onend;
             recognitionRef.current = fresh;
             fresh.start();
-          } catch { if (!settled) { settled = true; setItemState("missed"); } }
+          } catch { /* hard timeout will handle it */ }
         }
-      }, 200);
+      }, 250);
     };
 
-    // Small delay for desktop hardware
-    setTimeout(() => {
-      try { recognition.start(); } catch {
-        setTimeout(() => {
-          if (settled) return;
-          try { recognition.start(); } catch { if (!settled) { settled = true; setItemState("missed"); } }
-        }, 500);
-      }
-    }, 400);
+    // Start recognition — retry with increasing delay if needed
+    const tryStart = (delay: number, attempt: number) => {
+      setTimeout(() => {
+        if (settled) return;
+        try { recognition.start(); } catch {
+          if (attempt < 3) tryStart(delay + 300, attempt + 1);
+        }
+      }, delay);
+    };
+    tryStart(400, 0);
 
     // Hard timeout
     timerRef.current = setTimeout(() => {

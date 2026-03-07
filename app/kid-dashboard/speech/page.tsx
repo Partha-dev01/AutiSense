@@ -230,19 +230,16 @@ export default function SpeechPracticePage() {
       }
     };
 
-    let retryCount = 0;
     recognition.onend = () => {
       if (settled) return;
-      retryCount++;
-      if (retryCount > 5) { if (!settled) { settled = true; setListening(false); } return; }
+      // NEVER mark missed here — only the hard timeout should do that.
       setTimeout(() => {
         if (settled) return;
         try { recognition.start(); } catch {
-          // Fresh instance as last resort
           try {
             const Fresh = (window as unknown as Record<string, unknown>).SpeechRecognition
               || (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
-            if (!Fresh) { settled = true; setListening(false); return; }
+            if (!Fresh) return; // hard timeout will handle it
             const fresh = new (Fresh as new () => SpeechRec)();
             fresh.lang = "en-US";
             fresh.interimResults = true;
@@ -251,20 +248,21 @@ export default function SpeechPracticePage() {
             fresh.onerror = recognition.onerror;
             fresh.onend = recognition.onend;
             fresh.start();
-          } catch { if (!settled) { settled = true; setListening(false); } }
+          } catch { /* hard timeout will handle it */ }
         }
-      }, 200);
+      }, 250);
     };
 
-    // 500ms delay to let audio hardware fully release on desktop after TTS/mic check
-    setTimeout(() => {
-      try { recognition.start(); } catch {
-        setTimeout(() => {
-          if (settled) return;
-          try { recognition.start(); } catch { if (!settled) { settled = true; setListening(false); } }
-        }, 500);
-      }
-    }, 500);
+    // Start recognition — retry with increasing delay if needed
+    const tryStart = (delay: number, attempt: number) => {
+      setTimeout(() => {
+        if (settled) return;
+        try { recognition.start(); } catch {
+          if (attempt < 3) tryStart(delay + 300, attempt + 1);
+        }
+      }, delay);
+    };
+    tryStart(500, 0);
 
     // Hard timeout: 8 seconds
     setTimeout(() => {
