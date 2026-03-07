@@ -87,7 +87,7 @@ export default function LandingPage() {
       <nav className="nav">
         <Link href="/" className="logo" style={{ textDecoration: "none" }}>
           <img src="/logo.jpeg" alt="" className="logo-icon" />
-          Auti<em>Sense</em>
+          <span>Auti<em>Sense</em></span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "light" ? "dark" : "light"))} />
@@ -540,7 +540,7 @@ export default function LandingPage() {
           className="logo"
           style={{ fontSize: "1.2rem", display: "block", marginBottom: 8 }}
         >
-          <img src="/logo.jpeg" alt="" className="logo-icon" style={{ width: 28, height: 28 }} />Auti<em>Sense</em>
+          <img src="/logo.jpeg" alt="" className="logo-icon" style={{ width: 28, height: 28 }} /><span>Auti<em>Sense</em></span>
         </span>
 
         {/* Footer navigation links */}

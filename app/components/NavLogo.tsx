@@ -9,7 +9,7 @@ export default function NavLogo() {
   return (
     <Link href={isAuthenticated ? "/kid-dashboard" : "/"} className="logo">
       <img src="/logo.jpeg" alt="" className="logo-icon" />
-      Auti<em>Sense</em>
+      <span>Auti<em>Sense</em></span>
     </Link>
   );
 }

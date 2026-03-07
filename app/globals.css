@@ -189,7 +189,7 @@ body {
   position: relative;
   z-index: 10;
   gap: 12px;
-  overflow: hidden;
+  overflow: visible;
   transition:
     background 400ms var(--ease),
     border-color 400ms var(--ease);
@@ -783,11 +783,16 @@ body {
 
 @media (max-width: 480px) {
   .nav {
-    padding: 20px 16px;
-    gap: 8px;
+    padding: 12px 12px;
+    gap: 6px;
   }
   .logo {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+    gap: 6px;
+  }
+  .logo-icon {
+    width: 36px;
+    height: 36px;
   }
   .main {
     padding: 24px 14px 56px;
