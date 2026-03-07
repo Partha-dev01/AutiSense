@@ -219,15 +219,14 @@ body {
   font-style: normal;
 }
 .logo-icon {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  border: 2px solid var(--sage-200, #c8d8cb);
 }
-[data-theme="dark"] .logo-icon {
-  border-color: var(--sage-500);
+.logo > span {
+  display: inline;
 }
 
 /* ── Step progress ── */
@@ -786,13 +785,12 @@ body {
     padding: 12px 12px;
     gap: 6px;
   }
-  .logo {
-    font-size: 1.2rem;
-    gap: 6px;
+  .logo > span {
+    display: none;
   }
   .logo-icon {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
   .main {
     padding: 24px 14px 56px;
