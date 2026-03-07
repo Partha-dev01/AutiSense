@@ -186,16 +186,9 @@ export default function CommunicationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Acquire mic stream once when test starts — warms up hardware
-  const acquireMic = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setMicStream(stream);
-      return stream;
-    } catch {
-      return null;
-    }
-  }, []);
+  // acquireMic removed — getUserMedia monopolizes mic on some Chrome builds,
+  // preventing SpeechRecognition from receiving audio. Recognition handles
+  // its own mic access internally.
 
   const stopRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -376,20 +369,24 @@ export default function CommunicationPage() {
     setWordState("playing");
     setTranscript("");
     await speakWord(word.text);
-    // Wait for audio hardware to release
-    await new Promise((r) => setTimeout(r, 400));
+    // Release mic stream BEFORE starting recognition — getUserMedia + AudioContext
+    // can monopolize mic hardware on some Chrome builds, preventing SpeechRecognition
+    // from receiving any audio.
+    if (micStream) {
+      micStream.getTracks().forEach((t) => t.stop());
+      setMicStream(null);
+    }
+    // Wait for audio hardware to fully release
+    await new Promise((r) => setTimeout(r, 500));
     setWordState("listening");
     startListening(word.text);
-  }, [currentIdx, words, speakWord, startListening]);
+  }, [currentIdx, words, speakWord, startListening, micStream]);
 
-  // Start the test: acquire mic first, then play first word
+  // Start the test
   const beginTest = useCallback(async () => {
     setStarted(true);
-    await acquireMic();
-    // Small delay for mic hardware to warm up
-    await new Promise((r) => setTimeout(r, 200));
     playAndListen();
-  }, [acquireMic, playAndListen]);
+  }, [playAndListen]);
 
   useEffect(() => {
     return () => {
@@ -571,8 +568,20 @@ export default function CommunicationPage() {
                   Your turn! Say &ldquo;{word.text}&rdquo;
                 </p>
 
-                {/* Live mic visualizer — uses shared stream */}
-                <MicVisualizer stream={micStream} />
+                {/* Animated listening visualizer — CSS driven so SpeechRecognition has exclusive mic access */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, height: 48, marginBottom: 12 }}>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 8,
+                        borderRadius: 4,
+                        background: "#e53e3e",
+                        animation: `vizBar 0.5s ease-in-out ${i * 0.08}s infinite alternate`,
+                      }}
+                    />
+                  ))}
+                </div>
 
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
