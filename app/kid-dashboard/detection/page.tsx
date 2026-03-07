@@ -34,12 +34,9 @@ export default function DetectionPage() {
   const { result, isModelLoaded, error, modelError, backend, setModality } =
     useDetectorInference(videoRef, canvasRef, camReady && started && !stopped);
 
-  // Auto-detect modality: face-only on mobile, both on desktop
+  // Always run both body + face pipelines
   useEffect(() => {
-    const pick = () => setModality(window.innerWidth < 768 ? "face" : "both");
-    pick();
-    window.addEventListener("resize", pick);
-    return () => window.removeEventListener("resize", pick);
+    setModality("both");
   }, [setModality]);
 
   // Persist latest result for the stopped summary screen

@@ -653,7 +653,19 @@ body {
 }
 @media (min-width: 1024px) {
   .video-capture-grid {
-    grid-template-columns: 420px 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Body + Face side-by-side on desktop, stacked on mobile */
+.detector-behavior-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 768px) {
+  .detector-behavior-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 .main-wide {

@@ -60,8 +60,8 @@ export default function DetectorResultsPanel({ result }: Props) {
         </div>
       </div>
 
-      {/* Body + Face behavior — side by side */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      {/* Body + Face behavior — side by side on desktop, stacked on mobile (face first) */}
+      <div className="detector-behavior-grid">
         {/* Body behavior bars */}
         <div className="card" style={{ padding: "16px 18px" }}>
           <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.95rem", marginBottom: 12 }}>
@@ -117,7 +117,12 @@ export default function DetectorResultsPanel({ result }: Props) {
               </div>
             ))
           ) : (
-            <LoadingSkeleton lines={4} />
+            <>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 8 }}>
+                Warming up face model...
+              </p>
+              <LoadingSkeleton lines={4} />
+            </>
           )}
         </div>
       </div>
