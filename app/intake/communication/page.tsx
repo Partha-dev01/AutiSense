@@ -18,119 +18,90 @@ interface WordItem { text: string; emoji: string }
 
 type WordState = "idle" | "playing" | "listening" | "matched" | "missed";
 
-/* ── Mic Visualizer ─────────────────────────────────────────────────── */
-function MicVisualizer({ active }: { active: boolean }) {
+/* ── Mic Visualizer — receives an existing stream, no getUserMedia call ── */
+function MicVisualizer({ stream }: { stream: MediaStream | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ctxRef = useRef<{ stream: MediaStream; audioCtx: AudioContext; analyser: AnalyserNode; raf: number } | null>(null);
+  const ctxRef = useRef<{ audioCtx: AudioContext; analyser: AnalyserNode; raf: number } | null>(null);
 
   useEffect(() => {
-    if (!active) {
-      // cleanup
-      if (ctxRef.current) {
-        cancelAnimationFrame(ctxRef.current.raf);
-        ctxRef.current.audioCtx.close().catch(() => {});
-        ctxRef.current.stream.getTracks().forEach((t) => t.stop());
-        ctxRef.current = null;
+    if (!stream) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx2d = canvas.getContext("2d");
+    if (!ctx2d) return;
+
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.6;
+    source.connect(analyser);
+
+    const bufLen = analyser.frequencyBinCount;
+    const data = new Uint8Array(bufLen);
+
+    const BAR_COUNT = 5;
+    const BAR_WIDTH = 8;
+    const GAP = 6;
+    const W = BAR_COUNT * BAR_WIDTH + (BAR_COUNT - 1) * GAP;
+    const H = 48;
+    canvas.width = W * 2; // 2x for retina
+    canvas.height = H * 2;
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
+    ctx2d.scale(2, 2);
+
+    const color = getComputedStyle(document.documentElement).getPropertyValue("--sage-500").trim() || "#4d8058";
+
+    const draw = () => {
+      analyser.getByteFrequencyData(data);
+      ctx2d.clearRect(0, 0, W, H);
+
+      for (let i = 0; i < BAR_COUNT; i++) {
+        // Sample spread across low-mid frequencies where voice lives
+        const bin = Math.min(Math.floor(((i + 1) / (BAR_COUNT + 1)) * bufLen * 0.5), bufLen - 1);
+        const val = data[bin] / 255;
+        const minH = 6;
+        const barH = minH + val * (H - minH - 4);
+        const x = i * (BAR_WIDTH + GAP);
+        const y = (H - barH) / 2;
+
+        ctx2d.fillStyle = color;
+        ctx2d.beginPath();
+        // roundRect fallback for older browsers
+        const r = 3;
+        ctx2d.moveTo(x + r, y);
+        ctx2d.lineTo(x + BAR_WIDTH - r, y);
+        ctx2d.quadraticCurveTo(x + BAR_WIDTH, y, x + BAR_WIDTH, y + r);
+        ctx2d.lineTo(x + BAR_WIDTH, y + barH - r);
+        ctx2d.quadraticCurveTo(x + BAR_WIDTH, y + barH, x + BAR_WIDTH - r, y + barH);
+        ctx2d.lineTo(x + r, y + barH);
+        ctx2d.quadraticCurveTo(x, y + barH, x, y + barH - r);
+        ctx2d.lineTo(x, y + r);
+        ctx2d.quadraticCurveTo(x, y, x + r, y);
+        ctx2d.fill();
       }
-      return;
-    }
 
-    let cancelled = false;
+      const raf = requestAnimationFrame(draw);
+      if (ctxRef.current) ctxRef.current.raf = raf;
+    };
 
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-
-        const audioCtx = new AudioContext();
-        const source = audioCtx.createMediaStreamSource(stream);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        source.connect(analyser);
-
-        const bufLen = analyser.frequencyBinCount;
-        const data = new Uint8Array(bufLen);
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const BAR_COUNT = 5;
-        const BAR_WIDTH = 6;
-        const GAP = 5;
-        const W = BAR_COUNT * BAR_WIDTH + (BAR_COUNT - 1) * GAP;
-        const H = 40;
-        canvas.width = W;
-        canvas.height = H;
-
-        const draw = () => {
-          analyser.getByteFrequencyData(data);
-          ctx.clearRect(0, 0, W, H);
-
-          for (let i = 0; i < BAR_COUNT; i++) {
-            // Sample from different frequency bins
-            const bin = Math.floor((i / BAR_COUNT) * bufLen * 0.6) + 1;
-            const val = data[bin] / 255;
-            const minH = 6;
-            const barH = minH + val * (H - minH);
-            const x = i * (BAR_WIDTH + GAP);
-            const y = (H - barH) / 2;
-
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--sage-500").trim() || "#4d8058";
-            ctx.beginPath();
-            ctx.roundRect(x, y, BAR_WIDTH, barH, 3);
-            ctx.fill();
-          }
-
-          const raf = requestAnimationFrame(draw);
-          if (ctxRef.current) ctxRef.current.raf = raf;
-        };
-
-        const raf = requestAnimationFrame(draw);
-        ctxRef.current = { stream, audioCtx, analyser, raf };
-      } catch {
-        // mic unavailable — show static bars via CSS fallback
-      }
-    })();
+    const raf = requestAnimationFrame(draw);
+    ctxRef.current = { audioCtx, analyser, raf };
 
     return () => {
-      cancelled = true;
       if (ctxRef.current) {
         cancelAnimationFrame(ctxRef.current.raf);
         ctxRef.current.audioCtx.close().catch(() => {});
-        ctxRef.current.stream.getTracks().forEach((t) => t.stop());
         ctxRef.current = null;
       }
     };
-  }, [active]);
-
-  if (!active) return null;
+  }, [stream]);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16 }}>
-      <canvas
-        ref={canvasRef}
-        style={{ width: 55, height: 40 }}
-      />
-    </div>
-  );
-}
-
-/* ── Fallback CSS visualizer (3 bars) when canvas fails ─────────────── */
-function CSSVisualizer() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, height: 40, marginBottom: 16 }}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          style={{
-            width: 6,
-            borderRadius: 3,
-            background: "var(--sage-500)",
-            animation: `vizBar 0.8s ease-in-out ${i * 0.15}s infinite alternate`,
-          }}
-        />
-      ))}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+      <canvas ref={canvasRef} />
     </div>
   );
 }
@@ -151,6 +122,9 @@ export default function CommunicationPage() {
   const [taskComplete, setTaskComplete] = useState(false);
   const [forceComplete, setForceComplete] = useState(false);
   const [micAvailable, setMicAvailable] = useState(true);
+
+  // Shared mic stream — acquired once on start, used by visualizer + kept alive
+  const [micStream, setMicStream] = useState<MediaStream | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -204,6 +178,25 @@ export default function CommunicationPage() {
     if (!SR) setMicAvailable(false);
   }, []);
 
+  // Cleanup mic stream on unmount
+  useEffect(() => {
+    return () => {
+      if (micStream) micStream.getTracks().forEach((t) => t.stop());
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Acquire mic stream once when test starts — warms up hardware
+  const acquireMic = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicStream(stream);
+      return stream;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const stopRecognition = useCallback(() => {
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch { /* ignore */ }
@@ -219,12 +212,14 @@ export default function CommunicationPage() {
     setResults((prev) => [...prev, result]);
     if (currentIdx >= words.length - 1) {
       setTaskComplete(true);
+      // Release mic stream when test is done
+      if (micStream) { micStream.getTracks().forEach((t) => t.stop()); setMicStream(null); }
     } else {
       setCurrentIdx((i) => i + 1);
       setWordState("idle");
       setTranscript("");
     }
-  }, [currentIdx, words.length]);
+  }, [currentIdx, words.length, micStream]);
 
   // TTS: Polly first, browser fallback
   const speakWord = useCallback(async (text: string): Promise<void> => {
@@ -297,7 +292,6 @@ export default function CommunicationPage() {
       if (event.results[0]?.isFinal && !settled) {
         settled = true;
         stopRecognition();
-        // Check all alternatives for a match
         let match = false;
         for (let i = 0; i < event.results[0].length; i++) {
           if (event.results[0][i].transcript.toLowerCase().includes(expectedWord.toLowerCase())) {
@@ -317,33 +311,20 @@ export default function CommunicationPage() {
     };
 
     recognition.onerror = () => {
-      if (!settled) {
-        settled = true;
-        stopRecognition();
-        setWordState("missed");
-      }
+      if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
     };
 
     recognition.onend = () => {
-      // If recognition ended without a final result (e.g. silence)
-      if (!settled) {
-        settled = true;
-        stopRecognition();
-        setWordState("missed");
-      }
+      if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
     };
 
-    // 500ms delay on desktop to let audio hardware fully release after TTS
+    // Mic is already warm from getUserMedia — just a small safety delay
     setTimeout(() => {
       try { recognition.start(); } catch { setWordState("missed"); }
-    }, 500);
+    }, 300);
 
     timerRef.current = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        stopRecognition();
-        setWordState("missed");
-      }
+      if (!settled) { settled = true; stopRecognition(); setWordState("missed"); }
     }, 10000);
   }, [advance, stopRecognition]);
 
@@ -353,11 +334,20 @@ export default function CommunicationPage() {
     setWordState("playing");
     setTranscript("");
     await speakWord(word.text);
-    // Extra delay to ensure audio hardware is fully released on desktop
-    await new Promise((r) => setTimeout(r, 300));
+    // Wait for audio hardware to release
+    await new Promise((r) => setTimeout(r, 400));
     setWordState("listening");
     startListening(word.text);
   }, [currentIdx, words, speakWord, startListening]);
+
+  // Start the test: acquire mic first, then play first word
+  const beginTest = useCallback(async () => {
+    setStarted(true);
+    await acquireMic();
+    // Small delay for mic hardware to warm up
+    await new Promise((r) => setTimeout(r, 200));
+    playAndListen();
+  }, [acquireMic, playAndListen]);
 
   useEffect(() => {
     return () => {
@@ -382,6 +372,7 @@ export default function CommunicationPage() {
 
   const handleSkipStage = useCallback(async () => {
     stopRecognition();
+    if (micStream) { micStream.getTracks().forEach((t) => t.stop()); setMicStream(null); }
     const sid = getCurrentSessionId();
     if (sid) {
       await addBiomarker(sid, "communication_responsiveness", {
@@ -391,7 +382,7 @@ export default function CommunicationPage() {
       }).catch(() => {});
     }
     router.push("/intake/behavioral-observation");
-  }, [router, stopRecognition]);
+  }, [router, stopRecognition, micStream]);
 
   const word = words[currentIdx];
   const matchedCount = results.filter((r) => r === "matched").length;
@@ -478,7 +469,7 @@ export default function CommunicationPage() {
                 Speech recognition is not available in this browser. Try Chrome on desktop.
               </div>
             )}
-            <button className="btn btn-primary" onClick={() => { setStarted(true); playAndListen(); }}
+            <button className="btn btn-primary" onClick={beginTest}
               style={{ minHeight: 52, padding: "12px 36px" }}>
               {"\u{1F50A}"} Start Word Echo
             </button>
@@ -511,13 +502,13 @@ export default function CommunicationPage() {
             {wordState === "playing" && (
               <div>
                 {/* Speaker wave animation */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, height: 40, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, height: 48, marginBottom: 12 }}>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
                       style={{
-                        width: 6,
-                        borderRadius: 3,
+                        width: 8,
+                        borderRadius: 4,
                         background: "var(--sage-400)",
                         animation: `vizBar 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
                       }}
@@ -538,8 +529,8 @@ export default function CommunicationPage() {
                   Your turn! Say &ldquo;{word.text}&rdquo;
                 </p>
 
-                {/* Live mic visualizer */}
-                <MicVisualizer active={true} />
+                {/* Live mic visualizer — uses shared stream */}
+                <MicVisualizer stream={micStream} />
 
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
@@ -674,6 +665,7 @@ export default function CommunicationPage() {
           <button className="btn btn-primary btn-full"
             disabled={!taskComplete || (!meetsCriteria && !forceComplete)}
             onClick={async () => {
+              if (micStream) { micStream.getTracks().forEach((t) => t.stop()); setMicStream(null); }
               const sid = getCurrentSessionId();
               if (sid) {
                 await addBiomarker(sid, "communication_responsiveness", {
@@ -695,7 +687,7 @@ export default function CommunicationPage() {
         }
         @keyframes vizBar {
           0% { height: 6px; }
-          100% { height: 32px; }
+          100% { height: 40px; }
         }
         @keyframes pulse-dot {
           0%, 100% { opacity: 1; transform: scale(1); }
