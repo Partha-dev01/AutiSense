@@ -51,6 +51,7 @@ export default function PreparationPage() {
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentIdxRef = useRef(0);
 
   const {
     videoRef, overlayRef, isModelLoaded, isActive: cameraActive,
@@ -118,7 +119,7 @@ export default function PreparationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consecutiveHits]);
 
-  // Start the countdown for current action
+  // Start the countdown for current action — reads from ref to avoid stale closures
   const startCountdown = useCallback(() => {
     setActionPhase("countdown");
     setCountdown(COUNTDOWN_SECONDS);
@@ -130,10 +131,11 @@ export default function PreparationPage() {
       if (c <= 0) {
         if (countdownRef.current) clearInterval(countdownRef.current);
         countdownRef.current = null;
-        // Start detecting
+        // Start detecting — use ref for latest index
+        const action = ACTIONS[currentIdxRef.current];
         setActionPhase("detecting");
         setTimeoutSeconds(Math.ceil(ACTION_TIMEOUT_MS / 1000));
-        startDetecting(ACTIONS[currentIdx]);
+        startDetecting(action);
 
         // Timeout countdown tick
         let t = Math.ceil(ACTION_TIMEOUT_MS / 1000);
@@ -154,7 +156,7 @@ export default function PreparationPage() {
         }, ACTION_TIMEOUT_MS);
       }
     }, 1000);
-  }, [currentIdx, startDetecting, stopDetecting]);
+  }, [startDetecting, stopDetecting]);
 
   // Watch for action detected
   useEffect(() => {
@@ -175,16 +177,17 @@ export default function PreparationPage() {
   const advanceAction = useCallback(() => {
     clearTimers();
     stopDetecting();
-    if (currentIdx >= ACTIONS.length - 1) {
+    const idx = currentIdxRef.current;
+    if (idx >= ACTIONS.length - 1) {
       setPhase("complete");
       stopCamera();
     } else {
-      setCurrentIdx((i) => i + 1);
-      // Need to wait a tick so startCountdown reads updated currentIdx
+      const nextIdx = idx + 1;
+      currentIdxRef.current = nextIdx;
+      setCurrentIdx(nextIdx);
       setTimeout(() => startCountdown(), 100);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIdx, clearTimers, stopDetecting, stopCamera]);
+  }, [clearTimers, stopDetecting, stopCamera, startCountdown]);
 
   // Fix: startCountdown uses currentIdx via closure, update when it changes
   useEffect(() => {
@@ -207,6 +210,8 @@ export default function PreparationPage() {
     } catch {
       // Camera unavailable — manual fallback buttons shown
     }
+    currentIdxRef.current = 0;
+    setCurrentIdx(0);
     setPhase("active");
     setTimeout(() => startCountdown(), 300);
   }, [startCamera, startCountdown]);
@@ -215,22 +220,23 @@ export default function PreparationPage() {
     clearTimers();
     stopDetecting();
     stopCamera();
-    // Record remaining as skipped
+    const idx = currentIdxRef.current;
     setResults((prev) => {
       const m = new Map(prev);
-      for (let i = currentIdx; i < ACTIONS.length; i++) {
+      for (let i = idx; i < ACTIONS.length; i++) {
         if (!m.has(i)) m.set(i, false);
       }
       return m;
     });
     setPhase("complete");
-  }, [clearTimers, stopDetecting, stopCamera, currentIdx]);
+  }, [clearTimers, stopDetecting, stopCamera]);
 
   const resetStage = useCallback(() => {
     clearTimers();
     stopDetecting();
     setPhase("pre_start");
     setActionPhase("countdown");
+    currentIdxRef.current = 0;
     setCurrentIdx(0);
     setResults(new Map());
     setCountdown(COUNTDOWN_SECONDS);

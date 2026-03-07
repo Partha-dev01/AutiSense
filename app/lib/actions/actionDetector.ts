@@ -312,7 +312,8 @@ export function detectAction(
     confidence: result.proximity,
     label: meta.label,
     emoji: meta.emoji,
-  };
+    _detail: result.detail, // pass through for debug
+  } as ActionResult;
 }
 
 // ── Sustained detection tracker ─────────────────────────────────────
@@ -353,14 +354,16 @@ export class ActionTracker {
       this.confirmed = true;
     }
 
-    // Debug log every frame
+    // Debug log every frame — include per-function detail
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fnDetail = (result as any)._detail ?? "";
     debugLog({
       action,
       hit: result.detected,
       proximity: result.confidence,
       consec: this.consecutiveHits,
       scale,
-      detail: `${action} hit=${result.detected} prox=${result.confidence.toFixed(2)} consec=${this.consecutiveHits}/${REQUIRED_CONSECUTIVE}`,
+      detail: `${action} ${result.detected ? "HIT" : "---"} p=${result.confidence.toFixed(2)} c=${this.consecutiveHits}/${REQUIRED_CONSECUTIVE} | ${fnDetail}`,
     });
 
     return {
