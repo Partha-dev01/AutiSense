@@ -14,8 +14,7 @@ interface Bubble {
   id: number;
   label: string;
   x: number;
-  duration: number;
-  delay: number;
+  y: number;
   size: number;
   color: string;
   popped: boolean;
@@ -74,23 +73,36 @@ export default function BubblePopPage() {
   }, []);
 
   const spawnBubble = useCallback(
-    (currentTarget: string, idStart: number, count: number): Bubble[] => {
+    (currentTarget: string, idStart: number, count: number, existing: Bubble[] = []): Bubble[] => {
       const result: Bubble[] = [];
-      // Always guarantee at least one target bubble in each spawn
       const targetIdx = Math.floor(Math.random() * count);
+      // Collect occupied positions (existing active + newly spawned)
+      const occupied = existing.filter((b) => !b.popped).map((b) => ({ x: b.x, y: b.y, size: b.size }));
 
       for (let i = 0; i < count; i++) {
         const isTarget = i === targetIdx;
         let label = isTarget ? currentTarget : pickRandom(POOL);
         while (!isTarget && label === currentTarget) label = pickRandom(POOL);
 
+        const size = 56 + Math.floor(Math.random() * 20);
+        // Find a non-overlapping position (try up to 20 times)
+        let x = 0, y = 0;
+        for (let attempt = 0; attempt < 20; attempt++) {
+          x = 5 + Math.random() * 78; // % from left (leave room for bubble width)
+          y = 5 + Math.random() * 78; // % from top
+          const tooClose = occupied.some((o) => {
+            const dx = x - o.x;
+            const dy = y - o.y;
+            return Math.sqrt(dx * dx + dy * dy) < 16; // min ~16% apart
+          });
+          if (!tooClose) break;
+        }
+        occupied.push({ x, y, size });
+
         result.push({
           id: idStart + i,
           label,
-          x: 8 + Math.random() * 74,
-          duration: (7 + Math.random() * 4) / (0.8 + speedMult * 0.2),
-          delay: Math.random() * 1.5,
-          size: 56 + Math.floor(Math.random() * 20),
+          x, y, size,
           color: pickRandom(BUBBLE_COLORS),
           popped: false,
           shaking: false,
@@ -98,7 +110,7 @@ export default function BubblePopPage() {
       }
       return result;
     },
-    [speedMult],
+    [],
   );
 
   const startGame = useCallback(() => {
@@ -122,7 +134,7 @@ export default function BubblePopPage() {
 
     const initialCount = Math.min(3 + config.level, 6);
     nextIdRef.current = 0;
-    const initial = spawnBubble(t, 0, initialCount);
+    const initial = spawnBubble(t, 0, initialCount, []);
     if (!initial.some((b) => b.label === t)) initial[0].label = t;
     setBubbles(initial);
     nextIdRef.current = initialCount;
@@ -145,22 +157,22 @@ export default function BubblePopPage() {
         if (active.length >= maxBubbles) return prev;
         const count = active.length === 0
           ? Math.min(3, maxBubbles)
-          : Math.min(1, maxBubbles - active.length);
+          : Math.min(2, maxBubbles - active.length);
         const id = nextIdRef.current;
-        const spawned = spawnBubble(target, id, count);
+        const spawned = spawnBubble(target, id, count, active);
         nextIdRef.current = id + count;
-        return [...prev, ...spawned];
+        return [...active, ...spawned];
       });
-    }, 1500);
+    }, 2000);
     return () => clearInterval(iv);
   }, [screen, target, maxBubbles, spawnBubble]);
 
-  // Clean up old popped bubbles
+  // Clean up popped bubbles after pop animation finishes
   useEffect(() => {
     if (screen !== "play") return;
     const iv = setInterval(() => {
-      setBubbles((prev) => prev.filter((b) => !b.popped || prev.indexOf(b) >= prev.length - 5));
-    }, 4000);
+      setBubbles((prev) => prev.filter((b) => !b.popped));
+    }, 600);
     return () => clearInterval(iv);
   }, [screen]);
 
@@ -206,21 +218,25 @@ export default function BubblePopPage() {
   return (
     <div className="page">
       <style>{`
-        @keyframes floatUp {
-          0% { transform: translateY(100%); opacity: 0.9; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateY(-120%); opacity: 0; }
+        @keyframes bubbleIdle {
+          0%, 100% { transform: translateY(0) scale(1); }
+          33% { transform: translateY(-6px) scale(1.03); }
+          66% { transform: translateY(4px) scale(0.97); }
+        }
+        @keyframes bubbleAppear {
+          0% { transform: scale(0); opacity: 0; }
+          60% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
         @keyframes popAnim {
           0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.4); opacity: 0.5; }
+          50% { transform: scale(1.5); opacity: 0.4; }
           100% { transform: scale(0); opacity: 0; }
         }
         @keyframes gentleShake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-4px); }
-          50% { transform: translateX(4px); }
+          25% { transform: translateX(-5px); }
+          50% { transform: translateX(5px); }
           75% { transform: translateX(-3px); }
         }
         @keyframes targetPulse {
@@ -294,16 +310,18 @@ export default function BubblePopPage() {
                   onClick={() => handleBubbleTap(bubble)}
                   aria-label={`Bubble ${bubble.label}`}
                   style={{
-                    position: "absolute", left: `${bubble.x}%`, bottom: 0,
+                    position: "absolute",
+                    left: `${bubble.x}%`, top: `${bubble.y}%`,
                     width: bubble.size, height: bubble.size, borderRadius: "50%",
-                    border: "3px solid var(--border)", background: bubble.color,
+                    border: "3px solid rgba(255,255,255,0.5)", background: bubble.color,
+                    boxShadow: "0 4px 15px rgba(0,0,0,0.1), inset 0 -4px 8px rgba(0,0,0,0.06), inset 0 4px 8px rgba(255,255,255,0.4)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontFamily: "'Fredoka',sans-serif", fontWeight: 700, fontSize: "1.3rem",
                     color: "var(--text-primary)", cursor: "pointer", padding: 0,
                     animation: bubble.shaking
                       ? "gentleShake 0.5s ease"
-                      : `floatUp ${bubble.duration}s ${bubble.delay}s linear forwards`,
-                    transition: "border-color 200ms var(--ease)",
+                      : `bubbleAppear 0.35s ease-out, bubbleIdle ${2.5 + (bubble.id % 3) * 0.5}s ${0.35}s ease-in-out infinite`,
+                    transform: "translate(-50%, -50%)",
                   }}
                 >
                   {bubble.label}
@@ -313,13 +331,16 @@ export default function BubblePopPage() {
                 <div
                   key={`pop-${bubble.id}`}
                   style={{
-                    position: "absolute", left: `${bubble.x}%`, bottom: 0,
+                    position: "absolute",
+                    left: `${bubble.x}%`, top: `${bubble.y}%`,
                     width: bubble.size, height: bubble.size, borderRadius: "50%",
                     background: "var(--sage-300)", display: "flex",
                     alignItems: "center", justifyContent: "center",
                     fontFamily: "'Fredoka',sans-serif", fontWeight: 700, fontSize: "1.3rem",
-                    color: "var(--text-primary)", animation: "popAnim 0.35s ease-out forwards",
+                    color: "var(--text-primary)",
+                    animation: "popAnim 0.35s ease-out forwards",
                     pointerEvents: "none",
+                    transform: "translate(-50%, -50%)",
                   }}
                 >
                   {bubble.label}
