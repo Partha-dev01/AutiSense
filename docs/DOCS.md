@@ -1087,91 +1087,59 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 
 **Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
 
-### v2.6.4 — 2026-03-07 (Action Detection — COCO Wrist-Joint Compensation)
+### v2.6.1–v2.6.4 — 2026-03-07 (Action Detection — Complete Overhaul)
 
-**Problem**: COCO wrist keypoints are at the **wrist joint**, not fingertips. When touching face, the wrist is still ~15% of frame below the chin. When clapping, wrist-to-wrist distance is ~forearm-width even with palms touching.
+Action detection for the Preparation step (Step 7 — Motor) was rebuilt across 4 commits to fix all 4 actions: wave, touch nose, clap hands, raise arms.
 
-**Touch nose/head — relaxed vertical threshold:**
-- `dy > -0.02` (must be at shoulder height) → `dy > -0.15` (wrist can be 15% of frame below shoulders)
-- vProx ramp: `(dy + 0.15) / 0.20` — starts showing proximity when hand is at chest level
-- Now detects when hand is raised to face area without needing fingertips at nose level
+**Problem summary**: Three independent bugs made all actions undetectable:
+1. **Stale closure** — `startCountdown()` captured old `currentIdx` via closure, so all actions detected as "wave" regardless of which action was active
+2. **Coordinate mismatch** — YOLO outputs keypoints in 320x240 pixel space, but detection thresholds were written for normalized 0-1 coordinates
+3. **COCO anatomy offset** — COCO-17 wrist keypoints are at the wrist joint, not fingertips; thresholds didn't account for the hand/forearm length gap
 
-**Clap — wider wrist distance:**
-- hitThreshold: `0.15` → `0.28` (accounts for forearm width between wrist joints)
-- Dynamic approach: distance gate `0.20` → `0.35`, approach delta `0.01` → `0.008`
-- Single-wrist center: `0.08` → `0.12`
+**Fix 1 — Stale closure (v2.6.1):**
+- Added `currentIdxRef` (React ref) updated synchronously before state `setCurrentIdx()`
+- `startCountdown()` reads from `currentIdxRef.current` instead of `currentIdx` state
+- Ensures each action countdown targets the correct action
 
-**File:** `app/lib/actions/actionDetector.ts`
-
-### v2.6.3 — 2026-03-07 (Action Detection — Coordinate Normalization + UI Flicker Fix)
-
-**Root cause found**: Keypoints are in **320x240 pixel space** from YOLO, but all thresholds were tuned as if coordinates were normalized 0-1. This made some thresholds absurdly easy (always fire) and others impossible (never fire). The UI also flickered because timer-based debounce fought against 30fps frame updates.
-
-**Coordinate normalization**:
-- Added `normalizeKeypoints()` that divides x by 320, y by 240 to produce 0-1 range
-- `detectAction()` now normalizes keypoints and history BEFORE dispatching to per-action functions
+**Fix 2 — Coordinate normalization (v2.6.3):**
+- Added `normalizeKeypoints()` function: divides x by 320, y by 240 → 0-1 range
+- `detectAction()` normalizes keypoints and history BEFORE dispatching to per-action detectors
 - All detection functions now operate in 0-1 space where `bodyScale` ~0.2-0.4
+- Eliminates coordinate system ambiguity — thresholds are resolution-independent
 
-**Recalibrated thresholds for 0-1 space**:
-- Wave: variance threshold `0.0008` (wave of 30px = 0.094 normalized, variance ~0.002)
-- Touch nose/head: head-region approach with `dy > -0.02` in absolute 0-1 units
-- Clap: `hitThreshold = 0.15` absolute (wrists within 15% of frame), dynamic approach `> 0.01`
-- Raise arms: `margin = 0.02` absolute (2% of frame = ~5px above shoulder)
-- Touch ears: `threshold = 0.10` absolute
+**Fix 3 — COCO wrist-joint compensation (v2.6.4):**
+- Touch nose/head: `dy > -0.15` allows wrist to be 15% of frame below shoulder line (accounts for wrist-to-fingertip length when touching face)
+- Clap: `hitThreshold = 0.28` accounts for forearm width between wrist joints when palms touch
 
-**UI flicker fix**:
-- Replaced `setTimeout`-based debounce with **frame-count throttle**: upgrades instant, downgrades only apply every 10th frame (~300ms at 30fps)
-- No timers = no race conditions = no flicker
-- Dot count now imports `REQUIRED_CONSECUTIVE` instead of hardcoded 5
+**Final calibrated thresholds (0-1 normalized space):**
 
-**Diagnostic logging**:
-- `ActionTracker` logs to console every 30th frame: raw/normalized bodyScale, all keypoint positions and confidence values
-- Full `conf[0..16]` array dump for debugging
-- Accessible via browser console `[ActionDiag]` prefix
+| Action | Method | Hit condition | Key threshold |
+|--------|--------|---------------|---------------|
+| **Wave** | X-variance of wrist over 10 frames | `variance > 0.0008` | Wrist must be above shoulder, lateral motion detected |
+| **Touch nose** | Head-region: wrist within shoulder width, near face | `dx < 0.8 && dy > -0.15` | `dx` normalized by shoulder width, `dy` in absolute frame units |
+| **Touch head** | Same head-region, slightly more generous | `dx < 1.0 && dy > -0.15` | Wider horizontal tolerance |
+| **Clap** | Wrist-to-wrist distance OR single-wrist-at-center | `d < 0.28` (static), `approach > 0.008` (dynamic) | Dynamic approach over 2 frames also triggers |
+| **Raise arms** | Wrist above shoulder (either side) + elbow fallback | `diff > 0.02` (2% of frame) | Elbow fallback if wrists not visible |
+| **Touch ears** | Wrist-to-ear distance | `d < 0.10` | Normalized distance in 0-1 space |
 
-**Files:**
-- `app/lib/actions/actionDetector.ts` — full rewrite with normalization + recalibrated thresholds
-- `app/intake/preparation/page.tsx` — frame-count debounce, REQUIRED_CONSECUTIVE import
+**General detection parameters:**
+- `CONF_GATE = 0.05` — if skeleton is drawn, keypoint passes the gate
+- `REQUIRED_CONSECUTIVE = 3` — 3 consecutive hit frames confirms the action (exported for UI use)
+- Decay: -1 per missed frame (gentle, doesn't reset to 0)
+- Debug: `[ActionDiag]` console logs every 30th frame with all keypoint positions, confidence values, and bodyScale
 
-### v2.6.2 — 2026-03-07 (Action Detection — Head-Region & Clap Sensitivity)
+**UI flicker fix:**
+- Replaced `setTimeout`-based status debounce with **frame-count throttle**
+- Upgrades ("looking" → "closer" → "almost") apply instantly
+- Downgrades apply only every 10th frame (~300ms at 30fps) — no timers, no race conditions
+- Dot counter uses imported `REQUIRED_CONSECUTIVE` (3 dots, not hardcoded 5)
 
-**Problem**: Touch-nose required hand to go diagonally above head because YOLO nose keypoint drifts when hand occludes face. Clap "gets closer" but never triggers — threshold still too tight.
+**Files modified:**
+- `app/lib/actions/actionDetector.ts` — full rewrite: normalization, head-region detection, recalibrated thresholds, diagnostic logging, exported `REQUIRED_CONSECUTIVE`
+- `app/intake/preparation/page.tsx` — `currentIdxRef` stale closure fix, frame-count debounce, `REQUIRED_CONSECUTIVE` import for dot display
+- `app/hooks/useActionCamera.ts` — unchanged (passes raw pixel keypoints; normalization happens inside `detectAction()`)
 
-**Touch nose & touch head — rewritten to head-region approach:**
-- No longer measures wrist-to-nose distance (unreliable when hand near face)
-- Instead checks if wrist is in the **face zone**: horizontally within shoulder width, vertically at or above shoulder line
-- Uses shoulder width as horizontal reference, body scale as vertical reference
-- `dx < 0.8` (within 80% of shoulder width) and `dy > -0.05` (roughly at shoulder height or above) = hit
-- Proximity = min(horizontal proximity, vertical proximity) for smooth "getting closer" feedback
-
-**Clap — much more sensitive:**
-- Hit threshold: 0.7 → **1.0×scale** (hands within 1 body-length = clap)
-- Dynamic approach: only needs **2 frames** (was 3), approach delta > 0.02×scale triggers hit
-- Single-wrist center fallback: threshold 0.35 → **0.5×scale**, removed `inFront` restriction
-- Only needs 1 shoulder visible (OR gate) for center calculation
-
-**File:** `app/lib/actions/actionDetector.ts`
-
-### v2.6.1 — 2026-03-07 (Action Detection — Sensitivity Overhaul)
-
-**Root cause**: All confidence gates were set to 0.15, but YOLO keypoint confidence drops well below that when body parts overlap (e.g., hand near face, hands clapping). The skeleton was visibly drawn on screen but detection returned `prox=0.00` because keypoints failed the gate.
-
-**Changes:**
-- **Global confidence gate**: Unified to `CONF_GATE = 0.05` — if the skeleton is drawn, the keypoint is usable
-- **Touch nose**: Threshold widened from 0.4×scale → 0.6×scale (YOLO nose keypoint drifts when hand occludes face)
-- **Clap**: Hit threshold widened from 0.45×scale → 0.7×scale. Single-wrist-center fallback widened to 0.35×scale. Dynamic convergence detection over 3 frames. Always returns gradual proximity.
-- **Raise arms**: Near-zero margin (0.01×scale) — any wrist above shoulder counts. Added **elbow fallback**: if wrists aren't visible but elbows are above shoulders, still detects. Proximity is continuous (how high above shoulder).
-- **Touch head/ears**: Thresholds widened (0.4→0.6×scale for head, 0.35→0.5×scale for ears)
-- **Wave**: Confidence gate lowered to match global 0.05
-- **REQUIRED_CONSECUTIVE**: 5 → 3 (faster confirmation, less frustrating for children)
-- All detection functions output detailed debug strings (distances, thresholds, scale) via `_detail` field
-
-**Stale closure fix (previous commit):**
-- `startCountdown` in preparation page captured stale `currentIdx` via closure → all actions detected as "wave"
-- Fixed with `currentIdxRef` ref that's updated synchronously before state
-- Asymmetric status debounce: upgrades instant, downgrades delayed 1.2s (prevents UI flicker)
-
-**File:** `app/lib/actions/actionDetector.ts`
+**Commits:** `bbf449e`, `d790cda`, `2714a09`, `8bc0458`, `44cbbf3`
 
 ### v2.6.0 — 2026-03-07 (Mic Logic, Detection Layout, Bubble Pop, Action Detection)
 
