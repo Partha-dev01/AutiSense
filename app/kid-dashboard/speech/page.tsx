@@ -219,26 +219,51 @@ export default function SpeechPracticePage() {
 
     recognition.onerror = (err: { error?: string }) => {
       if (settled) return;
-      if (err?.error === "no-speech" || err?.error === "aborted") return;
-      settled = true;
-      try { recognition.stop(); } catch { /* ignore */ }
-      setListening(false);
-      setFeedback("Could not hear you. Try again closer to the mic.");
-      setFeedbackOk(false);
+      // Only treat "not-allowed" (permission denied) as fatal.
+      // All other errors are transient — onend will restart.
+      if (err?.error === "not-allowed") {
+        settled = true;
+        try { recognition.stop(); } catch { /* ignore */ }
+        setListening(false);
+        setFeedback("Microphone access denied. Check browser settings.");
+        setFeedbackOk(false);
+      }
     };
 
+    let retryCount = 0;
     recognition.onend = () => {
       if (settled) return;
-      // Chrome fires onend even in continuous mode after silence.
-      // Restart — only the hard timeout should end listening.
-      try { recognition.start(); } catch {
-        if (!settled) { settled = true; setListening(false); }
-      }
+      retryCount++;
+      if (retryCount > 5) { if (!settled) { settled = true; setListening(false); } return; }
+      setTimeout(() => {
+        if (settled) return;
+        try { recognition.start(); } catch {
+          // Fresh instance as last resort
+          try {
+            const Fresh = (window as unknown as Record<string, unknown>).SpeechRecognition
+              || (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+            if (!Fresh) { settled = true; setListening(false); return; }
+            const fresh = new (Fresh as new () => SpeechRec)();
+            fresh.lang = "en-US";
+            fresh.interimResults = true;
+            (fresh as any).continuous = true;
+            fresh.onresult = recognition.onresult;
+            fresh.onerror = recognition.onerror;
+            fresh.onend = recognition.onend;
+            fresh.start();
+          } catch { if (!settled) { settled = true; setListening(false); } }
+        }
+      }, 200);
     };
 
     // 500ms delay to let audio hardware fully release on desktop after TTS/mic check
     setTimeout(() => {
-      try { recognition.start(); } catch { setListening(false); }
+      try { recognition.start(); } catch {
+        setTimeout(() => {
+          if (settled) return;
+          try { recognition.start(); } catch { if (!settled) { settled = true; setListening(false); } }
+        }, 500);
+      }
     }, 500);
 
     // Hard timeout: 8 seconds

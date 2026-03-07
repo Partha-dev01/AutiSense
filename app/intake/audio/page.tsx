@@ -230,22 +230,47 @@ export default function AudioAssessmentPage() {
 
     recognition.onerror = (e: any) => {
       if (settled) return;
-      if (e.error === "no-speech" || e.error === "aborted") return;
-      settled = true; stopRecognition(); setItemState("missed");
+      // Only treat "not-allowed" (permission denied) as fatal.
+      // All other errors are transient — onend will restart.
+      if (e.error === "not-allowed") {
+        settled = true; stopRecognition(); setItemState("missed");
+      }
     };
 
+    let retryCount = 0;
     recognition.onend = () => {
       if (settled) return;
-      // Chrome fires onend even in continuous mode after silence.
-      // Restart — only the hard timeout should mark missed.
-      try { recognition.start(); } catch {
-        if (!settled) { settled = true; setItemState("missed"); }
-      }
+      retryCount++;
+      if (retryCount > 5) { if (!settled) { settled = true; setItemState("missed"); } return; }
+      setTimeout(() => {
+        if (settled) return;
+        try { recognition.start(); } catch {
+          // Fresh instance as last resort
+          try {
+            const Fresh = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!Fresh) { settled = true; setItemState("missed"); return; }
+            const fresh = new Fresh();
+            fresh.continuous = true;
+            fresh.interimResults = true;
+            fresh.lang = "en-US";
+            fresh.onresult = recognition.onresult;
+            fresh.onerror = recognition.onerror;
+            fresh.onend = recognition.onend;
+            recognitionRef.current = fresh;
+            fresh.start();
+          } catch { if (!settled) { settled = true; setItemState("missed"); } }
+        }
+      }, 200);
     };
 
     // Small delay for desktop hardware
     setTimeout(() => {
-      try { recognition.start(); } catch { setItemState("missed"); }
+      try { recognition.start(); } catch {
+        setTimeout(() => {
+          if (settled) return;
+          try { recognition.start(); } catch { if (!settled) { settled = true; setItemState("missed"); } }
+        }, 500);
+      }
     }, 400);
 
     // Hard timeout

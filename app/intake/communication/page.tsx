@@ -317,23 +317,53 @@ export default function CommunicationPage() {
 
     recognition.onerror = (e: any) => {
       if (settled) return;
-      // no-speech / aborted are expected — onend will handle restart
-      if (e.error === "no-speech" || e.error === "aborted") return;
-      settled = true; stopRecognition(); setWordState("missed");
+      // Only treat "not-allowed" (permission denied) as fatal.
+      // All other errors (no-speech, aborted, audio-capture, network,
+      // service-not-available) are transient — onend will restart.
+      if (e.error === "not-allowed") {
+        settled = true; stopRecognition(); setWordState("missed");
+      }
     };
 
+    let retryCount = 0;
     recognition.onend = () => {
       if (settled) return;
       // Chrome fires onend even in continuous mode after silence.
       // Restart recognition — only the hard timeout should mark missed.
-      try { recognition.start(); } catch {
-        if (!settled) { settled = true; setWordState("missed"); }
-      }
+      retryCount++;
+      if (retryCount > 5) { if (!settled) { settled = true; setWordState("missed"); } return; }
+      // Create a fresh instance if restart fails
+      setTimeout(() => {
+        if (settled) return;
+        try { recognition.start(); } catch {
+          // Fresh instance as last resort
+          try {
+            const Fresh = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!Fresh) { settled = true; setWordState("missed"); return; }
+            const fresh = new Fresh();
+            fresh.continuous = true;
+            fresh.interimResults = true;
+            fresh.lang = "en-US";
+            fresh.maxAlternatives = 3;
+            fresh.onresult = recognition.onresult;
+            fresh.onerror = recognition.onerror;
+            fresh.onend = recognition.onend;
+            recognitionRef.current = fresh;
+            fresh.start();
+          } catch { if (!settled) { settled = true; setWordState("missed"); } }
+        }
+      }, 200);
     };
 
     // Mic is already warm from getUserMedia — just a small safety delay
     setTimeout(() => {
-      try { recognition.start(); } catch { setWordState("missed"); }
+      try { recognition.start(); } catch {
+        // Retry once after a longer delay
+        setTimeout(() => {
+          if (settled) return;
+          try { recognition.start(); } catch { if (!settled) { settled = true; setWordState("missed"); } }
+        }, 500);
+      }
     }, 300);
 
     // Hard timeout: 8 seconds to speak
