@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
 import { useActionCamera } from "../../hooks/useActionCamera";
-import { ACTION_META, type ActionId, getDebugLog } from "../../lib/actions/actionDetector";
+import { ACTION_META, REQUIRED_CONSECUTIVE, type ActionId, getDebugLog } from "../../lib/actions/actionDetector";
 import SkipStageDialog from "../../components/SkipStageDialog";
 
 const STEPS = [
@@ -46,7 +46,7 @@ export default function PreparationPage() {
   const [displayStatus, setDisplayStatus] = useState<string>("looking");
   const [displayHits, setDisplayHits] = useState(0);
   const stableStatusRef = useRef<string>("looking");
-  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusFrameRef = useRef(0);
 
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -89,31 +89,29 @@ export default function PreparationPage() {
     if (actionPhase !== "detecting") {
       stableStatusRef.current = "looking";
       setDisplayStatus("looking");
+      statusFrameRef.current = 0;
       return;
     }
     if (statusCategory === stableStatusRef.current) return;
 
-    // Upgrade immediately, downgrade with delay
+    statusFrameRef.current++;
     const isUpgrade = statusRank(statusCategory) > statusRank(stableStatusRef.current);
 
-    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     if (isUpgrade) {
+      // Upgrades apply immediately
       stableStatusRef.current = statusCategory;
       setDisplayStatus(statusCategory);
-    } else {
-      statusTimerRef.current = setTimeout(() => {
-        stableStatusRef.current = statusCategory;
-        setDisplayStatus(statusCategory);
-      }, 1200); // slow downgrade
+    } else if (statusFrameRef.current % 10 === 0) {
+      // Downgrades only apply every 10th frame (~300ms at 30fps) — no timers, no flicker
+      stableStatusRef.current = statusCategory;
+      setDisplayStatus(statusCategory);
     }
-
-    return () => { if (statusTimerRef.current) { clearTimeout(statusTimerRef.current); statusTimerRef.current = null; } };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusCategory, actionPhase]);
 
   // Debounce hits display — update only on significant change
   useEffect(() => {
-    if (consecutiveHits === 0 || consecutiveHits >= 5 || Math.abs(consecutiveHits - displayHits) >= 1) {
+    if (consecutiveHits === 0 || consecutiveHits >= REQUIRED_CONSECUTIVE || Math.abs(consecutiveHits - displayHits) >= 1) {
       setDisplayHits(consecutiveHits);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -479,10 +477,9 @@ export default function PreparationPage() {
                   </div>
                 )}
 
-                {/* 6-dot frame counter (matches REQUIRED_CONSECUTIVE = 6) */}
                 {actionPhase === "detecting" && (
                   <div style={{ display: "flex", gap: 3, justifyContent: "center", marginBottom: 8 }}>
-                    {Array.from({ length: 5 }, (_, i) => (
+                    {Array.from({ length: REQUIRED_CONSECUTIVE }, (_, i) => (
                       <div key={i} style={{
                         width: 14, height: 14, borderRadius: "50%",
                         background: i < displayHits ? "var(--sage-500)" : "var(--bg-elevated)",

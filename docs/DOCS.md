@@ -1087,6 +1087,36 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 
 **Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
 
+### v2.6.3 — 2026-03-07 (Action Detection — Coordinate Normalization + UI Flicker Fix)
+
+**Root cause found**: Keypoints are in **320x240 pixel space** from YOLO, but all thresholds were tuned as if coordinates were normalized 0-1. This made some thresholds absurdly easy (always fire) and others impossible (never fire). The UI also flickered because timer-based debounce fought against 30fps frame updates.
+
+**Coordinate normalization**:
+- Added `normalizeKeypoints()` that divides x by 320, y by 240 to produce 0-1 range
+- `detectAction()` now normalizes keypoints and history BEFORE dispatching to per-action functions
+- All detection functions now operate in 0-1 space where `bodyScale` ~0.2-0.4
+
+**Recalibrated thresholds for 0-1 space**:
+- Wave: variance threshold `0.0008` (wave of 30px = 0.094 normalized, variance ~0.002)
+- Touch nose/head: head-region approach with `dy > -0.02` in absolute 0-1 units
+- Clap: `hitThreshold = 0.15` absolute (wrists within 15% of frame), dynamic approach `> 0.01`
+- Raise arms: `margin = 0.02` absolute (2% of frame = ~5px above shoulder)
+- Touch ears: `threshold = 0.10` absolute
+
+**UI flicker fix**:
+- Replaced `setTimeout`-based debounce with **frame-count throttle**: upgrades instant, downgrades only apply every 10th frame (~300ms at 30fps)
+- No timers = no race conditions = no flicker
+- Dot count now imports `REQUIRED_CONSECUTIVE` instead of hardcoded 5
+
+**Diagnostic logging**:
+- `ActionTracker` logs to console every 30th frame: raw/normalized bodyScale, all keypoint positions and confidence values
+- Full `conf[0..16]` array dump for debugging
+- Accessible via browser console `[ActionDiag]` prefix
+
+**Files:**
+- `app/lib/actions/actionDetector.ts` — full rewrite with normalization + recalibrated thresholds
+- `app/intake/preparation/page.tsx` — frame-count debounce, REQUIRED_CONSECUTIVE import
+
 ### v2.6.2 — 2026-03-07 (Action Detection — Head-Region & Clap Sensitivity)
 
 **Problem**: Touch-nose required hand to go diagonally above head because YOLO nose keypoint drifts when hand occludes face. Clap "gets closer" but never triggers — threshold still too tight.
