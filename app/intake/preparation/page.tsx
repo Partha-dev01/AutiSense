@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
 import { useActionCamera } from "../../hooks/useActionCamera";
-import { ACTION_META, REQUIRED_CONSECUTIVE, type ActionId, getDebugLog } from "../../lib/actions/actionDetector";
+import { ACTION_META, REQUIRED_CONSECUTIVE, type ActionId } from "../../lib/actions/actionDetector";
 import SkipStageDialog from "../../components/SkipStageDialog";
 
 const STEPS = [
@@ -40,8 +40,6 @@ export default function PreparationPage() {
   const [results, setResults] = useState<Map<number, boolean>>(new Map());
   const [timeoutSeconds, setTimeoutSeconds] = useState(Math.ceil(ACTION_TIMEOUT_MS / 1000));
   const [forceComplete, setForceComplete] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugLines, setDebugLines] = useState<string[]>([]);
 
   const [displayStatus, setDisplayStatus] = useState<string>("looking");
   const [displayHits, setDisplayHits] = useState(0);
@@ -247,16 +245,6 @@ export default function PreparationPage() {
       clearTimers();
     };
   }, [clearTimers]);
-
-  // Debug log poller
-  useEffect(() => {
-    if (!showDebug || actionPhase !== "detecting") return;
-    const iv = setInterval(() => {
-      const log = getDebugLog();
-      setDebugLines(log.slice(-15).map((e) => e.detail));
-    }, 300);
-    return () => clearInterval(iv);
-  }, [showDebug, actionPhase]);
 
   const handleSkipStage = useCallback(async () => {
     clearTimers();
@@ -543,38 +531,7 @@ export default function PreparationPage() {
               </>
             )}
 
-            {/* Debug panel */}
-            {phase === "active" && (
-              <div style={{ marginTop: 12, textAlign: "center" }}>
-                <button
-                  onClick={() => setShowDebug((d) => !d)}
-                  style={{
-                    background: "none", border: "1px dashed var(--border)", borderRadius: 6,
-                    padding: "4px 12px", fontSize: "0.7rem", color: "var(--text-muted)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {showDebug ? "Hide Debug" : "Show Debug"}
-                </button>
-                {showDebug && (
-                  <div style={{
-                    marginTop: 8, textAlign: "left", background: "var(--bg-secondary)",
-                    border: "1px solid var(--border)", borderRadius: 8,
-                    padding: "10px 12px", maxHeight: 200, overflowY: "auto",
-                    fontFamily: "monospace", fontSize: "0.65rem", lineHeight: 1.5,
-                    color: "var(--text-secondary)",
-                  }}>
-                    <div style={{ marginBottom: 4, fontWeight: 700 }}>
-                      Action: {ACTIONS[currentIdx]} | Phase: {actionPhase} | Hits: {consecutiveHits}/5 | Conf: {(actionResult?.confidence || 0).toFixed(2)}
-                    </div>
-                    {debugLines.map((line, i) => (
-                      <div key={i} style={{ opacity: 0.6 + (i / debugLines.length) * 0.4 }}>{line}</div>
-                    ))}
-                    {debugLines.length === 0 && <div>Waiting for frames...</div>}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Debug panel — hidden in production */}
 
             {/* Timeout */}
             {actionPhase === "timeout" && (

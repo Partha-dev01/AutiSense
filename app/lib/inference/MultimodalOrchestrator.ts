@@ -139,9 +139,12 @@ export class MultimodalOrchestrator {
         if (this.modality === "face") {
           // Face-only: extract from center of frame (no YOLO bbox)
           await this.runFacePipelineFromFrame(imageData);
-        } else {
+        } else if (bodyResult?.bbox) {
           // Both: extract from YOLO person bbox
-          await this.runFacePipeline(imageData, bodyResult!.bbox!);
+          await this.runFacePipeline(imageData, bodyResult.bbox);
+        } else {
+          // Fallback: no person bbox available, use center-of-frame
+          await this.runFacePipelineFromFrame(imageData);
         }
         faceLatencyMs = performance.now() - faceT0;
       }

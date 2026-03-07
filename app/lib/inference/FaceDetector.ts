@@ -58,10 +58,13 @@ export class FaceDetector {
     const faceX = cx - faceW / 2;
     const faceY = cy - h / 2; // Top of person bbox
 
-    // Validate bounds
+    // Validate and clamp bounds
     if (faceW < 20 || faceH < 20) return null; // Too small
-    if (faceX < 0 || faceY < 0) return null;
-    if (faceX + faceW > frame.width || faceY + faceH > frame.height) return null;
+    const clampX = Math.max(0, faceX);
+    const clampY = Math.max(0, faceY);
+    const clampW = Math.min(faceW, frame.width - clampX);
+    const clampH = Math.min(faceH, frame.height - clampY);
+    if (clampW < 10 || clampH < 10) return null;
 
     // Draw the source frame onto the cached canvas, then extract the face crop
     this.ensureSrcCanvas(frame.width, frame.height);
@@ -72,7 +75,7 @@ export class FaceDetector {
     this.canvas.height = 128;
     this.ctx.drawImage(
       this.srcCanvas,
-      faceX, faceY, faceW, faceH,
+      clampX, clampY, clampW, clampH,
       0, 0, 128, 128,
     );
 
@@ -80,7 +83,7 @@ export class FaceDetector {
 
     return {
       imageData: faceImageData,
-      bbox: [faceX + faceW / 2, faceY + faceH / 2, faceW, faceH],
+      bbox: [clampX + clampW / 2, clampY + clampH / 2, clampW, clampH],
     };
   }
 
