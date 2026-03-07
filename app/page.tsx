@@ -86,7 +86,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="nav">
         <Link href="/" className="logo" style={{ textDecoration: "none" }}>
-          <img src="/logo.jpeg" alt="" className="logo-icon" />
+          <img src="/logo.jpeg" alt="" className="logo-icon logo-light" /><img src="/logo-dark.jpeg" alt="" className="logo-icon logo-dark" />
           <span>Auti<em>Sense</em></span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -540,7 +540,7 @@ export default function LandingPage() {
           className="logo"
           style={{ fontSize: "1.2rem", display: "block", marginBottom: 8 }}
         >
-          <img src="/logo.jpeg" alt="" className="logo-icon" style={{ width: 28, height: 28 }} /><span>Auti<em>Sense</em></span>
+          <img src="/logo.jpeg" alt="" className="logo-icon logo-light" style={{ width: 28, height: 28 }} /><img src="/logo-dark.jpeg" alt="" className="logo-icon logo-dark" style={{ width: 28, height: 28 }} /><span>Auti<em>Sense</em></span>
         </span>
 
         {/* Footer navigation links */}

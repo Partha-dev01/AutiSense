@@ -59,6 +59,7 @@ export default function ChatPage() {
   const [micError, setMicError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRec | null>(null);
+  const sendMessageRef = useRef<(text: string) => Promise<void>>(null!);
 
   /* ---- theme ---- */
   useEffect(() => {
@@ -145,6 +146,9 @@ export default function ChatPage() {
     setAvatarState("idle");
   };
 
+  // Keep ref current so mic closure always has fresh sendMessage
+  sendMessageRef.current = sendMessage;
+
   const endConversation = (msgs: ChatMsg[]) => {
     saveConversation(msgs);
     setTimeout(() => setScreen("end"), 1800);
@@ -184,7 +188,7 @@ export default function ChatPage() {
     recognitionRef.current = null;
 
     // Small delay to let the browser release the previous mic session
-    await new Promise((r) => setTimeout(r, 120));
+    await new Promise((r) => setTimeout(r, 200));
 
     const recognition = new (SR as new () => SpeechRec)();
     recognition.continuous = true;
@@ -195,8 +199,17 @@ export default function ChatPage() {
     let settled = false;
     let accumulated = "";
 
+    const finish = (text: string) => {
+      settled = true;
+      try { recognition.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+      setIsListening(false);
+      if (text.trim()) sendMessageRef.current(text.trim());
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
+      if (settled) return;
       // Accumulate full transcript from all results
       let full = "";
       for (let i = 0; i < event.results.length; i++) {
@@ -204,14 +217,12 @@ export default function ChatPage() {
       }
       accumulated = full;
 
-      // Check for final results — send the best transcript
-      const latest = event.results[event.results.length - 1];
-      if (latest?.isFinal && !settled) {
-        settled = true;
-        try { recognition.stop(); } catch { /* ignore */ }
-        recognitionRef.current = null;
-        setIsListening(false);
-        if (accumulated.trim()) sendMessage(accumulated.trim());
+      // Check ANY result for isFinal (not just the latest)
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finish(accumulated);
+          return;
+        }
       }
     };
 
@@ -233,11 +244,23 @@ export default function ChatPage() {
         try {
           recognition.start();
         } catch {
-          // If restart fails, send what we have
-          settled = true;
-          recognitionRef.current = null;
-          setIsListening(false);
-          if (accumulated.trim()) sendMessage(accumulated.trim());
+          // If same-instance restart fails, try a fresh instance
+          try {
+            const Fresh = new (SR as new () => SpeechRec)();
+            Fresh.continuous = true;
+            Fresh.lang = "en-US";
+            Fresh.interimResults = true;
+            Fresh.maxAlternatives = 3;
+            Fresh.onresult = recognition.onresult;
+            Fresh.onerror = recognition.onerror;
+            Fresh.onend = recognition.onend;
+            Fresh.onstart = recognition.onstart;
+            recognitionRef.current = Fresh;
+            Fresh.start();
+          } catch {
+            // All restarts failed — send what we have
+            finish(accumulated);
+          }
         }
       }, 250);
     };
@@ -247,18 +270,21 @@ export default function ChatPage() {
     // Hard timeout: 10 seconds — send whatever we've accumulated
     setTimeout(() => {
       if (settled) return;
-      settled = true;
-      try { recognition.stop(); } catch { /* ignore */ }
-      recognitionRef.current = null;
-      setIsListening(false);
-      if (accumulated.trim()) sendMessage(accumulated.trim());
+      finish(accumulated);
     }, 10000);
 
-    // Start with small delay
-    setTimeout(() => {
-      if (settled) return;
-      try { recognition.start(); } catch { /* ignore */ }
-    }, 150);
+    // Start with retry pattern (matches working communication page)
+    const tryStart = (delay: number, attempt: number) => {
+      setTimeout(() => {
+        if (settled) return;
+        try {
+          recognition.start();
+        } catch {
+          if (attempt < 3) tryStart(delay + 300, attempt + 1);
+        }
+      }, delay);
+    };
+    tryStart(300, 0);
     setIsListening(true);
   };
 

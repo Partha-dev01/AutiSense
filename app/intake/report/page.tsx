@@ -227,7 +227,7 @@ function ReportPage() {
   return (
     <div className="page">
       <nav className="nav">
-        <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span></Link>
+        <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon logo-light" /><img src="/logo-dark.jpeg" alt="" className="logo-icon logo-dark" /><span>Auti<em>Sense</em></span></Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={toggleTheme} className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}>
             {theme === "light" ? "\u{1F319}" : "\u{2600}\u{FE0F}"}

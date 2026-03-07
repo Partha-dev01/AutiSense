@@ -225,6 +225,9 @@ body {
   object-fit: cover;
   flex-shrink: 0;
 }
+.logo-dark { display: none; }
+[data-theme="dark"] .logo-light { display: none; }
+[data-theme="dark"] .logo-dark { display: inline; }
 .logo > span {
   display: inline;
 }
