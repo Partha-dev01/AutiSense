@@ -8,15 +8,13 @@ import { BEHAVIOR_CLASSES, BEHAVIOR_LABELS, BEHAVIOR_COLORS, FACE_BEHAVIOR_CLASS
 
 interface Props {
   result: PipelineResult | null;
-  isModelLoaded: boolean;
-  backend: string;
   timeLeft: number;
   totalTime: number;
   mode?: "countdown" | "elapsed";
   elapsed?: number;
 }
 
-export default function DetectorResultsPanel({ result, isModelLoaded, backend }: Props) {
+export default function DetectorResultsPanel({ result }: Props) {
   const asdRisk = result?.multimodal?.asdRisk ?? 0;
   const bodyRisk = result?.multimodal?.bodyRisk ?? 0;
   const faceRisk = result?.multimodal?.faceRisk ?? 0;
@@ -124,12 +122,6 @@ export default function DetectorResultsPanel({ result, isModelLoaded, backend }:
         </div>
       </div>
 
-      {/* Backend info */}
-      {isModelLoaded && (
-        <div style={{ textAlign: "center", fontSize: "0.72rem", color: "var(--text-muted)" }}>
-          Backend: {backend || "detecting..."} · Latency: {result?.latencyMs?.toFixed(0) ?? "--"}ms
-        </div>
-      )}
     </div>
   );
 }

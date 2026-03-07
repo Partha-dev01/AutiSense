@@ -113,6 +113,20 @@ export class MultimodalOrchestrator {
       bodyLatencyMs = performance.now() - bodyT0;
     }
 
+    // ── 1b. Body noise gate — suppress sub-5% behavior classes (camera shake)
+    if (bodyResult?.behavior) {
+      const probs = bodyResult.behavior.probabilities;
+      const NOISE_FLOOR = 0.05;
+      let redistributed = 0;
+      for (let i = 0; i < 5; i++) {
+        if (probs[i] < NOISE_FLOOR) {
+          redistributed += probs[i];
+          probs[i] = 0;
+        }
+      }
+      probs[5] += redistributed;
+    }
+
     // ── 2. Face pipeline ─────────────────────────────────────────
     let faceLatencyMs = 0;
 
@@ -193,6 +207,69 @@ export class MultimodalOrchestrator {
 
   // ── Private helpers ────────────────────────────────────────────
 
+  /**
+   * Rebalance Face-TCN probabilities using FER+ emotion signal.
+   *
+   * The Face-TCN receives mostly-zero features (blendshapes/landmarks unavailable)
+   * causing it to default to flat_affect. This post-processor uses the valid
+   * FER+ emotions to correct that bias via temperature scaling + emotion modulation.
+   *
+   * Face classes: 0=typical_expression, 1=flat_affect, 2=atypical_expression, 3=gaze_avoidance
+   * FER+ emotions: 0=neutral, 1=happiness, 2=surprise, 3=sadness, 4=anger, 5=disgust, 6=fear, 7=contempt
+   */
+  private rebalanceFaceProbs(
+    probs: Float32Array,
+    emotions: Float32Array,
+  ): Float32Array {
+    const adjusted = new Float32Array(4);
+
+    // 1. Temperature scaling (T=0.5) — make softmax sharper
+    const T = 0.5;
+    let sumExp = 0;
+    for (let i = 0; i < 4; i++) {
+      const logit = Math.log(Math.max(probs[i], 1e-8));
+      adjusted[i] = Math.exp(logit / T);
+      sumExp += adjusted[i];
+    }
+    for (let i = 0; i < 4; i++) adjusted[i] /= sumExp;
+
+    // 2. Emotion-driven modulation: if FER+ sees non-neutral expression,
+    //    transfer probability from flat_affect to typical_expression
+    const maxNonNeutral = Math.max(
+      emotions[1], emotions[2], emotions[3],
+      emotions[4], emotions[5], emotions[6], emotions[7],
+    );
+    if (maxNonNeutral > 0.15) {
+      const emotionSignal = Math.min(maxNonNeutral * 2, 0.8);
+      const transfer = adjusted[1] * emotionSignal * 0.5;
+      adjusted[1] -= transfer;
+      adjusted[0] += transfer;
+    }
+
+    // 3. Cap flat_affect at 60% to prevent overwhelming display
+    if (adjusted[1] > 0.6) {
+      const excess = adjusted[1] - 0.6;
+      adjusted[1] = 0.6;
+      const otherSum = adjusted[0] + adjusted[2] + adjusted[3];
+      if (otherSum > 0) {
+        for (const i of [0, 2, 3]) {
+          adjusted[i] += excess * (adjusted[i] / otherSum);
+        }
+      } else {
+        adjusted[0] += excess;
+      }
+    }
+
+    // 4. Normalize
+    let total = 0;
+    for (let i = 0; i < 4; i++) total += adjusted[i];
+    if (total > 0) {
+      for (let i = 0; i < 4; i++) adjusted[i] /= total;
+    }
+
+    return adjusted;
+  }
+
   private async loadFaceModels(): Promise<void> {
     try {
       await Promise.all([
@@ -262,6 +339,22 @@ export class MultimodalOrchestrator {
     );
 
     const faceTcnResult = await this.faceTcn.classify(features);
+
+    // Post-process: rebalance face probs using FER+ emotions to correct
+    // flat_affect bias caused by zero blendshapes/landmarks
+    if (faceTcnResult) {
+      faceTcnResult.probabilities = this.rebalanceFaceProbs(
+        faceTcnResult.probabilities, emotions,
+      );
+      let maxP = 0, maxI = 0;
+      for (let i = 0; i < 4; i++) {
+        if (faceTcnResult.probabilities[i] > maxP) {
+          maxP = faceTcnResult.probabilities[i]; maxI = i;
+        }
+      }
+      faceTcnResult.predictedClass = maxI;
+    }
+
     this.lastFaceTcnResult = faceTcnResult;
 
     const gazeH = features[16];

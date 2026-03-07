@@ -359,8 +359,6 @@ export default function VideoCapturePage() {
               {/* Right: Results panel */}
               <DetectorResultsPanel
                 result={result}
-                isModelLoaded={isModelLoaded}
-                backend={backend}
                 timeLeft={timeLeft}
                 totalTime={ASSESSMENT_SECONDS}
               />

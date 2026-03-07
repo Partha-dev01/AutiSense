@@ -277,8 +277,8 @@ export default function DetectionPage() {
         {started && !stopped && (
           <div className="fade fade-3">
             <div className="video-capture-grid">
-              {/* Left: Video feed */}
-              <div>
+              {/* Left: Camera card */}
+              <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column" as const, gap: 12 }}>
                 <DetectorVideoCanvas
                   videoRef={videoRef}
                   canvasRef={canvasRef}
@@ -291,7 +291,6 @@ export default function DetectionPage() {
                 {(camError || modelError || error) && (
                   <div
                     style={{
-                      marginTop: 12,
                       padding: "12px 16px",
                       borderRadius: "var(--r-md)",
                       background: "var(--peach-100)",
@@ -341,7 +340,6 @@ export default function DetectionPage() {
                 <div
                   style={{
                     textAlign: "center",
-                    marginTop: 16,
                     display: "flex",
                     gap: 12,
                     justifyContent: "center",
@@ -370,13 +368,18 @@ export default function DetectionPage() {
                     Stop Detection
                   </button>
                 </div>
+
+                {/* Backend info */}
+                {isModelLoaded && (
+                  <div style={{ textAlign: "center", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                    Backend: {backend || "detecting..."} · Latency: {result?.latencyMs?.toFixed(0) ?? "--"}ms
+                  </div>
+                )}
               </div>
 
               {/* Right: Results panel */}
               <DetectorResultsPanel
                 result={result}
-                isModelLoaded={isModelLoaded}
-                backend={backend}
                 timeLeft={0}
                 totalTime={1}
                 mode="elapsed"

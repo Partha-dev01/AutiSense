@@ -1087,6 +1087,32 @@ A complete kids-facing dashboard with bottom tab navigation, daily games, AI cha
 
 **Commits:** `6c36e99`, `78bc739`, `6e1500f`, `9787c2f`, `1788d1f`, `d22c272`
 
+### v2.7.0 — 2026-03-07 (Detection UI + Face Sensitivity + Body Noise Gate)
+
+**UI — Detection page layout cleanup:**
+- Wrapped camera feed, elapsed timer, stop button, and backend info in a single white card container
+- Moved "Backend: webgpu · Latency: XXms" from results panel to below stop button inside camera card
+- Removed `isModelLoaded`/`backend` props from `DetectorResultsPanel` (no longer needed)
+- Card width matches camera, height aligns naturally with content
+
+**Face Analysis — Emotion-aware probability rebalancing:**
+- **Root cause**: Face-TCN expects 64-dim features (FER+ emotions + MediaPipe blendshapes + landmarks), but MediaPipe is not integrated at inference — blendshapes (52) and landmarks (956) are passed as all-zeros. This caused 56/64 features to be zero/garbage, making the model default to ~88% flat_affect regardless of actual expression.
+- **Fix**: Added `rebalanceFaceProbs()` post-processor in `MultimodalOrchestrator` that uses the valid FER+ emotion signal to correct Face-TCN outputs:
+  - Temperature scaling (T=0.5) sharpens the softmax distribution
+  - If FER+ detects non-neutral emotion > 15%, transfers probability from flat_affect to typical_expression
+  - Caps flat_affect at 60% to prevent overwhelming display
+  - Re-normalizes to sum to 1.0
+
+**Body Analysis — Camera shake noise gate:**
+- Added 5% noise floor: body behavior classes below 5% probability are zeroed and redistributed to non_autistic
+- Eliminates false ~12% hand_flapping from minor camera shake when sitting still
+
+**Files changed:**
+- `app/components/DetectorResultsPanel.tsx` — removed backend info, cleaned props
+- `app/kid-dashboard/detection/page.tsx` — camera card wrapper, backend info placement
+- `app/intake/video-capture/page.tsx` — updated DetectorResultsPanel props
+- `app/lib/inference/MultimodalOrchestrator.ts` — `rebalanceFaceProbs()`, body noise gate
+
 ### v2.6.1–v2.6.4 — 2026-03-07 (Action Detection — Complete Overhaul)
 
 Action detection for the Preparation step (Step 7 — Motor) was rebuilt across 4 commits to fix all 4 actions: wave, touch nose, clap hands, raise arms.
