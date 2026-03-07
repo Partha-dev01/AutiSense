@@ -653,7 +653,7 @@ body {
 }
 @media (min-width: 1024px) {
   .video-capture-grid {
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 420px 1fr;
   }
 }
 .main-wide {
