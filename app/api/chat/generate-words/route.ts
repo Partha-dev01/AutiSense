@@ -287,8 +287,9 @@ export async function POST(request: NextRequest) {
       fallback: true,
     });
   } catch (err) {
+    console.error("[generate-words] Unexpected error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: "Failed to generate words" },
       { status: 500 },
     );
   }

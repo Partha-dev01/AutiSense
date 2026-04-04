@@ -44,8 +44,12 @@ interface SyncPayload {
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 
-const SESSIONS_TABLE = process.env.DYNAMODB_SESSIONS_TABLE!;
-const BIOMARKERS_TABLE = process.env.DYNAMODB_BIOMARKERS_TABLE!;
+const SESSIONS_TABLE = process.env.DYNAMODB_SESSIONS_TABLE;
+const BIOMARKERS_TABLE = process.env.DYNAMODB_BIOMARKERS_TABLE;
+
+if (!SESSIONS_TABLE) {
+  console.error("[Lambda sync] DYNAMODB_SESSIONS_TABLE not configured");
+}
 
 const TTL_1_YEAR = () => Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
 
@@ -78,12 +82,30 @@ export const handler = async (
     return respond(400, { error: "PII field detected in payload" });
   }
 
+  if (!SESSIONS_TABLE) {
+    return respond(500, { error: "Server misconfigured" });
+  }
+
+  // Allowlist session fields — prevent mass assignment
+  const sessionItem = {
+    id: session.id,
+    userId: session.userId,
+    ageMonths: session.ageMonths,
+    language: session.language,
+    gender: session.gender,
+    createdAt: session.createdAt,
+    completedAt: session.completedAt,
+    status: session.status,
+    synced: true,
+    ttl: TTL_1_YEAR(),
+  };
+
   // Write session
   try {
     await docClient.send(
       new PutCommand({
         TableName: SESSIONS_TABLE,
-        Item: { ...session, ttl: TTL_1_YEAR() },
+        Item: sessionItem,
         ConditionExpression: "attribute_not_exists(id)",
       }),
     );
@@ -101,17 +123,26 @@ export const handler = async (
   }
 
   // Write biomarkers aggregate
-  if (biomarkers) {
+  if (biomarkers && BIOMARKERS_TABLE) {
+    // Allowlist biomarker fields
+    const biomarkerItem = {
+      sessionId: biomarkers.sessionId || session.id,
+      userId: session.userId,
+      avgGazeScore: biomarkers.avgGazeScore,
+      avgMotorScore: biomarkers.avgMotorScore,
+      avgVocalizationScore: biomarkers.avgVocalizationScore,
+      avgResponseLatencyMs: biomarkers.avgResponseLatencyMs,
+      sampleCount: biomarkers.sampleCount,
+      overallScore: biomarkers.overallScore,
+      flags: biomarkers.flags,
+      createdAt: session.createdAt,
+      ttl: TTL_1_YEAR(),
+    };
     try {
       await docClient.send(
         new PutCommand({
           TableName: BIOMARKERS_TABLE,
-          Item: {
-            ...biomarkers,
-            userId: session.userId,
-            createdAt: session.createdAt,
-            ttl: TTL_1_YEAR(),
-          },
+          Item: biomarkerItem,
         }),
       );
       console.log(
