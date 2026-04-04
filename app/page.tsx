@@ -132,9 +132,9 @@ export default function LandingPage() {
           width: "100%",
         }}
       >
-        <div className="breathe-orb" style={{ margin: "0 auto 32px" }}>
-          <div className="breathe-inner" style={{ padding: 0, overflow: "hidden" }}>
-            <img src="/logo.jpeg" alt="AutiSense" width="56" height="56" style={{ borderRadius: "50%", objectFit: "cover" }} />
+        <div className="breathe-orb" style={{ margin: "0 auto 32px", width: 100, height: 100 }}>
+          <div className="breathe-inner" style={{ padding: 0, overflow: "hidden", width: 100, height: 100 }}>
+            <img src="/logo.jpeg" alt="AutiSense" width="100" height="100" style={{ borderRadius: "50%", objectFit: "cover" }} />
           </div>
         </div>
 
