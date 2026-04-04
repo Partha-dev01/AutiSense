@@ -103,8 +103,28 @@ test.describe("Community Feed", () => {
   });
 });
 
+test.describe("Health & Public API", () => {
+  test("Health endpoint returns status", async ({ request }) => {
+    const response = await request.get("/api/health");
+    expect([200, 503]).toContain(response.status());
+    const body = await response.json();
+    expect(body.status).toMatch(/^(ok|degraded)$/);
+    expect(body.checks).toBeTruthy();
+  });
+
+  test("Feed GET is public (no auth required)", async ({ request }) => {
+    const response = await request.get("/api/feed?limit=1");
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.posts).toBeDefined();
+  });
+});
+
 test.describe("Report API", () => {
-  test("Summary API returns mock data without AWS", async ({ request }) => {
+  // All report/AI routes require authentication (Phase 1 security hardening).
+  // In CI without a session cookie, they correctly return 401.
+
+  test("Summary API requires auth (401 without session)", async ({ request }) => {
     const response = await request.post("/api/report/summary", {
       data: {
         sessionId: "test-session",
@@ -120,12 +140,10 @@ test.describe("Report API", () => {
         },
       },
     });
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-    expect(body.summary).toBeTruthy();
+    expect(response.status()).toBe(401);
   });
 
-  test("Clinical API returns mock data without AWS", async ({ request }) => {
+  test("Clinical API requires auth (401 without session)", async ({ request }) => {
     const response = await request.post("/api/report/clinical", {
       data: {
         sessionId: "test-session",
@@ -141,13 +159,10 @@ test.describe("Report API", () => {
         },
       },
     });
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-    expect(body.report).toBeTruthy();
-    expect(body.sections).toBeTruthy();
+    expect(response.status()).toBe(401);
   });
 
-  test("PDF API generates a PDF", async ({ request }) => {
+  test("PDF API requires auth (401 without session)", async ({ request }) => {
     const response = await request.post("/api/report/pdf", {
       data: {
         report: "Test report content for PDF generation.",
@@ -156,26 +171,20 @@ test.describe("Report API", () => {
         scores: { gaze: 60, motor: 70, vocal: 50, overall: 60 },
       },
     });
-    expect(response.status()).toBe(200);
-    expect(response.headers()["content-type"]).toContain("application/pdf");
+    expect(response.status()).toBe(401);
   });
 
-  test("TTS API returns 503 without AWS credentials", async ({ request }) => {
+  test("TTS API requires auth (401 without session)", async ({ request }) => {
     const response = await request.post("/api/tts", {
       data: { text: "Hello world" },
     });
-    // Will be 503 without AWS credentials
-    expect([200, 503]).toContain(response.status());
+    expect(response.status()).toBe(401);
   });
 
-  test("Generate words API returns fallback data", async ({ request }) => {
+  test("Generate words API requires auth (401 without session)", async ({ request }) => {
     const response = await request.post("/api/chat/generate-words", {
       data: { ageMonths: 36, count: 6, mode: "words" },
     });
-    expect(response.ok()).toBeTruthy();
-    const data = await response.json();
-    expect(data.items).toHaveLength(6);
-    expect(data.items[0]).toHaveProperty("text");
-    expect(data.items[0]).toHaveProperty("emoji");
+    expect(response.status()).toBe(401);
   });
 });
