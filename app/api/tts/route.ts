@@ -32,7 +32,14 @@ function getPollyClient(): PollyClient {
   return new PollyClient({ region: POLLY_REGION, ...(credentials && { credentials }) });
 }
 
+const ALLOWED_VOICES = new Set(["Joanna", "Matthew", "Salli", "Ivy", "Kendra", "Joey", "Ruth"]);
+
 export async function POST(req: NextRequest) {
+  // Auth gate
+  const { requireApiAuth } = await import("../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   let body: TtsRequestBody;
 
   try {
@@ -60,7 +67,7 @@ export async function POST(req: NextRequest) {
     text = lastSentence > 0 ? truncated.slice(0, lastSentence + 1) : truncated;
   }
 
-  const voiceId = (body.voiceId ?? "Joanna") as VoiceId;
+  const voiceId = (ALLOWED_VOICES.has(body.voiceId ?? "") ? body.voiceId : "Joanna") as VoiceId;
 
   try {
     const client = getPollyClient();

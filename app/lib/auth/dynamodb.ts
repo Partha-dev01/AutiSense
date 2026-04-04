@@ -135,8 +135,8 @@ async function getDynamoClient() {
   return DynamoDBDocumentClient.from(client);
 }
 
-const USERS_TABLE = "autisense-users";
-const SESSIONS_TABLE = "autisense-auth-sessions";
+const USERS_TABLE = process.env.DYNAMODB_USERS_TABLE || "autisense-users";
+const SESSIONS_TABLE = process.env.DYNAMODB_AUTH_SESSIONS_TABLE || "autisense-auth-sessions";
 
 const dynamoAdapter = {
   async createUser(user: AuthUser): Promise<AuthUser> {

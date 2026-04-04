@@ -6,10 +6,25 @@ on:
   pull_request:
     branches: [main]
 
+# Prevent concurrent runs on same ref — cancel older runs
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Restrict default permissions — least privilege
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    # Only run full CI on PRs from the same repo (not forks) or direct pushes
+    # Fork PRs get limited checks (no secrets access)
+    if: >
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +42,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
 
       - name: Build
         run: npm run build

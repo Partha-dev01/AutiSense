@@ -1,10 +1,16 @@
 /**
  * AUTH_CONFIG — Central auth configuration constants.
- * All secrets come from env vars; fallbacks keep local dev working.
+ * Secrets are read at runtime via process.env (never baked into bundle).
  */
 export const AUTH_CONFIG = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+  get googleClientSecret(): string {
+    const secret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!secret && process.env.NODE_ENV === "production") {
+      console.error("[auth] GOOGLE_CLIENT_SECRET not set in production");
+    }
+    return secret || "";
+  },
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   sessionCookieName: "autisense-session",
   oauthStateCookieName: "autisense-oauth-state",

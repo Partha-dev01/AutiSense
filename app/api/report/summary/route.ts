@@ -43,6 +43,11 @@ function buildTemplateSummary(biomarkers: BiomarkerAggregate): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Auth gate
+  const { requireApiAuth } = await import("../../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   let body: SummaryRequestBody;
 
   try {
@@ -89,10 +94,14 @@ Important guidelines:
       body: new TextEncoder().encode(invokeBody),
     });
 
-    const response = await client.send(command);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await client.send(command, { abortSignal: controller.signal });
+    clearTimeout(timeout);
+
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
-    // Nova Lite returns: { output: { message: { content: [{ text: "..." }] } } }
     const summary =
       responseBody?.output?.message?.content?.[0]?.text ??
       responseBody?.completion ??
@@ -101,7 +110,6 @@ Important guidelines:
     return NextResponse.json({ summary, fallback: false });
   } catch (err) {
     console.error("[Report/Summary] Bedrock invocation failed:", err);
-    // Graceful degradation: return mock summary on error
     return NextResponse.json({ summary: buildTemplateSummary(biomarkers), fallback: true });
   }
 }

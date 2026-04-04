@@ -208,6 +208,11 @@ function mergeAiInsights(
 }
 
 export async function POST(req: NextRequest) {
+  // Auth gate
+  const { requireApiAuth } = await import("../../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   let body: ClinicalRequestBody;
 
   try {
@@ -246,7 +251,12 @@ export async function POST(req: NextRequest) {
       body: new TextEncoder().encode(invokeBody),
     });
 
-    const response = await client.send(command);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const response = await client.send(command, { abortSignal: controller.signal });
+    clearTimeout(timeout);
+
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
     const text: string =

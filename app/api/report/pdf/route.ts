@@ -207,6 +207,11 @@ function drawLogo(pg: PDFPage, x: number, y: number, size: number) {
 // ── Main handler ────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // Auth gate
+  const { requireApiAuth } = await import("../../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   let body: PdfRequestBody;
 
   try {

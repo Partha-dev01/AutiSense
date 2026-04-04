@@ -8,7 +8,7 @@ import { getAppCredentials, getAppRegion } from "@/app/lib/aws/credentials";
  * Table schema: PK = postId (S), SK = createdAt (N)
  */
 
-const TABLE = "autisense-feed-posts";
+const TABLE = process.env.DYNAMODB_FEED_POSTS_TABLE || "autisense-feed-posts";
 
 interface FeedPostItem {
   postId: string;
@@ -25,7 +25,7 @@ interface FeedPostItem {
 const memoryPosts: FeedPostItem[] = [];
 
 // ─── DynamoDB client ─────────────────────────────────────────────────
-let dynamoFailed = false;
+let dynamoFailedUntil = 0;
 
 async function getDynamo() {
   const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
@@ -47,7 +47,8 @@ function shouldUseDynamo(): boolean {
   ) {
     return false;
   }
-  return !dynamoFailed;
+  if (Date.now() < dynamoFailedUntil) return false;
+  return true;
 }
 
 // ─── Auth helper ─────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
       });
     } catch (err) {
       console.error("[feed] DynamoDB GET failed, falling back:", err);
-      dynamoFailed = true;
+      dynamoFailedUntil = Date.now() + 30_000;
     }
   }
 
@@ -124,6 +125,9 @@ async function handleCreate(body: Record<string, unknown>, userId: string) {
   if (!content || typeof content !== "string" || !content.trim()) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
+  if ((content as string).length > 2000) {
+    return NextResponse.json({ error: "Content too long (max 2000 chars)" }, { status: 400 });
+  }
   const validCategories = ["tip", "milestone", "question", "resource"];
   if (!validCategories.includes(category as string)) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
@@ -149,7 +153,7 @@ async function handleCreate(body: Record<string, unknown>, userId: string) {
       return NextResponse.json({ success: true, post: toClient(post), source: "dynamodb" });
     } catch (err) {
       console.error("[feed] DynamoDB PUT failed, falling back:", err);
-      dynamoFailed = true;
+      dynamoFailedUntil = Date.now() + 30_000;
     }
   }
 
@@ -207,7 +211,7 @@ async function handleReaction(body: Record<string, unknown>, userId: string) {
       }
     } catch (err) {
       console.error("[feed] DynamoDB reaction failed, falling back:", err);
-      dynamoFailed = true;
+      dynamoFailedUntil = Date.now() + 30_000;
     }
   }
 
@@ -253,7 +257,7 @@ async function handleDelete(body: Record<string, unknown>, userId: string) {
       return NextResponse.json({ success: true });
     } catch (err) {
       console.error("[feed] DynamoDB delete failed, falling back:", err);
-      dynamoFailed = true;
+      dynamoFailedUntil = Date.now() + 30_000;
     }
   }
 
@@ -268,11 +272,11 @@ function toClient(post: FeedPostItem) {
   return {
     id: post.postId,
     postId: post.postId,
-    userId: post.userId,
+    userId: post.anonymous ? "anonymous" : post.userId,
     content: post.content,
     category: post.category,
     reactions: post.reactions,
-    reactedBy: post.reactedBy || { heart: [], helpful: [], relate: [] },
+    // Only expose reaction counts, not who reacted (privacy)
     createdAt: post.createdAt,
     anonymous: post.anonymous,
   };

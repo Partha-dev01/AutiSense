@@ -21,12 +21,14 @@ import type { SessionSyncPayload } from "../../types/session";
 import type { BiomarkerAggregate } from "../../types/biomarker";
 import { getAppCredentials, getAppRegion } from "../../lib/aws/credentials";
 
-const appCredentials = getAppCredentials();
-const dynamoClient = new DynamoDBClient({
-  region: getAppRegion("ap-south-1"),
-  ...(appCredentials && { credentials: appCredentials }),
-});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+function getDocClient() {
+  const credentials = getAppCredentials();
+  const client = new DynamoDBClient({
+    region: getAppRegion("ap-south-1"),
+    ...(credentials && { credentials }),
+  });
+  return DynamoDBDocumentClient.from(client);
+}
 
 interface SyncRequestBody {
   session: SessionSyncPayload;
@@ -34,6 +36,11 @@ interface SyncRequestBody {
 }
 
 export async function POST(req: NextRequest) {
+  // Auth gate
+  const { requireApiAuth } = await import("../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   let body: SyncRequestBody;
 
   try {
@@ -58,11 +65,20 @@ export async function POST(req: NextRequest) {
     delete (session as Record<string, unknown>)["childName"];
   }
 
+  const sessionsTable = process.env.DYNAMODB_SESSIONS_TABLE;
+  const biomarkersTable = process.env.DYNAMODB_BIOMARKERS_TABLE;
+  if (!sessionsTable) {
+    console.error("[Sync API] DYNAMODB_SESSIONS_TABLE not configured");
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+  }
+
+  const docClient = getDocClient();
+
   try {
     // Write session record
     await docClient.send(
       new PutCommand({
-        TableName: process.env.DYNAMODB_SESSIONS_TABLE!,
+        TableName: sessionsTable,
         Item: {
           ...session,
           // Add a TTL of 1 year (for GDPR data retention)
@@ -89,11 +105,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Write biomarker aggregate record (optional — null if no tasks completed)
-  if (biomarkers) {
+  if (biomarkers && biomarkersTable) {
     try {
       await docClient.send(
         new PutCommand({
-          TableName: process.env.DYNAMODB_BIOMARKERS_TABLE!,
+          TableName: biomarkersTable,
           Item: {
             ...biomarkers,
             // Sort key for time-series queries

@@ -226,6 +226,11 @@ function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback">
 /* ------------------------------------------------------------------ */
 
 export async function POST(req: NextRequest) {
+  // Auth gate — prevent unauthenticated Bedrock usage
+  const { requireApiAuth } = await import("../../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   let body: ConversationRequest;
 
   try {
@@ -301,7 +306,12 @@ export async function POST(req: NextRequest) {
       body: new TextEncoder().encode(invokeBody),
     });
 
-    const response = await client.send(command);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await client.send(command, { abortSignal: controller.signal });
+    clearTimeout(timeout);
+
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
     const rawText: string =

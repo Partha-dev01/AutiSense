@@ -17,13 +17,12 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Inline server-side env vars at build time.
-  // Amplify SSR (WEB_COMPUTE) injects env vars into the build container
-  // but NOT into the Lambda runtime. This ensures they're baked into the
-  // server bundle. AWS_* vars are excluded — Lambda provides those via IAM role.
+  // Inline NON-SECRET server-side env vars at build time.
+  // Amplify WEB_COMPUTE injects env vars into the build container AND
+  // provides them at Lambda runtime. Secrets (OAuth, AWS keys) are read
+  // at runtime via process.env — never baked into the bundle.
   env: {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "",
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "",
     BEDROCK_REGION: process.env.BEDROCK_REGION ?? "",
     POLLY_REGION: process.env.POLLY_REGION ?? "",
@@ -35,13 +34,12 @@ const nextConfig: NextConfig = {
     DYNAMODB_CHILD_PROFILES_TABLE: process.env.DYNAMODB_CHILD_PROFILES_TABLE ?? "",
     DYNAMODB_SESSION_SUMMARIES_TABLE: process.env.DYNAMODB_SESSION_SUMMARIES_TABLE ?? "",
     DYNAMODB_FEED_POSTS_TABLE: process.env.DYNAMODB_FEED_POSTS_TABLE ?? "",
-    // Amplify blocks AWS_* prefix — use custom names for SDK credentials
-    APP_ACCESS_KEY_ID: process.env.APP_ACCESS_KEY_ID ?? "",
-    APP_SECRET_ACCESS_KEY: process.env.APP_SECRET_ACCESS_KEY ?? "",
     APP_REGION: process.env.APP_REGION ?? "",
+    // SECURITY: GOOGLE_CLIENT_SECRET, APP_ACCESS_KEY_ID, APP_SECRET_ACCESS_KEY
+    // are intentionally NOT baked here — read at runtime via process.env
   },
 
-  // Required for SharedArrayBuffer (ONNX WASM multi-threading)
+  // Security + COOP/COEP headers (SharedArrayBuffer for ONNX WASM)
   async headers() {
     return [
       {
@@ -49,6 +47,10 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },
         ],
       },
     ];

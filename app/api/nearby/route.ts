@@ -31,11 +31,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { lat, lng, radius = 10000 } = body;
+  const { lat, lng, radius: rawRadius = 10000 } = body;
 
-  if (typeof lat !== "number" || typeof lng !== "number") {
-    return NextResponse.json({ error: "Missing lat/lng" }, { status: 400 });
+  if (typeof lat !== "number" || typeof lng !== "number" ||
+      !Number.isFinite(lat) || !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return NextResponse.json({ error: "Invalid lat/lng" }, { status: 400 });
   }
+
+  const radius = Math.min(Math.max(Number(rawRadius) || 10000, 100), 50000);
 
   // Overpass QL query: hospitals, clinics, doctors, healthcare, social facilities
   const query = `

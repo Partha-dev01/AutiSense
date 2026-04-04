@@ -222,6 +222,11 @@ function parseItems(raw: string): GeneratedItem[] | null {
 /* ------------------------------------------------------------------ */
 
 export async function POST(request: NextRequest) {
+  // Auth gate
+  const { requireApiAuth } = await import("../../../lib/auth/requireApiAuth");
+  const authResult = await requireApiAuth(request);
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body: GenerateRequest = await request.json();
     const { ageMonths = 36, count = 6, mode = "words" } = body;

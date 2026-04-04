@@ -119,14 +119,10 @@
   margin: 0;
   padding: 0;
 }
+/* Use thin scrollbars instead of hiding (WCAG 2.2 compliance) */
 html, body {
-  scrollbar-width: none;          /* Firefox */
-  -ms-overflow-style: none;       /* IE / legacy Edge */
-}
-html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-.page::-webkit-scrollbar {
-  display: none;                  /* Chrome / Safari / Edge */
+  scrollbar-width: thin;          /* Firefox */
+  scrollbar-color: var(--border) transparent;
 }
 html {
   font-size: 17px;
