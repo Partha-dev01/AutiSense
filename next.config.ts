@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   // at runtime via process.env — never baked into the bundle.
   env: {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "",
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "",
     BEDROCK_REGION: process.env.BEDROCK_REGION ?? "",
     POLLY_REGION: process.env.POLLY_REGION ?? "",
@@ -35,8 +36,10 @@ const nextConfig: NextConfig = {
     DYNAMODB_SESSION_SUMMARIES_TABLE: process.env.DYNAMODB_SESSION_SUMMARIES_TABLE ?? "",
     DYNAMODB_FEED_POSTS_TABLE: process.env.DYNAMODB_FEED_POSTS_TABLE ?? "",
     APP_REGION: process.env.APP_REGION ?? "",
-    // SECURITY: GOOGLE_CLIENT_SECRET, APP_ACCESS_KEY_ID, APP_SECRET_ACCESS_KEY
-    // are intentionally NOT baked here — read at runtime via process.env
+    // SECURITY: APP_ACCESS_KEY_ID, APP_SECRET_ACCESS_KEY are NOT baked here —
+    // read at runtime via process.env (Lambda IAM role or APP_* env vars).
+    // GOOGLE_CLIENT_SECRET is baked because Amplify WEB_COMPUTE does not
+    // reliably inject branch-level env vars into the Lambda runtime.
   },
 
   // Security + COOP/COEP headers (SharedArrayBuffer for ONNX WASM)
@@ -52,6 +55,7 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "Content-Security-Policy-Report-Only", value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://overpass-api.de https://accounts.google.com https://oauth2.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'" },
         ],
       },
     ];

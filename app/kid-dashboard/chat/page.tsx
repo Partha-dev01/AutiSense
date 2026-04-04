@@ -51,7 +51,7 @@ export default function ChatPage() {
    
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sendMessageRef = useRef<(text: string) => Promise<void>>(null!);
+  const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
 
   /* ---- theme ---- */
 

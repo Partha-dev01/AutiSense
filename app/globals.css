@@ -52,6 +52,11 @@
   --shadow-sm: 0 2px 10px rgba(45, 58, 48, 0.06);
   --shadow-md: 0 6px 24px rgba(45, 58, 48, 0.09);
 
+  --bg-card: #ffffff;
+  --border-card: #e3ede6;
+  --bg-elevated: #f9faf9;
+  --peach-50: #fef6f2;
+
   --orb-bg: linear-gradient(135deg, #e3ede6, #e8f0fb);
   --orb-glow: rgba(107, 158, 118, 0.18);
   --orb-ring: rgba(107, 158, 118, 0.22);
@@ -94,6 +99,11 @@
   --nav-bg: rgba(10, 18, 13, 0.95);
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.4);
+
+  --bg-card: #101a13;
+  --border-card: #1e3024;
+  --bg-elevated: #152a1a;
+  --peach-50: #1e1210;
 
   --orb-bg: linear-gradient(135deg, #152a1a, #0f1e2e);
   --orb-glow: rgba(96, 168, 112, 0.22);
