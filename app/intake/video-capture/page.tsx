@@ -38,7 +38,7 @@ export default function VideoCapturePage() {
   const biomarkerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const latestResultRef = useRef<PipelineResult | null>(null);
 
-  const { result, isModelLoaded, error, modelError, backend, modality, setModality, retryInit } =
+  const { result, isModelLoaded, error, modelError, backend: _backend, modality, setModality, retryInit } =
     useDetectorInference(videoRef, canvasRef, camReady && started);
 
   // Keep latestResultRef in sync
