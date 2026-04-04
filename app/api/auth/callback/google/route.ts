@@ -103,7 +103,16 @@ export async function GET(request: NextRequest) {
     const sessionToken = await createSessionForUser(user.id);
 
     // ─── Set cookie & redirect ────────────────────────────────────
-    const response = NextResponse.redirect(`${appUrl}/kid-dashboard`);
+    // Use a client-side meta-refresh redirect so the browser fully
+    // processes the Set-Cookie before navigating. Server-side 302/307
+    // redirects from cross-origin OAuth flows can race with cookie storage.
+    const destination = `${appUrl}/kid-dashboard`;
+    const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${destination}"><script>window.location.href="${destination}"</script></head><body>Signing in...</body></html>`;
+
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html" },
+    });
 
     response.cookies.set(sessionCookieName, sessionToken, {
       httpOnly: true,
