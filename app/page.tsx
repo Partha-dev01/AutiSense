@@ -287,8 +287,12 @@ export default function LandingPage() {
         >
           See AutiSense in action
         </h2>
-        <div
+        <a
+          href="https://youtu.be/v-r6XdPKWM8"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
+            display: "block",
             position: "relative",
             paddingBottom: "56.25%",
             height: 0,
@@ -296,13 +300,12 @@ export default function LandingPage() {
             overflow: "hidden",
             boxShadow: "var(--shadow-md)",
             border: "2px solid var(--border)",
+            background: "#000",
           }}
         >
-          <iframe
-            src="https://www.youtube.com/embed/v-r6XdPKWM8"
-            title="AutiSense Demo"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+          <img
+            src="https://img.youtube.com/vi/v-r6XdPKWM8/maxresdefault.jpg"
+            alt="Watch AutiSense demo on YouTube"
             loading="lazy"
             style={{
               position: "absolute",
@@ -310,10 +313,31 @@ export default function LandingPage() {
               left: 0,
               width: "100%",
               height: "100%",
-              border: "none",
+              objectFit: "cover",
+              opacity: 0.85,
             }}
           />
-        </div>
+          {/* Play button overlay */}
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+              <polygon points="8,5 20,12 8,19" />
+            </svg>
+          </div>
+        </a>
       </section>
 
       {/* Three pillars section */}
