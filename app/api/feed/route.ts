@@ -125,6 +125,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
+    const validActions = ["create", "react", "delete"];
+    if (action && !validActions.includes(action as string)) {
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
 
     if (action === "react") return handleReaction(body, user.id);
     if (action === "delete") return handleDelete(body, user.id);
@@ -152,7 +156,7 @@ async function handleCreate(body: Record<string, unknown>, userId: string) {
   const post: FeedPostItem = {
     postId: crypto.randomUUID(),
     userId,
-    content: (content as string).trim(),
+    content: (content as string).trim().replace(/<[^>]*>/g, ""),
     category: category as string,
     reactions: { heart: 0, helpful: 0, relate: 0 },
     reactedBy: { heart: [], helpful: [], relate: [] },

@@ -76,7 +76,7 @@ Server (Amplify SSR / Lambda)
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 16.1.6 (App Router, React 19) |
+| Framework | Next.js 16.2.2 (App Router, React 19) |
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS v4 + custom CSS variables (globals.css) |
 | Fonts | Fredoka (headings) + Nunito (body) |
@@ -593,6 +593,39 @@ npx playwright test    # Run all 30 tests
 | 5 | ONNX models served from public/ via CDN | Low | By design | Models bundled with the app. S3 bucket exists for backup but is not used at runtime. |
 | 6 | ~~Feed posts are local-only (IndexedDB)~~ | Low | **Resolved** | v2.5.1: Feed now uses DynamoDB (`autisense-feed-posts` table) via `/api/feed` API route. Posts, reactions, and deletes are shared across all users. In-memory fallback for local dev. |
 | 7 | Dashboard charts show empty state for new users | Low | Open | No sample/demo data — charts appear blank until user completes at least one screening |
+
+---
+
+### Deferred Security Items (2026-04-06 Audit)
+
+Items identified during Phase 1+2 security audit, deliberately deferred due to scope, cost, or product decisions.
+
+**Authentication & Sessions:**
+| # | Item | Priority | Notes |
+|---|------|----------|-------|
+| D1 | Disable in-memory auth fallback in production (split-brain risk) | High | Needs product decision on degraded behavior |
+| D2 | Bulk session invalidation (no userId GSI in sessions table) | High | DynamoDB GSI + new API endpoint (~4h) |
+| D3 | PKCE for OAuth flow (OAuth 2.1 mandates it) | Medium | Low risk since state + httpOnly cookie already prevent CSRF |
+| D4 | Session token entropy 122 bits (OWASP recommends 128+) | Medium | Change to crypto.randomBytes(32) when touching auth |
+| D5 | Session idle timeout (30-day absolute, no idle) | Medium | UX tradeoff for parents during screening |
+| D6 | Cookie secure flag consistency across auth routes | Medium | Fix when next touching auth code |
+
+**Infrastructure & Monitoring:**
+| # | Item | Priority | Notes |
+|---|------|----------|-------|
+| D7 | Error tracking (Sentry) integration | High | Budget decision. Free tier: 5k errors/month (~2h) |
+| D8 | CSP nonce for inline scripts (unsafe-inline) | Medium | Blocked by Next.js 16 issue #89754 |
+| D9 | Lambda sync-handler auth (relies on API Gateway) | Medium | Needs API Gateway authorizer config |
+| D10 | DynamoDB GSI for feed (Scan → Query) | Medium | Low urgency at current scale |
+
+**Testing:**
+| # | Item | Priority | Notes |
+|---|------|----------|-------|
+| D11 | ML inference unit tests (14 modules, 2,093 LOC, 0 tests) | High | ~20h. FaceFeatureEncoder.ts:117 potential bug. |
+| D12 | Auth + DynamoDB repository unit tests (1,156 LOC, 0 tests) | High | ~8h effort |
+| D13 | Extract shared Bedrock/DynamoDB factories (~100 LOC duplication) | Low | Refactoring when next touching files |
+
+---
 
 ### Resolved Issues
 

@@ -258,7 +258,12 @@ export async function POST(req: NextRequest) {
 
   // Input length limits — prevent prompt injection + cost inflation
   const childName = String(body.childName).slice(0, 50).replace(/[^\p{L}\p{N}\s'-]/gu, "");
-  const { ageMonths, turnNumber, animalPersonality } = body;
+  const ageMonths = Math.max(0, Math.min(240, Number(body.ageMonths) || 36));
+  const { turnNumber } = body;
+  const allowedPersonalities = ["dog", "cat", "rabbit", "parrot"];
+  const animalPersonality = allowedPersonalities.includes(body.animalPersonality as string)
+    ? (body.animalPersonality as string)
+    : "dog";
   const messages = Array.isArray(body.messages) ? body.messages.slice(0, 20) : [];
 
   // Hard cap — force farewell after 15 turns

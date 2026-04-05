@@ -241,7 +241,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { biomarkers, childAge } = body;
+  const { sanitizeBiomarkers } = await import("../../../lib/validation/biomarker");
+  const biomarkers = sanitizeBiomarkers(body.biomarkers) as unknown as BiomarkerAggregate;
+  const childAge = body.childAge !== undefined ? Math.max(0, Math.min(240, Number(body.childAge) || 0)) : undefined;
 
   // Always generate the deterministic template first
   const baseReport = buildTemplateReport(biomarkers, childAge);

@@ -239,7 +239,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: GenerateRequest = await request.json();
-    const { ageMonths = 36, count = 6, mode = "words" } = body;
+    const { count = 6, mode = "words" } = body;
+    const ageMonths = Math.max(0, Math.min(240, Number(body.ageMonths) || 36));
 
     if (!["words", "sentences", "instructions"].includes(mode)) {
       return NextResponse.json({ error: "Invalid mode" }, { status: 400 });

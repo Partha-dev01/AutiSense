@@ -26,6 +26,18 @@ export const metadata: Metadata = {
     icon: "/icon.svg",
     apple: "/logo.jpeg",
   },
+  openGraph: {
+    title: "AutiSense — AI-Powered Autism Screening",
+    description: "Privacy-first, AI-powered autism screening platform with real-time behavioral analysis, DSM-5 aligned clinical reports, and adaptive therapy games.",
+    url: "https://autisense.imaginaerium.in",
+    siteName: "AutiSense",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AutiSense — AI-Powered Autism Screening",
+    description: "Privacy-first, AI-powered autism screening with edge AI and adaptive therapy games.",
+  },
 };
 
 export default function RootLayout({

@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { biomarkers } = body;
+  const { sanitizeBiomarkers } = await import("../../../lib/validation/biomarker");
+  const biomarkers = sanitizeBiomarkers(body.biomarkers) as unknown as BiomarkerAggregate;
 
   const prompt = `Generate a parent-friendly screening summary for a child based on the following biomarker data. Map to DSM-5 criteria. Keep it to 3-4 paragraphs.
 
