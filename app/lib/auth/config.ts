@@ -2,12 +2,16 @@
  * AUTH_CONFIG — Central auth configuration constants.
  * Secrets are read at runtime via process.env (never baked into bundle).
  */
+import { logger } from "../logger";
+
+const log = logger("auth/config");
+
 export const AUTH_CONFIG = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || "",
   get googleClientSecret(): string {
     const secret = process.env.GOOGLE_CLIENT_SECRET;
     if (!secret && process.env.NODE_ENV === "production") {
-      console.error("[auth] GOOGLE_CLIENT_SECRET not set in production");
+      log.error("GOOGLE_CLIENT_SECRET not set in production");
     }
     return secret || "";
   },

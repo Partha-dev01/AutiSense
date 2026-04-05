@@ -118,6 +118,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { apiRateLimiter } = await import("@/app/lib/rateLimit");
+  const rl = apiRateLimiter.check(`feed-post:${user.id}`);
+  if (!rl.allowed) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+
   try {
     const body = await request.json();
     const { action } = body;

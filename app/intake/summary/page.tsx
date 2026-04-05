@@ -10,11 +10,10 @@ import { isOnline, flushSyncQueue } from "../../lib/sync/sync";
 import type { BiomarkerAggregate } from "../../types/biomarker";
 import type { Session } from "../../types/session";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Behavior",
-  "Prepare", "Motor", "Video", "Summary", "Report",
-];
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX.summary;
 
 function scoreLabel(score: number): { label: string; color: string } {
   if (score >= 70) return { label: "In range", color: "var(--sage-500)" };
@@ -187,13 +186,13 @@ function SummaryPage() {
               }}
             >
               <div
-                className={`step-dot ${i < 10 ? "done" : i === 10 ? "active" : "upcoming"}`}
+                className={`step-dot ${i < STEP_IDX ? "done" : i === STEP_IDX ? "active" : "upcoming"}`}
                 title={s}
               >
-                {i < 10 ? "✓" : i + 1}
+                {i < STEP_IDX ? "✓" : i + 1}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`step-line ${i < 10 ? "done" : ""}`} />
+                <div className={`step-line ${i < STEP_IDX ? "done" : ""}`} />
               )}
             </div>
           ))}

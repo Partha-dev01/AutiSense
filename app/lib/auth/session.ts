@@ -9,6 +9,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_CONFIG } from "./config";
 import { getAuthSession, getUserById } from "./dynamodb";
+import { logger } from "../logger";
+
+const log = logger("auth/session");
 
 export interface SessionUser {
   id: string;
@@ -42,7 +45,7 @@ export async function getServerSession(): Promise<SessionUser | null> {
       picture: user.picture,
     };
   } catch (err) {
-    console.error("[auth/session] getServerSession error:", err);
+    log.error("getServerSession error", { error: err });
     return null;
   }
 }

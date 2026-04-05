@@ -56,6 +56,7 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
   const [anonymous, setAnonymous] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   // Use user ID from auth context (no duplicate fetch)
   const userId = user?.id || "";
@@ -93,11 +94,12 @@ export default function FeedPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: content.trim(), category, anonymous }),
       });
+      setFeedError(null);
       setContent("");
       setShowCompose(false);
       await loadPosts();
     } catch {
-      // Failed to create post
+      setFeedError("Something went wrong. Please try again.");
     } finally {
       setPosting(false);
     }
@@ -110,9 +112,10 @@ export default function FeedPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "react", postId: post.postId, createdAt: post.createdAt, type }),
       });
+      setFeedError(null);
       await loadPosts();
     } catch {
-      // Failed to toggle reaction
+      setFeedError("Something went wrong. Please try again.");
     }
   };
 
@@ -123,9 +126,10 @@ export default function FeedPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", postId: post.postId, createdAt: post.createdAt }),
       });
+      setFeedError(null);
       await loadPosts();
     } catch {
-      // Failed to delete
+      setFeedError("Something went wrong. Please try again.");
     }
   };
 
@@ -287,6 +291,14 @@ export default function FeedPage() {
                 {posting ? "Posting..." : anonymous ? "Post Anonymously" : "Post as Me"}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {feedError && (
+          <div style={{ padding: "10px 16px", borderRadius: 12, background: "var(--peach-100)", color: "var(--text-primary)", fontSize: "0.85rem", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>{feedError}</span>
+            <button onClick={() => setFeedError(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "1rem" }}>&#10005;</button>
           </div>
         )}
 

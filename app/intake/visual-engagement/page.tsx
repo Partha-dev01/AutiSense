@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Visual", "Behavior",
-  "Prepare", "Motor", "Audio", "Video", "Summary", "Report",
-];
-const STEP_IDX = 4;
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["visual-engagement"];
 
 interface Stimulus {
   emoji: string;
@@ -99,11 +98,9 @@ export default function VisualEngagementPage() {
       <nav className="nav">
         <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span></Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={toggleTheme} className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}>
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span style={{ fontSize: "0.88rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            Step {STEP_IDX + 1} of 12
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>
@@ -165,7 +162,7 @@ export default function VisualEngagementPage() {
               borderRadius: "var(--r-lg)", overflow: "hidden",
             }}>
               {stimuli.map((stim) => (
-                <button key={stim.id} onClick={() => handleTap(stim)} style={{
+                <button key={stim.id} aria-label={stim.type === "social" ? `Social stimulus ${stim.emoji}` : `Object stimulus ${stim.emoji}`} onClick={() => handleTap(stim)} style={{
                   position: "absolute", left: `${stim.x}%`, top: `${stim.y}%`,
                   transform: "translate(-50%, -50%)",
                   fontSize: "2.2rem", background: "none", border: "none",

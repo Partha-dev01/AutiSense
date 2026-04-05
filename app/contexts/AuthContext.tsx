@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
+        redirect: "manual",
       });
     } catch {
       // Ignore network errors — still clear local state

@@ -6,12 +6,11 @@ import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
 import { getSession } from "../../lib/db/session.repository";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Visual", "Behavior",
-  "Prepare", "Motor", "Audio", "Video", "Summary", "Report",
-];
-const STEP_IDX = 8;
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["audio"];
 const MIN_RESPONDED = 2; // Criteria gate: at least 2 of 7
 
 interface ContentItem { text: string; emoji: string }
@@ -329,11 +328,9 @@ export default function AudioAssessmentPage() {
       <nav className="nav">
         <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span></Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={toggleTheme} className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}>
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span style={{ fontSize: "0.88rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            Step {STEP_IDX + 1} of 12
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>

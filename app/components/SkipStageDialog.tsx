@@ -30,7 +30,13 @@ export default function SkipStageDialog({ onConfirm }: SkipStageDialogProps) {
   }
 
   return (
-    <div style={{
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="skip-dialog-title"
+      tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === "Escape") setShowConfirm(false); }}
+      style={{
       position: "fixed",
       top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(0,0,0,0.4)",
@@ -43,7 +49,7 @@ export default function SkipStageDialog({ onConfirm }: SkipStageDialogProps) {
         maxWidth: 380,
         textAlign: "center",
       }}>
-        <h3 style={{
+        <h3 id="skip-dialog-title" style={{
           fontFamily: "'Fredoka',sans-serif",
           fontWeight: 600,
           fontSize: "1.1rem",
@@ -64,6 +70,7 @@ export default function SkipStageDialog({ onConfirm }: SkipStageDialogProps) {
           <button
             className="btn btn-outline"
             onClick={() => setShowConfirm(false)}
+            autoFocus
             style={{ minHeight: 40, padding: "8px 20px" }}
           >
             Cancel

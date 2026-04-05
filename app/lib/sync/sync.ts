@@ -126,6 +126,14 @@ async function uploadSession(
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 400) {
+        // Non-retryable: auth expired or bad data — stop retrying
+        console.warn(
+          `[AutiSense Sync] Session ${sessionId} got ${response.status} — marking as non-retryable`,
+        );
+        await incrementRetryCount(queueEntryId, MAX_RETRIES);
+        return;
+      }
       throw new Error(`HTTP ${response.status}: ${await response.text()}`);
     }
 

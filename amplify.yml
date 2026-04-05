@@ -5,6 +5,7 @@ frontend:
       commands:
         - nvm use 22
         - npm ci
+        - npm run test:unit
     build:
       commands:
         - npm run build

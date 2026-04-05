@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Lock, BarChart3, Trash2 } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Behavior",
-  "Prepare", "Motor", "Video", "Summary", "Report",
-];
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["profile"];
 
 export default function IntakeStartPage() {
   const { theme, toggle: toggleTheme } = useTheme();
@@ -45,14 +45,7 @@ export default function IntakeStartPage() {
           <img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={toggleTheme}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}
-            aria-label="Toggle theme"
-          >
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span
             style={{
               fontSize: "0.88rem",
@@ -60,7 +53,7 @@ export default function IntakeStartPage() {
               fontWeight: 600,
             }}
           >
-            Step 1 of 10
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>

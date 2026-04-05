@@ -12,11 +12,11 @@ export async function getSyncQueueCount(): Promise<number> {
 }
 
 //Update
-export async function incrementRetryCount(queueEntryId: number): Promise<void> {
+export async function incrementRetryCount(queueEntryId: number, setTo?: number): Promise<void> {
   const entry = await db.syncQueue.get(queueEntryId);
   if (!entry) return;
   await db.syncQueue.update(queueEntryId, {
-    retryCount: entry.retryCount + 1,
+    retryCount: setTo ?? entry.retryCount + 1,
   });
 }
 

@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { createSession } from "../../lib/db/session.repository";
 import { setCurrentSessionId } from "../../lib/session/currentSession";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Behavior",
-  "Prepare", "Motor", "Video", "Summary", "Report",
-];
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["child-profile"];
 
 const LANGUAGES = [
   "English",
@@ -104,13 +104,7 @@ export default function ProfilePage() {
           <img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={toggleTheme}
-            className="btn btn-outline"
-            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}
-          >
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span
             style={{
               fontSize: "0.88rem",
@@ -118,7 +112,7 @@ export default function ProfilePage() {
               fontWeight: 600,
             }}
           >
-            Step 2 of 10
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>
@@ -239,10 +233,12 @@ export default function ProfilePage() {
                   }
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" &&
-                    setGender(gender === opt.value ? "" : opt.value)
-                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      if (e.key === " ") e.preventDefault();
+                      setGender(gender === opt.value ? "" : opt.value);
+                    }
+                  }}
                 >
                   <span style={{ fontSize: "1.6rem" }}>{opt.emoji}</span>
                   <span style={{ fontWeight: 700, fontSize: "1rem" }}>

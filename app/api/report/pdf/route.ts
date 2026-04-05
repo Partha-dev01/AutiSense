@@ -215,6 +215,10 @@ export async function POST(req: NextRequest) {
   const authResult = await requireApiAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
+  const { aiRateLimiter } = await import("../../../lib/rateLimit");
+  const rl = aiRateLimiter.check(authResult.id);
+  if (!rl.allowed) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+
   let body: PdfRequestBody;
 
   try {
@@ -230,7 +234,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { report, childName, sessionDate, scores, childAge, assessmentDuration } = body;
+  const { report, sessionDate, scores, childAge, assessmentDuration } = body;
+  const childName = String(body.childName || "Child").slice(0, 100).replace(/[^\p{L}\p{N}\s'-]/gu, "");
 
   try {
     const pdfDoc = await PDFDocument.create();

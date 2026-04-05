@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
   const authResult = await requireApiAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
+  const { apiRateLimiter } = await import("../../lib/rateLimit");
+  const rl = apiRateLimiter.check(`sync:${authResult.id}`);
+  if (!rl.allowed) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+
   let body: SyncRequestBody;
 
   try {

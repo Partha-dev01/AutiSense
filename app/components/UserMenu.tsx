@@ -26,6 +26,8 @@ export default function UserMenu() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="User menu"
+        aria-expanded={open}
+        aria-haspopup="true"
         style={{
           display: "flex",
           alignItems: "center",
@@ -78,6 +80,8 @@ export default function UserMenu() {
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 199 }}
           />
           <div
+            role="menu"
+            onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
             style={{
               position: "absolute",
               top: "calc(100% + 6px)",
@@ -117,6 +121,7 @@ export default function UserMenu() {
               </div>
             </div>
             <button
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 logout();

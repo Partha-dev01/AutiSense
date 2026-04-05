@@ -11,12 +11,11 @@ import { getUserMediaWithFallback, getCameraErrorMessage } from "../../lib/camer
 import type { PipelineResult } from "../../types/inference";
 import SkipStageDialog from "../../components/SkipStageDialog";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Behavior",
-  "Prepare", "Motor", "Video", "Summary", "Report",
-];
-const STEP_IDX = 7;
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["video-capture"];
 const ASSESSMENT_SECONDS = 30; // 30 seconds
 const BIOMARKER_SAVE_INTERVAL = 5_000; // save a snapshot every 5 seconds
 
@@ -211,11 +210,9 @@ export default function VideoCapturePage() {
       <nav className="nav">
         <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span></Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={toggleTheme} className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}>
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span style={{ fontSize: "0.88rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            Step {STEP_IDX + 1} of 10
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>

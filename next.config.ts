@@ -19,10 +19,11 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Inline NON-SECRET server-side env vars at build time.
-  // Amplify WEB_COMPUTE injects env vars into the build container AND
-  // provides them at Lambda runtime. Secrets (OAuth, AWS keys) are read
-  // at runtime via process.env — never baked into the bundle.
+  // ⚠️  ALL vars below are BAKED into the server JS bundle at build time.
+  // Amplify WEB_COMPUTE does NOT inject env vars into the Lambda runtime.
+  // Without this block, process.env.* returns undefined at request time.
+  // These are server-only (no NEXT_PUBLIC_ prefix) — never sent to browser.
+  // NEVER remove any var from here — broke production twice on 2026-04-05.
   env: {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "",

@@ -11,6 +11,9 @@
 
 import { AUTH_CONFIG } from "./config";
 import { getAppCredentials, getAppRegion } from "../aws/credentials";
+import { logger } from "../logger";
+
+const log = logger("auth/dynamodb");
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface AuthUser {
@@ -68,7 +71,7 @@ async function withFallback<T>(
     dynamoFailedUntil = 0; // reset on success
     return result;
   } catch (err) {
-    console.error(`[auth/dynamodb] ${operation} failed, falling back to in-memory:`, err);
+    log.error(`${operation} failed, falling back to in-memory`, { error: err });
     dynamoFailedUntil = Date.now() + 30_000;
     return memoryFn();
   }

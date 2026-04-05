@@ -7,12 +7,11 @@ import { getSession } from "../../lib/db/session.repository";
 import type { BiomarkerAggregate } from "../../types/biomarker";
 import type { Session } from "../../types/session";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Behavior",
-  "Prepare", "Motor", "Video", "Summary", "Report",
-];
-const STEP_IDX = 9;
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["report"];
 
 type ReportType = "summary" | "clinical";
 
@@ -54,7 +53,7 @@ function ReportPage() {
 
     if (!paramSessionId) {
       try {
-        const fallback = localStorage.getItem("autisense_current_session_id");
+        const fallback = localStorage.getItem("autisense-current-session-id");
         if (fallback) setSessionId(fallback);
       } catch {
         // localStorage not available
@@ -222,11 +221,9 @@ function ReportPage() {
       <nav className="nav">
         <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span></Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={toggleTheme} className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}>
-            {theme === "light" ? "\u{1F319}" : "\u{2600}\u{FE0F}"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span style={{ fontSize: "0.88rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            Step {STEP_IDX + 1} of 10
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>

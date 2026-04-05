@@ -6,12 +6,11 @@ import { addBiomarker } from "../../lib/db/biomarker.repository";
 import { getCurrentSessionId } from "../../lib/session/currentSession";
 import SkipStageDialog from "../../components/SkipStageDialog";
 import { useTheme } from "../../hooks/useTheme";
+import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
+import ThemeToggle from "../../components/ThemeToggle";
 
-const STEPS = [
-  "Welcome", "Profile", "Device", "Communicate", "Behavior",
-  "Prepare", "Motor", "Video", "Summary", "Report",
-];
-const STEP_IDX = 4;
+const STEPS = INTAKE_STEPS;
+const STEP_IDX = STEP_INDEX["behavioral-observation"];
 
 interface Bubble {
   id: number;
@@ -115,11 +114,9 @@ export default function BehavioralObservationPage() {
       <nav className="nav">
         <Link href="/" className="logo"><img src="/logo.jpeg" alt="" className="logo-icon" /><span>Auti<em>Sense</em></span></Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={toggleTheme} className="btn btn-outline" style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.88rem" }}>
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span style={{ fontSize: "0.88rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            Step {STEP_IDX + 1} of 10
+            Step {STEP_IDX + 1} of {STEPS.length}
           </span>
         </div>
       </nav>
@@ -181,8 +178,8 @@ export default function BehavioralObservationPage() {
               borderRadius: "var(--r-lg)", overflow: "hidden",
               touchAction: "manipulation",
             }}>
-              {bubbles.map((b) => (
-                <button key={b.id} onClick={() => popBubble(b.id)} style={{
+              {bubbles.map((b, index) => (
+                <button key={b.id} aria-label={`Pop bubble ${index + 1}`} onClick={() => popBubble(b.id)} style={{
                   position: "absolute",
                   left: `${b.x}%`, top: `${b.y}%`,
                   transform: "translate(-50%, -50%)",

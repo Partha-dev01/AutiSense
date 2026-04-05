@@ -14,7 +14,7 @@ import { useTheme } from "./hooks/useTheme";
 
 export default function LandingPage() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { user: _user, loading, isAuthenticated, logout } = useAuth();
+  const { loading, isAuthenticated, logout } = useAuth();
   const pageRef = useRef<HTMLDivElement>(null);
 
   // Scroll-triggered reveal animations
@@ -241,8 +241,8 @@ export default function LandingPage() {
           }}
         >
           {isAuthenticated
-            ? "Sign in to save progress, access therapy games, and join the community."
-            : "Takes about 15 minutes \u00A0\u00B7\u00A0 Edge-first AI \u00A0\u00B7\u00A0 No account needed"}
+            ? "Takes about 15 minutes \u00A0\u00B7\u00A0 Edge-first AI \u00A0\u00B7\u00A0 No account needed"
+            : "Sign in to save progress, access therapy games, and join the community."}
         </p>
 
         {!isAuthenticated && (
