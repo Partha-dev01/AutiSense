@@ -26,20 +26,16 @@ import { FusionEngine, type FusionResult } from "../app/lib/inference/FusionEngi
 // Helper: create a body result with 6 class probabilities
 function bodyResult(probs: number[]) {
   return {
-    classIndex: probs.indexOf(Math.max(...probs)),
-    className: "test",
-    probabilities: probs,
-    confidence: Math.max(...probs),
+    probabilities: new Float32Array(probs),
+    predictedClass: probs.indexOf(Math.max(...probs)),
   };
 }
 
 // Helper: create a face result with 4 class probabilities
 function faceResult(probs: number[]) {
   return {
-    classIndex: probs.indexOf(Math.max(...probs)),
-    className: "test",
-    probabilities: probs,
-    confidence: Math.max(...probs),
+    probabilities: new Float32Array(probs),
+    predictedClass: probs.indexOf(Math.max(...probs)),
   };
 }
 
