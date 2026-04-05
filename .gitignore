@@ -44,3 +44,4 @@ next-env.d.ts
 
 # audit
 /.audit/
+/.audit-run*/
