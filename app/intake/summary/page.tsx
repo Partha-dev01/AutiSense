@@ -169,7 +169,7 @@ function SummaryPage() {
               fontWeight: 600,
             }}
           >
-            Step 11 of 10
+            Step 9 of 10
           </span>
         </div>
       </nav>
@@ -249,7 +249,7 @@ function SummaryPage() {
           </div>
         )}
 
-        <div className="chip fade fade-1">Step 11 — Your Results</div>
+        <div className="chip fade fade-1">Step 9 — Your Results</div>
         <h1 className="page-title fade fade-2">
           {session.childName}&apos;s <em>screening summary</em>
         </h1>

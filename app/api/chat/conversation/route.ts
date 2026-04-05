@@ -253,7 +253,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { messages, childName, ageMonths, turnNumber, animalPersonality } = body;
+  // Input length limits — prevent prompt injection + cost inflation
+  const childName = String(body.childName).slice(0, 50).replace(/[^\p{L}\p{N}\s'-]/gu, "");
+  const { ageMonths, turnNumber, animalPersonality } = body;
+  const messages = Array.isArray(body.messages) ? body.messages.slice(0, 20) : [];
 
   // Hard cap — force farewell after 15 turns
   if (turnNumber >= 15) {
