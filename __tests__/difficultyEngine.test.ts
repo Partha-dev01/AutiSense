@@ -132,23 +132,19 @@ describe("buildConfig (via getDifficulty)", () => {
 
   it("level 1 has correct config", () => {
     const config = getDifficulty("test", "child");
-    expect(config).toEqual<GameConfig>({
-      level: 1,
-      speed: 0.95,      // 0.8 + 1 * 0.15
-      itemCount: 3,     // 2 + 1
-      timeLimit: 30,    // 35 - 1*5
-    });
+    expect(config.level).toBe(1);
+    expect(config.speed).toBeCloseTo(0.95, 5);
+    expect(config.itemCount).toBe(3);
+    expect(config.timeLimit).toBe(30);
   });
 
   it("level 5 has correct config", () => {
     store["autisense-game-difficulty-test-child"] = JSON.stringify({ level: 5, scores: [] });
     const config = getDifficulty("test", "child");
-    expect(config).toEqual<GameConfig>({
-      level: 5,
-      speed: 1.55,      // 0.8 + 5 * 0.15
-      itemCount: 7,     // 2 + 5
-      timeLimit: 10,    // max(10, 35 - 5*5) = max(10, 10)
-    });
+    expect(config.level).toBe(5);
+    expect(config.speed).toBeCloseTo(1.55, 5);
+    expect(config.itemCount).toBe(7);
+    expect(config.timeLimit).toBe(10);
   });
 
   it("clamps invalid level to 1-5 range", () => {
