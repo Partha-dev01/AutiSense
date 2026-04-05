@@ -64,8 +64,16 @@ async function getUser(request: NextRequest) {
   }
 }
 
-// ─── GET /api/feed — List posts ──────────────────────────────────────
+// ─── GET /api/feed — List posts (public, IP-rate-limited) ───────────
 export async function GET(request: NextRequest) {
+  // IP-based rate limiting for unauthenticated endpoint
+  const { apiRateLimiter } = await import("@/app/lib/rateLimit");
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = apiRateLimiter.check(`feed-get:${ip}`);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
   const category = searchParams.get("category") || undefined;

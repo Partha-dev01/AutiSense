@@ -15,9 +15,7 @@
     "@aws-sdk/client-bedrock-runtime": "^3.1000.0",
     "@aws-sdk/client-dynamodb": "^3.999.0",
     "@aws-sdk/client-polly": "^3.1000.0",
-    "@aws-sdk/client-s3": "^3.999.0",
     "@aws-sdk/lib-dynamodb": "^3.999.0",
-    "@aws-sdk/s3-request-presigner": "^3.999.0",
     "@mediapipe/tasks-vision": "^0.10.32",
     "dexie": "^4.3.0",
     "dompurify": "^3.3.3",
@@ -29,8 +27,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-leaflet": "^5.0.0",
-    "recharts": "^3.7.0",
-    "zustand": "^5.0.11"
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -51,6 +48,7 @@
   },
   "overrides": {
     "flatted": "^3.4.2",
-    "picomatch": "^4.0.4"
+    "picomatch": "^4.0.4",
+    "brace-expansion": "^2.0.1"
   }
 }

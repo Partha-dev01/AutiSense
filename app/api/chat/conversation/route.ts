@@ -283,12 +283,17 @@ export async function POST(req: NextRequest) {
     });
 
     for (const msg of messages) {
+      // Sanitize each message: limit length, strip control chars
+      const safeContent = String(msg.content || "")
+        .slice(0, 500)
+        .replace(/[\x00-\x1f\x7f]/g, "");
+
       if (msg.role === "assistant") {
         // Wrap plain-text assistant messages in JSON so Nova stays in JSON-output mode
-        const isJson = msg.content.trimStart().startsWith("{");
+        const isJson = safeContent.trimStart().startsWith("{");
         const wrapped = isJson
-          ? msg.content
-          : JSON.stringify({ text: msg.content, turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "general", action: null });
+          ? safeContent
+          : JSON.stringify({ text: safeContent, turnType: "question", expectsResponse: true, responseRelevance: 0.5, shouldEnd: false, domain: "general", action: null });
         novaMessages.push({
           role: "assistant",
           content: [{ text: wrapped }],
@@ -296,7 +301,7 @@ export async function POST(req: NextRequest) {
       } else {
         novaMessages.push({
           role: "user",
-          content: [{ text: `The child said: "${msg.content}"` }],
+          content: [{ text: `The child said: "${safeContent}"` }],
         });
       }
     }

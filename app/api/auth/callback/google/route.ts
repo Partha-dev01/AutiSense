@@ -87,7 +87,9 @@ export async function GET(request: NextRequest) {
     };
 
     // ─── Verify email is confirmed by Google ─────────────────────
-    if (profile.verified_email === false) {
+    // Use !profile.verified_email (not === false) to also reject
+    // undefined — handles edge case where Google omits the field.
+    if (!profile.verified_email) {
       return NextResponse.redirect(`${appUrl}/auth/login?error=email_not_verified`);
     }
 
