@@ -593,6 +593,22 @@ body {
   animation-delay: 0.44s;
 }
 
+/* ── Scroll-triggered reveal animation ───────────────────────────────
+   Add class="reveal" to sections. They start invisible and animate in
+   when they enter the viewport (triggered via IntersectionObserver). */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 600ms var(--ease), transform 600ms var(--ease);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+
 /* ── Breathing Orb ────────────────────────────────────────────────────
    Replaces the old float animation.
    Inspired by breathing exercises used in autism therapy.

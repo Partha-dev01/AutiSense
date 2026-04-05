@@ -6,6 +6,7 @@
  */
 "use client";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { useAuth } from "./hooks/useAuth";
 import ThemeToggle from "./components/ThemeToggle";
 import UserMenu from "./components/UserMenu";
@@ -14,6 +15,24 @@ import { useTheme } from "./hooks/useTheme";
 export default function LandingPage() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { user: _user, loading, isAuthenticated, logout } = useAuth();
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  // Scroll-triggered reveal animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
+    );
+    const els = pageRef.current?.querySelectorAll(".reveal");
+    els?.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
 
   const features = [
     {
@@ -72,7 +91,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       {/* Nav */}
       <nav className="nav">
         <Link href="/" className="logo" style={{ textDecoration: "none" }}>
@@ -246,8 +265,60 @@ export default function LandingPage() {
         )}
       </section>
 
+      {/* Demo Video */}
+      <section
+        className="reveal"
+        style={{
+          padding: "0 28px 56px",
+          maxWidth: 700,
+          margin: "0 auto",
+          width: "100%",
+        }}
+      >
+        <h2
+          style={{
+            fontFamily: "'Fredoka',sans-serif",
+            fontWeight: 600,
+            fontSize: "clamp(1.3rem,4vw,1.7rem)",
+            textAlign: "center",
+            marginBottom: 24,
+            color: "var(--text-primary)",
+          }}
+        >
+          See AutiSense in action
+        </h2>
+        <div
+          style={{
+            position: "relative",
+            paddingBottom: "56.25%",
+            height: 0,
+            borderRadius: "var(--r-lg)",
+            overflow: "hidden",
+            boxShadow: "var(--shadow-md)",
+            border: "2px solid var(--border)",
+          }}
+        >
+          <iframe
+            src="https://www.youtube.com/embed/v-r6XdPKWM8"
+            title="AutiSense Demo"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            loading="lazy"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              border: "none",
+            }}
+          />
+        </div>
+      </section>
+
       {/* Three pillars section */}
       <section
+        className="reveal"
         style={{
           background: "var(--card)",
           borderTop: "2px solid var(--border)",
@@ -327,6 +398,7 @@ export default function LandingPage() {
 
       {/* How it works */}
       <section
+        className="reveal"
         style={{
           padding: "56px 28px",
           maxWidth: 600,
@@ -396,6 +468,7 @@ export default function LandingPage() {
 
       {/* Features */}
       <section
+        className="reveal"
         style={{
           background: "var(--card)",
           borderTop: "2px solid var(--border)",
@@ -466,6 +539,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section
+        className="reveal"
         style={{
           padding: "56px 28px 64px",
           maxWidth: 620,

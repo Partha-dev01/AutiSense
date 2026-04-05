@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 import { listProfiles } from "../lib/db/childProfile.repository";
 import { getStreak } from "../lib/db/streak.repository";
@@ -93,6 +93,17 @@ export default function KidDashboardPage() {
 
   const activeChild = profiles.find((p) => p.id === activeChildId);
   const progressPct = Math.min(100, Math.round((todayCount / DAILY_TARGET) * 100));
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  // Scroll-triggered section reveals
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("visible"); }),
+      { threshold: 0.1, rootMargin: "0px 0px -30px 0px" },
+    );
+    mainRef.current?.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [isAuthenticated]);
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -113,9 +124,9 @@ export default function KidDashboardPage() {
         </div>
       </nav>
 
-      <div className="main fade fade-1" style={{ maxWidth: 900, padding: "24px 20px 80px" }}>
+      <div className="main" ref={mainRef} style={{ maxWidth: 900, padding: "24px 20px 80px" }}>
         {/* Welcome */}
-        <div className="fade fade-1" style={{ marginBottom: 20 }}>
+        <div className="reveal" style={{ marginBottom: 20 }}>
           <h1
             style={{
               fontFamily: "'Fredoka',sans-serif",
@@ -134,7 +145,7 @@ export default function KidDashboardPage() {
 
         {/* Child selector (if multiple) */}
         {profiles.length > 1 && (
-          <div className="fade fade-2" style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+          <div className="reveal" style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
             {profiles.map((p) => (
               <button
                 key={p.id}
@@ -158,13 +169,13 @@ export default function KidDashboardPage() {
         )}
 
         {/* Streak */}
-        <div className="fade fade-2" style={{ marginBottom: 20 }}>
+        <div className="reveal" style={{ marginBottom: 20 }}>
           <StreakBadge currentStreak={streak.currentStreak} longestStreak={streak.longestStreak} />
         </div>
 
         {/* Today's Progress */}
         <div
-          className="card fade fade-3"
+          className="card reveal"
           style={{
             padding: "18px 22px",
             marginBottom: 24,
@@ -224,7 +235,7 @@ export default function KidDashboardPage() {
 
         {/* Quick Links */}
         <div
-          className="fade fade-3"
+          className="reveal"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
@@ -266,7 +277,7 @@ export default function KidDashboardPage() {
         </div>
 
         {/* Recent Games */}
-        <div className="fade fade-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div className="reveal" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h2 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1.15rem", color: "var(--text-primary)", margin: 0 }}>
             {recentGameIds.length > 0 ? "Recent Games" : "Featured Games"}
           </h2>
@@ -275,7 +286,7 @@ export default function KidDashboardPage() {
           </Link>
         </div>
         <div
-          className="fade fade-4"
+          className="reveal"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
