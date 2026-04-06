@@ -25,7 +25,7 @@ AutiSense is a web application that captures behavioral biomarkers using real-ti
 - **Multimodal fusion** -- Body pose (70%) and facial expression (30%) late fusion for ASD risk scoring
 - **AI-generated clinical reports** -- Amazon Bedrock (Nova Pro) produces DSM-5-aligned reports with severity mapping; downloadable as PDF
 - **Kids dashboard** -- 13 therapy games, AI chat with animated animal avatars, speech practice, progress tracking, weekly reports, and a nearby-institutes map
-- **Offline-first** -- IndexedDB (Dexie v5) stores all data locally; DynamoDB sync when connectivity is available
+- **Offline-first** -- IndexedDB (Dexie v4) stores all data locally; DynamoDB sync when connectivity is available
 - **Privacy-first** -- Zero data egress during screening; cloud sync is opt-in with explicit consent
 
 ---
@@ -45,9 +45,9 @@ AutiSense is a web application that captures behavioral biomarkers using real-ti
 | Generative AI | Amazon Bedrock (Nova Lite + Nova Pro) |
 | Text-to-Speech | Amazon Polly (Neural, Joanna voice) |
 | Auth | Custom Google OAuth 2.0 + DynamoDB sessions |
-| Charts | Recharts (dashboard) + Chart.js (detector) |
+| Charts | Recharts (dashboard + detector) |
 | PDF | pdf-lib (server-side generation) |
-| E2E Testing | Playwright 1.58.2 (97 tests) |
+| E2E Testing | Playwright 1.58.2 (~71 tests) |
 | Unit Testing | Vitest 3.2.4 (68 tests) |
 | Hosting | AWS Amplify (WEB_COMPUTE SSR) |
 
@@ -109,7 +109,7 @@ Additional features: AI chat with animal avatars (dog/cat/rabbit/parrot), speech
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - npm
 
 ### Installation
@@ -159,7 +159,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 npm run build
 npm run test:unit      # 68 Vitest unit tests
-npx playwright test    # 97 Playwright E2E tests
+npx playwright test    # ~71 Playwright E2E tests
 ```
 
 ---
@@ -169,14 +169,14 @@ npx playwright test    # 97 Playwright E2E tests
 ```
 AutiSense/
 ├── app/
-│   ├── api/               14 API routes (auth, chat, feed, nearby, report, sync, tts)
+│   ├── api/               15 API routes (auth, chat, feed, health, nearby, report, sync, tts)
 │   ├── auth/              Login page
 │   ├── components/        11 shared UI components
 │   ├── contexts/          AuthContext (Google OAuth)
 │   ├── dashboard/         Clinician dashboard + child profiles
 │   ├── feed/              Community feed (posts, reactions)
 │   ├── games/             7 therapy games (clinician-facing)
-│   ├── hooks/             4 custom hooks (auth, camera, inference)
+│   ├── hooks/             5 custom hooks (auth, camera, inference, theme)
 │   ├── intake/            10-step screening flow
 │   ├── kid-dashboard/     Kids hub (6 games, AI chat, progress, reports, map)
 │   ├── lib/               Business logic
@@ -192,7 +192,7 @@ AutiSense/
 ├── public/models/         4 ONNX models (~47 MB total)
 ├── server/                Lambda handler + DynamoDB setup script
 ├── __tests__/             7 Vitest unit test files (68 tests)
-├── tests/                 4 Playwright E2E spec files (97 tests)
+├── tests/                 4 Playwright E2E spec files (~71 tests)
 ├── workers/               ONNX inference Web Worker
 └── docs/                  DOCS.md, SETUP_GUIDE.md, Amazon_usage.md
 ```
@@ -265,6 +265,7 @@ See [`docs/Amazon_usage.md`](docs/Amazon_usage.md) for the complete AWS architec
 | `/api/feed` | GET/POST | DynamoDB | In-memory store |
 | `/api/sync` | POST | DynamoDB | Error response |
 | `/api/nearby` | POST | -- (Overpass API) | -- |
+| `/api/health` | GET | DynamoDB | Degraded status |
 
 ---
 

@@ -44,7 +44,7 @@ Environment variables are configured in the Amplify Console:
 
 ```bash
 npm run test:unit      # Vitest unit tests (68 tests, also runs in Amplify preBuild)
-npx playwright test    # Playwright E2E tests (~97 tests)
+npx playwright test    # Playwright E2E tests (~71 tests)
 npm run lint           # ESLint
 npm run type-check     # TypeScript
 ```
