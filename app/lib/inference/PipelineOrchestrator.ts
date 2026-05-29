@@ -15,7 +15,11 @@ import { BEHAVIOR_CLASSES } from "../../types/inference";
 
 /** Default model paths — absolute URLs required for Web Worker context. */
 const YOLO_MODEL_PATH = `${self.location.origin}/models/yolo26n-pose-int8.onnx`;
-const TCN_MODEL_PATH = `${self.location.origin}/models/pose-tcn-int8.onnx`;
+// Body TCN: v2 (FP32, 336 KB) trained on MIT-licensed ASDPose. Same [1,64,86]→[1,6]
+// interface and class order as v1; feature encoder is unchanged (numerically identical
+// to the canonical Python encoder it was trained with). To roll back to the v1 INT8
+// model, set this to "/models/pose-tcn-int8.onnx" (still present in public/models).
+const TCN_MODEL_PATH = `${self.location.origin}/models/pose-tcn-v2-seed1.onnx`;
 
 export class PipelineOrchestrator {
   private yolo = new YoloEngine();
