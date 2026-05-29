@@ -30,10 +30,11 @@ export async function POST(request: NextRequest) {
     status: 303, // See Other — proper redirect after POST
   });
 
-  // Clear the session cookie
+  // Clear the session cookie. A __Host- cookie only clears when the clearing
+  // cookie also carries Secure + Path=/ (matching how it was set).
   response.cookies.set(AUTH_CONFIG.sessionCookieName, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "lax",
     maxAge: 0,
     path: "/",

@@ -16,8 +16,12 @@ export const AUTH_CONFIG = {
     return secret || "";
   },
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  sessionCookieName: "autisense-session",
+  // __Host- prefix binds the cookie to this exact host over HTTPS with Path=/
+  // and no Domain attribute — blocks subdomain cookie-tossing / fixation.
+  // (Renaming logs existing users out once; their old-named cookie is ignored.)
+  sessionCookieName: "__Host-autisense-session",
   oauthStateCookieName: "autisense-oauth-state",
+  pkceCookieName: "autisense-oauth-verifier",
   sessionMaxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in ms
   sessionMaxAgeSeconds: 30 * 24 * 60 * 60, // 30 days in seconds (for cookie maxAge)
   google: {

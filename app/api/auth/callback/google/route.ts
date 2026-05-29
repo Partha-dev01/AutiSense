@@ -12,7 +12,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_CONFIG } from "@/app/lib/auth/config";
-import { upsertGoogleUser, createSessionForUser } from "@/app/lib/auth/dynamodb";
+import { upsertGoogleUser, createSessionForUser, deleteAuthSession } from "@/app/lib/auth/dynamodb";
 import { logger } from "@/app/lib/logger";
 
 const log = logger("auth/callback");
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const { appUrl, google, oauthStateCookieName, sessionCookieName, sessionMaxAgeSeconds } =
+  const { appUrl, google, oauthStateCookieName, pkceCookieName, sessionCookieName, sessionMaxAgeSeconds } =
     AUTH_CONFIG;
 
   // ─── Error from Google ──────────────────────────────────────────
@@ -45,16 +45,21 @@ export async function GET(request: NextRequest) {
 
   try {
     // ─── Exchange code for tokens ─────────────────────────────────
+    const tokenParams = new URLSearchParams({
+      code,
+      client_id: AUTH_CONFIG.googleClientId,
+      client_secret: AUTH_CONFIG.googleClientSecret,
+      redirect_uri: `${appUrl}/api/auth/callback/google`,
+      grant_type: "authorization_code",
+    });
+    // PKCE: present the verifier matching the challenge from the authorize step.
+    const codeVerifier = request.cookies.get(pkceCookieName)?.value;
+    if (codeVerifier) tokenParams.set("code_verifier", codeVerifier);
+
     const tokenResponse = await fetch(google.tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: AUTH_CONFIG.googleClientId,
-        client_secret: AUTH_CONFIG.googleClientSecret,
-        redirect_uri: `${appUrl}/api/auth/callback/google`,
-        grant_type: "authorization_code",
-      }),
+      body: tokenParams,
     });
 
     if (!tokenResponse.ok) {
@@ -104,7 +109,13 @@ export async function GET(request: NextRequest) {
       picture: profile.picture,
     });
 
-    // ─── Create session ───────────────────────────────────────────
+    // ─── Rotate + create session ──────────────────────────────────
+    // Invalidate any pre-existing session bound to this browser before issuing
+    // a new one (session-fixation defense — OWASP Session Management).
+    const previousToken = request.cookies.get(sessionCookieName)?.value;
+    if (previousToken) {
+      try { await deleteAuthSession(previousToken); } catch { /* best-effort */ }
+    }
     const sessionToken = await createSessionForUser(user.id);
 
     // ─── Set cookie & redirect ────────────────────────────────────
@@ -118,8 +129,9 @@ export async function GET(request: NextRequest) {
       path: "/",
     });
 
-    // Clear the OAuth state cookie
+    // Clear the one-time OAuth state + PKCE verifier cookies.
     response.cookies.delete(oauthStateCookieName);
+    response.cookies.delete(pkceCookieName);
 
     return response;
   } catch (err) {
