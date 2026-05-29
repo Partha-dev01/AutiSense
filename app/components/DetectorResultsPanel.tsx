@@ -12,11 +12,9 @@ interface Props {
   totalTime: number;
   mode?: "countdown" | "elapsed";
   elapsed?: number;
-  /** When true, show only the body-behavior panel (no face card, no fusion gauge). */
-  bodyOnly?: boolean;
 }
 
-export default function DetectorResultsPanel({ result, bodyOnly = false }: Props) {
+export default function DetectorResultsPanel({ result }: Props) {
   const asdRisk = result?.multimodal?.asdRisk ?? 0;
   const bodyRisk = result?.multimodal?.bodyRisk ?? 0;
   const faceRisk = result?.multimodal?.faceRisk ?? 0;
@@ -29,8 +27,7 @@ export default function DetectorResultsPanel({ result, bodyOnly = false }: Props
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* ASD Risk Gauge — multimodal only (hidden in body-only mode) */}
-      {!bodyOnly && (
+      {/* ASD Risk Gauge — full width of right column */}
       <div className="card" style={{ padding: "18px 22px", textAlign: "center" }}>
         <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "1rem", marginBottom: 14 }}>
           ASD Risk Assessment
@@ -62,10 +59,9 @@ export default function DetectorResultsPanel({ result, bodyOnly = false }: Props
           </div>
         </div>
       </div>
-      )}
 
-      {/* Body behavior (+ Face when multimodal) */}
-      <div className={bodyOnly ? undefined : "detector-behavior-grid"}>
+      {/* Body + Face behavior — side by side on desktop, stacked on mobile (face first) */}
+      <div className="detector-behavior-grid">
         {/* Body behavior bars */}
         <div className="card" style={{ padding: "16px 18px" }}>
           <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.95rem", marginBottom: 12 }}>
@@ -97,8 +93,7 @@ export default function DetectorResultsPanel({ result, bodyOnly = false }: Props
           )}
         </div>
 
-        {/* Face behavior bars — multimodal only */}
-        {!bodyOnly && (
+        {/* Face behavior bars */}
         <div className="card" style={{ padding: "16px 18px" }}>
           <h3 style={{ fontFamily: "'Fredoka',sans-serif", fontWeight: 600, fontSize: "0.95rem", marginBottom: 12 }}>
             Face Analysis
@@ -130,7 +125,6 @@ export default function DetectorResultsPanel({ result, bodyOnly = false }: Props
             </>
           )}
         </div>
-        )}
       </div>
 
     </div>

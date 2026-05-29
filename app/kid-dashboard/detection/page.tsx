@@ -35,12 +35,12 @@ export default function DetectionPage() {
   const { result, isModelLoaded, error, modelError, backend, setModality } =
     useDetectorInference(videoRef, canvasRef, camReady && started && !stopped);
 
-  // Detection is body-only. The live pose pipeline must stay fast enough for the
-  // 64-frame TCN window to capture motion, so the heavy FER+/MediaPipe face
-  // pipeline is intentionally never loaded here. Set explicitly so this page's
-  // intent doesn't silently depend on the worker's default modality.
+  // Run both body + face pipelines. The worker orchestrator defaults to "body"
+  // and only lazy-loads the face models (FER+ / Face-TCN) when a face-requiring
+  // modality is selected, so we enable "both" explicitly once on mount — this is
+  // what populates the Face Analysis card and the ASD-risk fusion gauge.
   useEffect(() => {
-    setModality("body");
+    setModality("both");
   }, [setModality]);
 
   // ---- Camera ----
@@ -380,14 +380,13 @@ export default function DetectionPage() {
                 )}
               </div>
 
-              {/* Right: Results panel (body-only — no face/fusion gauge) */}
+              {/* Right: Results panel (body + face) */}
               <DetectorResultsPanel
                 result={result}
                 timeLeft={0}
                 totalTime={1}
                 mode="elapsed"
                 elapsed={elapsed}
-                bodyOnly
               />
             </div>
           </div>
