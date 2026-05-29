@@ -2,7 +2,7 @@
  * InferenceWorker — Web Worker that runs the full multimodal autism detector
  * inference pipeline off the main thread so that the UI remains responsive.
  *
- * Ported from the standalone detector (Autism_code/web/src/workers/InferenceWorker.ts)
+ * Ported from the standalone detector (autisense-ml/web/src/workers/InferenceWorker.ts)
  * and adapted for the AutiSense Next.js app.
  *
  * Protocol:

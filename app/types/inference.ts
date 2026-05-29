@@ -1,7 +1,7 @@
 /**
  * Shared type definitions for the multimodal autism detector inference pipeline.
  *
- * Ported from the standalone detector app (Autism_code/web/src/types.ts)
+ * Ported from the standalone detector app (autisense-ml/web/src/types.ts)
  * for integration with AutiSense. All inference runs client-side in a
  * Web Worker — no video or audio ever leaves the device.
  */

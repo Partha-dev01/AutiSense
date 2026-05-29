@@ -904,7 +904,7 @@ Items identified during Phase 1+2 security audit, deliberately deferred due to s
   - Otherwise: shows the highest ASD-related behavior class (indices 0-4)
   - Eliminates frame-mismatch display inconsistencies
 
-**Training Model Notes (from `Autism_code/` analysis):**
+**Training Model Notes (from `autisense-ml/` analysis):**
 - Body TCN best F1: 0.384 (macro-averaged, 6 classes)
 - Classes 2 (head_banging) and 4 (toe_walking): 0.0 F1 — zero validation samples
 - Class 0 (hand_flapping): 0.68 F1 — strongest, causes bias

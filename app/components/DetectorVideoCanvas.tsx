@@ -1,7 +1,7 @@
 /**
  * DetectorVideoCanvas — displays live webcam feed with skeleton overlay.
  * Re-themed for AutiSense (sage green palette, Fredoka/Nunito fonts).
- * Ported from Autism_code/web/src/components/VideoCanvas.tsx
+ * Ported from autisense-ml/web/src/components/VideoCanvas.tsx
  */
 "use client";
 import { useRef, useEffect } from "react";

@@ -2,7 +2,7 @@
  * useDetectorInference — React hook that manages the ONNX inference worker,
  * feeds webcam frames, and returns multimodal pipeline results.
  *
- * Adapted from Autism_code/web/src/hooks/useInference.ts for AutiSense.
+ * Adapted from autisense-ml/web/src/hooks/useInference.ts for AutiSense.
  * Worker runs off main thread via requestAnimationFrame loop.
  */
 
