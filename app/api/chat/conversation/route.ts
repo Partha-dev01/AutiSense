@@ -178,11 +178,21 @@ function buildFallbackTurn(
 /*  Parse LLM JSON response                                            */
 /* ------------------------------------------------------------------ */
 
+/** Motor-game actions the model is allowed to request. Model output is
+ *  untrusted (prompt-injection): any other value is dropped. */
+const ALLOWED_ACTIONS = ["wave", "clap", "touch_nose", "raise_arms", "touch_head", "touch_ears"] as const;
+function safeAction(action: unknown): string | undefined {
+  return typeof action === "string" && (ALLOWED_ACTIONS as readonly string[]).includes(action)
+    ? action
+    : undefined;
+}
+
 function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback"> | null {
   // Try direct parse
   try {
     const parsed = JSON.parse(raw);
     if (parsed.text && parsed.turnType) {
+      const action = safeAction(parsed.action);
       return {
         text: parsed.text,
         metadata: {
@@ -191,7 +201,7 @@ function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback">
           responseRelevance: typeof parsed.responseRelevance === "number" ? parsed.responseRelevance : 0.5,
           shouldEnd: parsed.shouldEnd === true,
           domain: parsed.domain ?? "general",
-          ...(parsed.action ? { action: parsed.action } : {}),
+          ...(action ? { action } : {}),
         },
       };
     }
@@ -206,6 +216,7 @@ function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback">
     try {
       const parsed = JSON.parse(jsonMatch[1]);
       if (parsed.text) {
+        const action = safeAction(parsed.action);
         return {
           text: parsed.text,
           metadata: {
@@ -214,7 +225,7 @@ function parseAgentResponse(raw: string): Omit<ConversationResponse, "fallback">
             responseRelevance: typeof parsed.responseRelevance === "number" ? parsed.responseRelevance : 0.5,
             shouldEnd: parsed.shouldEnd === true,
             domain: parsed.domain ?? "general",
-            ...(parsed.action ? { action: parsed.action } : {}),
+            ...(action ? { action } : {}),
           },
         };
       }

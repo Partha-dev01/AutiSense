@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AUTH_CONFIG } from "@/app/lib/auth/config";
 import { getAuthSession, getUserById } from "@/app/lib/auth/dynamodb";
 import { getAppCredentials, getAppRegion } from "@/app/lib/aws/credentials";
+import { getClientIp } from "@/app/lib/clientIp";
 import { logger } from "@/app/lib/logger";
 
 const log = logger("feed");
@@ -71,7 +72,7 @@ async function getUser(request: NextRequest) {
 export async function GET(request: NextRequest) {
   // IP-based rate limiting for unauthenticated endpoint
   const { apiRateLimiter } = await import("@/app/lib/rateLimit");
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
   const rl = apiRateLimiter.check(`feed-get:${ip}`);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
@@ -183,12 +184,20 @@ async function handleCreate(body: Record<string, unknown>, userId: string) {
 // ─── React to a post ─────────────────────────────────────────────────
 async function handleReaction(body: Record<string, unknown>, userId: string) {
   const { postId, createdAt, type } = body;
-  if (!postId || !createdAt || !["heart", "helpful", "relate"].includes(type as string)) {
-    return NextResponse.json({ error: "Invalid reaction — need postId, createdAt, type" }, { status: 400 });
+  if (
+    typeof postId !== "string" ||
+    typeof createdAt !== "number" ||
+    !Number.isFinite(createdAt) ||
+    !["heart", "helpful", "relate"].includes(type as string)
+  ) {
+    return NextResponse.json(
+      { error: "Invalid reaction — need postId (string), createdAt (number), type" },
+      { status: 400 },
+    );
   }
 
   const reactionType = type as "heart" | "helpful" | "relate";
-  const key = { postId: postId as string, createdAt: createdAt as number };
+  const key = { postId, createdAt };
 
   if (shouldUseDynamo()) {
     try {
@@ -204,29 +213,43 @@ async function handleReaction(body: Record<string, unknown>, userId: string) {
       const users = reactedBy[reactionType] || [];
       const already = users.includes(userId);
 
-      if (already) {
-        const newUsers = users.filter((u: string) => u !== userId);
-        await docClient.send(
-          new UpdateCommand({
-            TableName: TABLE,
-            Key: key,
-            UpdateExpression: "SET reactions.#t = reactions.#t - :one, reactedBy.#t = :users",
-            ExpressionAttributeNames: { "#t": reactionType },
-            ExpressionAttributeValues: { ":one": 1, ":users": newUsers },
-          }),
-        );
-        return NextResponse.json({ toggled: false });
-      } else {
-        await docClient.send(
-          new UpdateCommand({
-            TableName: TABLE,
-            Key: key,
-            UpdateExpression: "SET reactions.#t = reactions.#t + :one, reactedBy.#t = list_append(if_not_exists(reactedBy.#t, :empty), :user)",
-            ExpressionAttributeNames: { "#t": reactionType },
-            ExpressionAttributeValues: { ":one": 1, ":user": [userId], ":empty": [] },
-          }),
-        );
-        return NextResponse.json({ toggled: true });
+      // Both branches carry a ConditionExpression so a concurrent or replayed
+      // toggle can't double-count: each user contributes at most ±1. This closes
+      // the reaction-counter inflation (BOLA) vector.
+      try {
+        if (already) {
+          const newUsers = users.filter((u: string) => u !== userId);
+          await docClient.send(
+            new UpdateCommand({
+              TableName: TABLE,
+              Key: key,
+              UpdateExpression: "SET reactions.#t = if_not_exists(reactions.#t, :zero) - :one, reactedBy.#t = :users",
+              ConditionExpression: "contains(reactedBy.#t, :userStr)",
+              ExpressionAttributeNames: { "#t": reactionType },
+              ExpressionAttributeValues: { ":one": 1, ":zero": 0, ":users": newUsers, ":userStr": userId },
+            }),
+          );
+          return NextResponse.json({ toggled: false });
+        } else {
+          await docClient.send(
+            new UpdateCommand({
+              TableName: TABLE,
+              Key: key,
+              UpdateExpression: "SET reactions.#t = if_not_exists(reactions.#t, :zero) + :one, reactedBy.#t = list_append(if_not_exists(reactedBy.#t, :empty), :user)",
+              ConditionExpression: "attribute_not_exists(reactedBy.#t) OR NOT contains(reactedBy.#t, :userStr)",
+              ExpressionAttributeNames: { "#t": reactionType },
+              ExpressionAttributeValues: { ":one": 1, ":zero": 0, ":user": [userId], ":userStr": userId, ":empty": [] },
+            }),
+          );
+          return NextResponse.json({ toggled: true });
+        }
+      } catch (condErr) {
+        // Condition failed → a concurrent/duplicate toggle already applied the
+        // change. Return the idempotent final state without a second count.
+        if ((condErr as { name?: string })?.name === "ConditionalCheckFailedException") {
+          return NextResponse.json({ toggled: !already });
+        }
+        throw condErr;
       }
     } catch (err) {
       log.error("DynamoDB reaction failed, falling back", { error: err });
@@ -255,11 +278,11 @@ async function handleReaction(body: Record<string, unknown>, userId: string) {
 // ─── Delete post ─────────────────────────────────────────────────────
 async function handleDelete(body: Record<string, unknown>, userId: string) {
   const { postId, createdAt } = body;
-  if (!postId || !createdAt) {
-    return NextResponse.json({ error: "postId and createdAt required" }, { status: 400 });
+  if (typeof postId !== "string" || typeof createdAt !== "number" || !Number.isFinite(createdAt)) {
+    return NextResponse.json({ error: "postId (string) and createdAt (number) required" }, { status: 400 });
   }
 
-  const key = { postId: postId as string, createdAt: createdAt as number };
+  const key = { postId, createdAt };
 
   if (shouldUseDynamo()) {
     try {

@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getClientIp } from "@/app/lib/clientIp";
 import { logger } from "@/app/lib/logger";
 
 const log = logger("nearby");
@@ -28,7 +29,7 @@ const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 export async function POST(req: NextRequest) {
   // IP-based rate limiting (unauthenticated endpoint, proxies to Overpass)
   const { apiRateLimiter } = await import("@/app/lib/rateLimit");
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(req);
   const rl = apiRateLimiter.check(`nearby:${ip}`);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });

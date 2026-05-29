@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "../hooks/useAuth";
+import { clearAllLocalData, purgeOldLocalData } from "../lib/db/privacy";
 
 export default function UserMenu() {
   const { user, isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,6 +20,29 @@ export default function UserMenu() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Retention purge: once per browser session, drop on-device data older than
+  // the retention window so stale personal/health data doesn't linger.
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem("autisense-purged")) {
+        sessionStorage.setItem("autisense-purged", "1");
+        purgeOldLocalData().catch(() => {});
+      }
+    } catch { /* storage unavailable */ }
+  }, []);
+
+  const handleDeleteData = async () => {
+    if (!window.confirm(
+      "Delete ALL AutiSense data stored on this device (child profiles, screening results, chat history)? This cannot be undone.",
+    )) return;
+    setDeleting(true);
+    try {
+      await clearAllLocalData();
+    } finally {
+      window.location.reload();
+    }
+  };
 
   if (!isAuthenticated || !user) return null;
 
@@ -120,6 +145,31 @@ export default function UserMenu() {
                 {user.email}
               </div>
             </div>
+            <button
+              role="menuitem"
+              onClick={handleDeleteData}
+              disabled={deleting}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+                padding: "12px 16px",
+                border: "none",
+                borderBottom: "1px solid var(--border)",
+                background: "transparent",
+                cursor: deleting ? "default" : "pointer",
+                fontSize: "0.82rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                fontFamily: "inherit",
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--sage-50, #f5f5f5)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              {deleting ? "Deleting…" : "Delete my data (this device)"}
+            </button>
             <button
               role="menuitem"
               onClick={() => {

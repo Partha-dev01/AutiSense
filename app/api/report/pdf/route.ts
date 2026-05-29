@@ -234,8 +234,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { report, sessionDate, scores, childAge, assessmentDuration } = body;
+  // ── Sanitize & clamp ALL rendered inputs (defense-in-depth) ──────────
+  // This produces a clinical-looking artifact, so no unvalidated input may
+  // reach the PDF text, the score math, or the response headers.
+  const clamp01 = (n: unknown): number => {
+    const v = Number(n);
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0;
+  };
+  const clampPct = (n: unknown): number => {
+    const v = Number(n);
+    return Number.isFinite(v) ? Math.round(Math.min(100, Math.max(0, v))) : 0;
+  };
   const childName = String(body.childName || "Child").slice(0, 100).replace(/[^\p{L}\p{N}\s'-]/gu, "");
+  // Cap report length to prevent unbounded wrap/draw loops + oversized PDFs (DoS).
+  const report = String(body.report ?? "").slice(0, 50000);
+  // sessionDate is interpolated into the Content-Disposition header — strip
+  // CR/LF/quote/backslash to prevent HTTP response-header injection.
+  const sessionDate = String(body.sessionDate || "").replace(/[\r\n"\\]/g, "").trim().slice(0, 40) || "N/A";
+  const scores = {
+    gaze: clamp01(body.scores?.gaze),
+    motor: clamp01(body.scores?.motor),
+    vocal: clamp01(body.scores?.vocal),
+    overall: clampPct(body.scores?.overall),
+  };
+  const childAge = Number.isFinite(Number(body.childAge))
+    ? Math.min(1200, Math.max(0, Math.round(Number(body.childAge))))
+    : undefined;
+  const assessmentDuration = Number.isFinite(Number(body.assessmentDuration))
+    ? Math.min(100000, Math.max(0, Math.round(Number(body.assessmentDuration))))
+    : undefined;
 
   try {
     const pdfDoc = await PDFDocument.create();
