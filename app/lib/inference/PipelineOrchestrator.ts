@@ -90,6 +90,7 @@ export class PipelineOrchestrator {
       keypoints: detection.keypoints,
       confidence: detection.confidence,
       bbox: detection.bbox,
+      backend: this.backend,
       fps: Math.round(this.fpsSmooth * 10) / 10,
       latencyMs: Math.round(latencyMs * 10) / 10,
     };

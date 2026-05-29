@@ -32,10 +32,16 @@ export default function DetectionPage() {
   const startingRef = useRef(false);
   const finalResultRef = useRef<PipelineResult | null>(null);
 
-  const { result, isModelLoaded, error, modelError, backend, setModality: _setModality } =
+  const { result, isModelLoaded, error, modelError, backend, setModality } =
     useDetectorInference(videoRef, canvasRef, camReady && started && !stopped);
 
-  // Always run both body + face pipelines
+  // Detection is body-only. The live pose pipeline must stay fast enough for the
+  // 64-frame TCN window to capture motion, so the heavy FER+/MediaPipe face
+  // pipeline is intentionally never loaded here. Set explicitly so this page's
+  // intent doesn't silently depend on the worker's default modality.
+  useEffect(() => {
+    setModality("body");
+  }, [setModality]);
 
   // ---- Camera ----
   const startCamera = useCallback(async () => {
@@ -155,6 +161,12 @@ export default function DetectionPage() {
 
   // Use final snapshot when stopped, live result when running
   const displayResult = stopped ? finalResultRef.current : result;
+
+  // Perf badge: prefer the real ONNX execution backend reported by the worker
+  // (result.backend); fall back to the main-thread WebGPU probe before the first
+  // frame arrives. WASM here means slow inference → fast motion gets aliased away.
+  const liveBackend = (result?.backend ?? backend) as "webgpu" | "wasm" | "";
+  const backendIsGpu = liveBackend === "webgpu";
 
   return (
     <div className="page">
@@ -347,21 +359,35 @@ export default function DetectionPage() {
                   </button>
                 </div>
 
-                {/* Backend info */}
+                {/* Perf badge — real backend + FPS + latency, so slow live
+                    detection (WASM fallback) is visible at a glance. */}
                 {isModelLoaded && (
-                  <div style={{ textAlign: "center", fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                    Backend: {backend || "detecting..."} · Latency: {result?.latencyMs?.toFixed(0) ?? "--"}ms
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center", flexWrap: "wrap", fontSize: "0.72rem" }}>
+                    <span style={{
+                      padding: "2px 9px", borderRadius: 999, fontWeight: 700, letterSpacing: "0.02em",
+                      background: backendIsGpu ? "var(--sage-100)" : "var(--peach-100)",
+                      color: backendIsGpu ? "var(--sage-600)" : "var(--peach-300)",
+                    }}>
+                      {liveBackend ? liveBackend.toUpperCase() : "DETECTING…"}
+                    </span>
+                    <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
+                      {result?.fps?.toFixed(1) ?? "--"} FPS
+                    </span>
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {result?.latencyMs?.toFixed(0) ?? "--"} ms/frame
+                    </span>
                   </div>
                 )}
               </div>
 
-              {/* Right: Results panel */}
+              {/* Right: Results panel (body-only — no face/fusion gauge) */}
               <DetectorResultsPanel
                 result={result}
                 timeLeft={0}
                 totalTime={1}
                 mode="elapsed"
                 elapsed={elapsed}
+                bodyOnly
               />
             </div>
           </div>

@@ -182,6 +182,7 @@ export class MultimodalOrchestrator {
       confidence: bodyResult?.confidence,
       bbox: bodyResult?.bbox,
       behavior: bodyResult?.behavior,
+      backend: this.backend,
       fps: Math.round(this.fpsSmooth * 10) / 10,
       latencyMs: Math.round(latencyMs * 10) / 10,
     };

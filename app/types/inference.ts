@@ -135,6 +135,8 @@ export interface PipelineResult {
   fps: number;
   /** End-to-end latency of the last frame in milliseconds. */
   latencyMs: number;
+  /** ONNX Runtime execution backend actually in use ("webgpu" | "wasm"). */
+  backend?: "webgpu" | "wasm";
   /** Body pipeline latency in milliseconds. */
   bodyLatencyMs?: number;
   /** Face pipeline latency in milliseconds. */
