@@ -10,6 +10,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
 import ThemeToggle from "../../components/ThemeToggle";
 import { IS_FOSS_BUILD } from "../../lib/foss";
+import { pickFallback } from "../../lib/chat/guestWords";
 
 /** Browser speechSynthesis playback (FOSS build + Polly fallback). */
 function browserTts(text: string): Promise<void> {
@@ -158,6 +159,14 @@ export default function CommunicationPage() {
         if (sid) {
           const session = await getSession(sid);
           if (session?.ageMonths) ageMonths = session.ageMonths;
+        }
+        // FOSS build: no Bedrock route — fill from the local curated pool.
+        if (IS_FOSS_BUILD) {
+          if (!cancelled) {
+            setWords(pickFallback("words", ageMonths, 4));
+            setIsLoading(false);
+          }
+          return;
         }
         const res = await fetch("/api/chat/generate-words", {
           method: "POST",

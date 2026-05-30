@@ -17,6 +17,7 @@ import { addGameActivity } from "../../lib/db/gameActivity.repository";
 import { updateStreak } from "../../lib/db/streak.repository";
 import { useAuthGuard } from "../../hooks/useAuthGuard";
 import { speakText, checkMicSupport, stopSpeaking } from "../../lib/audio/ttsHelper";
+import { IS_FOSS_BUILD } from "../../lib/foss";
 import NavLogo from "../../components/NavLogo";
 import UserMenu from "../../components/UserMenu";
 import ThemeToggle from "../../components/ThemeToggle";
@@ -84,6 +85,8 @@ export default function SpeechPracticePage() {
   /* ---------- fetch words ---------- */
   const fetchWords = useCallback(async (count: number): Promise<string[]> => {
     const needed = Math.max(3, count); // always at least 3 words
+    // FOSS build: no Bedrock route — use the local curated word pool.
+    if (IS_FOSS_BUILD) return shuffle([...FALLBACK_WORDS]).slice(0, needed);
     try {
       const res = await fetch("/api/chat/generate-words", {
         method: "POST",

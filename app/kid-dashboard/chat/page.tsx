@@ -6,6 +6,8 @@ import { useAuthGuard } from "../../hooks/useAuthGuard";
 import AnimalAvatar from "../../components/AnimalAvatar";
 import { db } from "../../lib/db/schema";
 import { speakText } from "../../lib/audio/ttsHelper";
+import { IS_FOSS_BUILD } from "../../lib/foss";
+import { guestChatTurn } from "../../lib/chat/guestChat";
 import NavLogo from "../../components/NavLogo";
 import UserMenu from "../../components/UserMenu";
 import ThemeToggle from "../../components/ThemeToggle";
@@ -72,6 +74,11 @@ export default function ChatPage() {
 
   /* ---- fetch AI turn ---- */
   const fetchAIResponse = async (history: ChatMsg[], turn: number): Promise<{ text: string; shouldEnd: boolean }> => {
+    // FOSS build: no Bedrock route — generate the scripted turn locally.
+    if (IS_FOSS_BUILD) {
+      setFallbackMode(true);
+      return guestChatTurn(childName, turn, animal ?? undefined);
+    }
     try {
       const res = await fetch("/api/chat/conversation", {
         method: "POST", headers: { "Content-Type": "application/json" },
