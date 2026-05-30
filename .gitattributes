@@ -1,0 +1,9 @@
+# Vendored binary / asset files — never apply text or line-ending conversion,
+# so they stay byte-identical across platforms (matters for reproducible builds
+# and asset integrity: ONNX models, ORT WASM runtime, self-hosted fonts).
+*.wasm binary
+*.onnx binary
+*.woff2 binary
+# The vendored ONNX Runtime loader is minified third-party JS — treat as binary
+# so Git never rewrites its line endings (CRLF<->LF) on checkout.
+public/ort-wasm/*.mjs binary

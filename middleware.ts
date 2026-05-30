@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://unpkg.com https://img.youtube.com`,
-    `connect-src 'self' https://overpass-api.de https://accounts.google.com https://oauth2.googleapis.com https://cdn.jsdelivr.net`,
+    `connect-src 'self' https://overpass-api.de https://accounts.google.com https://oauth2.googleapis.com`,
     `font-src 'self'`,
     `media-src 'self' blob:`,
     `worker-src 'self' blob:`,
