@@ -9,6 +9,8 @@ import type { Session } from "../../types/session";
 import { useTheme } from "../../hooks/useTheme";
 import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
 import ThemeToggle from "../../components/ThemeToggle";
+import { IS_FOSS_BUILD } from "../../lib/foss";
+import { buildTemplateSummary, buildTemplateReport } from "../../lib/reports/guestSummary";
 
 const STEPS = INTAKE_STEPS;
 const STEP_IDX = STEP_INDEX["report"];
@@ -107,6 +109,22 @@ function ReportPage() {
         overallScore: 50,
         flags: { socialCommunication: false, restrictedBehavior: false },
       };
+
+      // FOSS build: no Bedrock route — generate the report locally from the
+      // same deterministic templates the server uses when AI is unavailable.
+      if (IS_FOSS_BUILD) {
+        if (type === "summary") {
+          setReportText(buildTemplateSummary(bio));
+          setAiEnriched(false);
+        } else {
+          const local = buildTemplateReport(bio, session?.ageMonths);
+          setReportText(local.report);
+          setSections(local.sections);
+          setAiEnriched(false);
+        }
+        setReportReady(true);
+        return;
+      }
 
       if (type === "summary") {
         const res = await fetch("/api/report/summary", {

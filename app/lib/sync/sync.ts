@@ -20,6 +20,7 @@ import {
 } from "../db/sync.repository";
 import { buildSyncPayload, markSessionSynced } from "../db/session.repository";
 import { aggregateBiomarkers } from "../db/biomarker.repository";
+import { IS_FOSS_BUILD } from "../foss";
 
 // Maximum retry attempts before a session is left in the queue
 const MAX_RETRIES = 5;
@@ -34,6 +35,12 @@ let isFlushing = false;
  * Returns a cleanup function — use this as the return value of useEffect.
  */
 export function startSyncListener(): () => void {
+  // FOSS build: no cloud backend — sessions stay local in IndexedDB only.
+  // Skip the listener entirely so nothing is ever POSTed to /api/sync.
+  if (IS_FOSS_BUILD) {
+    return () => {};
+  }
+
   // Flush immediately if already online
   if (navigator.onLine) {
     flushSyncQueue();

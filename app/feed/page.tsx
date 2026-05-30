@@ -9,6 +9,12 @@ import UserMenu from "../components/UserMenu";
 import { Plus, X, Send, Trash2 } from "lucide-react";
 import BottomNav from "../components/BottomNav";
 import { useTheme } from "../hooks/useTheme";
+import { IS_FOSS_BUILD } from "../lib/foss";
+
+// The community feed is a cloud-only feature (shared posts via the backend).
+// In the offline FOSS build there is no server, so it is shown as unavailable.
+const FEED_OFFLINE_MESSAGE =
+  "The community feed needs an internet connection and isn't available in the offline app.";
 
 type Category = "all" | "tip" | "milestone" | "question" | "resource";
 
@@ -62,6 +68,12 @@ export default function FeedPage() {
   const userId = user?.id || "";
 
   const loadPosts = useCallback(async () => {
+    // FOSS build: no feed backend — show the offline notice, make no request.
+    if (IS_FOSS_BUILD) {
+      setFeedError(FEED_OFFLINE_MESSAGE);
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch("/api/feed?limit=50");
       const data = await res.json();
@@ -87,6 +99,7 @@ export default function FeedPage() {
 
   const handlePost = async () => {
     if (!content.trim() || posting) return;
+    if (IS_FOSS_BUILD) { setFeedError(FEED_OFFLINE_MESSAGE); return; }
     setPosting(true);
     try {
       await fetch("/api/feed", {
@@ -106,6 +119,7 @@ export default function FeedPage() {
   };
 
   const handleReaction = async (post: FeedPost, type: "heart" | "helpful" | "relate") => {
+    if (IS_FOSS_BUILD) { setFeedError(FEED_OFFLINE_MESSAGE); return; }
     try {
       await fetch("/api/feed", {
         method: "POST",
@@ -120,6 +134,7 @@ export default function FeedPage() {
   };
 
   const handleDelete = async (post: FeedPost) => {
+    if (IS_FOSS_BUILD) { setFeedError(FEED_OFFLINE_MESSAGE); return; }
     try {
       await fetch("/api/feed", {
         method: "POST",
