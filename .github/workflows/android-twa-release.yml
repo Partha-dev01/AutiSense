@@ -1,0 +1,83 @@
+# Android TWA (Trusted Web Activity) build + publish to GitHub Releases.
+#
+# Uses Bubblewrap (@bubblewrap/cli) to build a signed APK/AAB from twa/twa-manifest.json
+# (which wraps https://autisense.imaginaerium.in into package in.imaginaerium.autisense)
+# and uploads the artifacts to the GitHub Release for the pushed tag.
+#
+# SECRETS (all REQUIRED for a signed release build):
+#   ANDROID_KEYSTORE_B64       base64 of the signing keystore (.jks/.keystore).
+#                              Generate locally:  base64 -w0 android.keystore > ks.b64
+#   ANDROID_KEYSTORE_PASSWORD  keystore (store) password
+#   ANDROID_KEY_ALIAS          key alias inside the keystore
+#   ANDROID_KEY_PASSWORD       password for that key
+#
+# IMPORTANT: the SHA-256 fingerprint of THIS keystore must match the one published in
+# the site's /.well-known/assetlinks.json (Digital Asset Links), or the TWA will show
+# the browser address bar instead of running full-screen. Re-run assetlinks generation
+# (bubblewrap fingerprint) whenever the signing key changes.
+
+name: Android TWA Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Bubblewrap CLI
+        run: npm i -g @bubblewrap/cli
+
+      - name: Restore signing keystore
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          # twa-manifest.json signingKey.path is "../android.keystore" (relative to twa/),
+          # which resolves to the repo root. Decode the keystore there so it matches.
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/android.keystore"
+
+      - name: Build signed TWA (APK + AAB)
+        working-directory: ./twa
+        env:
+          # Bubblewrap reads these for non-interactive signing.
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          bubblewrap build \
+            --manifest="./twa-manifest.json" \
+            --signingKeyPath="$GITHUB_WORKSPACE/android.keystore" \
+            --signingKeyAlias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            --skipPwaValidation
+
+      - name: Publish artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            twa/app-release-signed.apk
+            twa/app-release-bundle.aab
+          fail_on_unmatched_files: false

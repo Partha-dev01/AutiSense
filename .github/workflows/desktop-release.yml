@@ -1,0 +1,75 @@
+# Desktop (Electron) installer build + publish to GitHub Releases.
+#
+# Builds the self-contained Electron wrapper in ./electron with electron-builder
+# and publishes the per-OS installers to the GitHub Release for the pushed tag:
+#   - windows-latest -> NSIS .exe
+#   - ubuntu-latest  -> .deb + .AppImage
+#   - macos-latest   -> .dmg
+# electron-builder auto-detects the runner OS and builds the targets configured
+# in electron/electron-builder.yml, then uploads them to the release (it reads
+# the publish: github block in that file).
+#
+# SECRETS
+#   REQUIRED:
+#     (none beyond the auto-provided GITHUB_TOKEN — used by electron-builder as GH_TOKEN)
+#   OPTIONAL — code signing / notarization. If a secret is unset it is passed as
+#   an empty string and electron-builder simply skips signing for that step.
+#   Builds still SUCCEED unsigned.
+#     CSC_LINK                    base64 or URL of the code-signing cert (.pfx win / .p12 mac)
+#     CSC_KEY_PASSWORD            password for the cert above
+#     APPLE_ID                    Apple ID email           (macOS notarization)
+#     APPLE_APP_SPECIFIC_PASSWORD app-specific password    (macOS notarization)
+#     APPLE_TEAM_ID               Apple Developer Team ID  (macOS notarization)
+#
+# NOTE: Unsigned Windows builds trigger SmartScreen warnings and unsigned/un-notarized
+# macOS builds trigger Gatekeeper ("unidentified developer") warnings. Add the signing
+# secrets above to remove them.
+
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./electron
+        run: npm ci
+
+      - name: Build and publish installers
+        working-directory: ./electron
+        run: npx electron-builder --publish always
+        env:
+          # electron-builder reads GH_TOKEN to create/upload the GitHub Release.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional code-signing (Windows + macOS). Empty when secret unset -> signing skipped.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Optional macOS notarization. Empty when unset -> notarization skipped.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
