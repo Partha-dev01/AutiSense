@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored, minified ONNX Runtime loader (self-hosted WASM) — not our source.
     "public/ort-wasm/**",
+    // Electron desktop wrapper — CommonJS main process, built separately (not Next source).
+    "electron/**",
   ]),
   {
     rules: {

@@ -1,0 +1,48 @@
+appId: in.imaginaerium.autisense
+productName: AutiSense
+copyright: © AutiSense
+
+directories:
+  output: dist
+  buildResources: build
+
+# Thin wrapper: ship only the shell files — no Next assets, no model.
+files:
+  - main.js
+  - preload.js
+  - package.json
+
+# Custom URL scheme used by the desktop OAuth hand-off (autisense://auth?...).
+protocols:
+  - name: AutiSense
+    schemes:
+      - autisense
+
+# Self-update + release hosting from the GitHub repo's Releases.
+publish:
+  provider: github
+  owner: Partha-dev01
+  repo: AutiSense
+
+win:
+  target:
+    - nsis
+  # icon: build/icon.ico   # add a 256x256 .ico under electron/build/ before public release
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  target:
+    - deb
+    - AppImage
+  category: Education
+  # icon: build/icon.png
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.education
+  # icon: build/icon.icns

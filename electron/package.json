@@ -1,0 +1,24 @@
+{
+  "name": "autisense-desktop",
+  "version": "1.0.0",
+  "description": "AutiSense desktop wrapper — a thin client over https://autisense.imaginaerium.in (bundles nothing; the web app + models are served live).",
+  "main": "main.js",
+  "author": "AutiSense",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac",
+    "publish": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  }
+}
