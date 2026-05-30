@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useAuth } from "./hooks/useAuth";
 import ThemeToggle from "./components/ThemeToggle";
+import { Github } from "lucide-react";
 import UserMenu from "./components/UserMenu";
 import { useTheme } from "./hooks/useTheme";
 
@@ -99,6 +100,17 @@ export default function LandingPage() {
           <span>Auti<em>Sense</em></span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <a
+            href="https://github.com/Partha-dev01/AutiSense"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-outline"
+            style={{ minHeight: 40, padding: "8px 14px", fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+            aria-label="View AutiSense source on GitHub"
+            title="View source on GitHub"
+          >
+            <Github size={16} />
+          </a>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
           {!loading && isAuthenticated ? (
@@ -642,6 +654,8 @@ export default function LandingPage() {
           <Link href="/games">Games</Link>
           <span>{"\u00B7"}</span>
           <Link href="/feed">Community</Link>
+          <span>{"\u00B7"}</span>
+          <a href="https://imaginaerium.in" target="_blank" rel="noopener noreferrer">About</a>
           <span>{"\u00B7"}</span>
           {isAuthenticated ? (
             <button
