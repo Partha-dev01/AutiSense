@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored, minified ONNX Runtime loader (self-hosted WASM) — not our source.
+    "public/ort-wasm/**",
   ]),
   {
     rules: {
