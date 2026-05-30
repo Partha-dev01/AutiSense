@@ -56,7 +56,7 @@ export const config = {
     {
       // Apply CSP to documents only — skip API, static assets, model files, and
       // next/link prefetches (which render no HTML and need no nonce).
-      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|models/|logo.jpeg).*)",
+      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|sw.js|manifest.webmanifest|models/|logo.jpeg).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

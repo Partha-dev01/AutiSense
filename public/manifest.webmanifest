@@ -1,0 +1,18 @@
+{
+  "name": "AutiSense — AI Autism Screening",
+  "short_name": "AutiSense",
+  "description": "Privacy-first, in-browser autism screening with real-time behavioral analysis, DSM-5 aligned reports, and adaptive therapy games. A screening aid, not a diagnostic tool.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4d8058",
+  "categories": ["health", "medical", "education"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
