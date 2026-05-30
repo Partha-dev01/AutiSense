@@ -9,6 +9,7 @@ import { INSTITUTES, CATEGORY_LABELS, CATEGORY_COLORS, type Institute } from "..
 import NavLogo from "../../components/NavLogo";
 import UserMenu from "../../components/UserMenu";
 import ThemeToggle from "../../components/ThemeToggle";
+import { IS_FOSS_BUILD } from "../../lib/foss";
 import type { MapMarker } from "../../components/LeafletMap";
 import { useTheme } from "../../hooks/useTheme";
 
@@ -147,6 +148,12 @@ export default function NearbyHelpPage() {
 
   /* Fetch live results from Overpass API when geolocation is available */
   const fetchLiveResults = useCallback(async (lat: number, lng: number) => {
+    // FOSS build: no /api/nearby (Overpass proxy) route — skip the live lookup
+    // and fall back to the bundled static institute list (no wasted 404).
+    if (IS_FOSS_BUILD) {
+      setLiveResults([]);
+      return;
+    }
     setLiveLoading(true);
     try {
       const res = await fetch("/api/nearby", {
