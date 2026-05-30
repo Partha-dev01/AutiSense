@@ -48,7 +48,9 @@ jobs:
           node-version: 20
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
 
       - name: Install Bubblewrap CLI
         run: npm i -g @bubblewrap/cli
