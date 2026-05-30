@@ -2,6 +2,7 @@
  * Unified TTS helper: tries Amazon Polly via /api/tts first,
  * falls back to browser speechSynthesis API.
  */
+import { IS_FOSS_BUILD } from "../foss";
 
 let currentAudio: HTMLAudioElement | null = null;
 
@@ -20,6 +21,12 @@ export async function speakText(text: string): Promise<void> {
   // Cancel any ongoing browser speech
   if (typeof window !== "undefined" && window.speechSynthesis) {
     window.speechSynthesis.cancel();
+  }
+
+  // FOSS build: no Polly route — go straight to browser speechSynthesis.
+  if (IS_FOSS_BUILD) {
+    browserSpeak(text);
+    return;
   }
 
   // Try Polly first
