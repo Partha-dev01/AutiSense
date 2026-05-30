@@ -27,22 +27,24 @@ publish:
 win:
   target:
     - nsis
-  # icon: build/icon.ico   # add a 256x256 .ico under electron/build/ before public release
+  icon: build/icon.ico
 
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
 
 linux:
   target:
     - deb
     - AppImage
   category: Education
-  # icon: build/icon.png
+  icon: build/icon.png
 
 mac:
   target:
     - dmg
   category: public.app-category.education
-  # icon: build/icon.icns
+  icon: build/icon.png
