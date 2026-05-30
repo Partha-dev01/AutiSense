@@ -28,10 +28,10 @@ export function middleware(request: NextRequest) {
   const csp = [
     `default-src 'self'`,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://unpkg.com https://img.youtube.com`,
     `connect-src 'self' https://overpass-api.de https://accounts.google.com https://oauth2.googleapis.com https://cdn.jsdelivr.net`,
-    `font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com`,
+    `font-src 'self'`,
     `media-src 'self' blob:`,
     `worker-src 'self' blob:`,
     `frame-ancestors 'none'`,
@@ -56,7 +56,7 @@ export const config = {
     {
       // Apply CSP to documents only — skip API, static assets, model files, and
       // next/link prefetches (which render no HTML and need no nonce).
-      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|sw.js|manifest.webmanifest|models/|logo.jpeg).*)",
+      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|sw.js|manifest.webmanifest|models/|fonts/|logo.jpeg).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
