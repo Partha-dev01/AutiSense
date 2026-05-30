@@ -18,6 +18,10 @@
  *  - `exp` is 120 s — a tight replay window on top of the PKCE binding.
  *  This keeps the flow stateless (no DynamoDB row), so it survives Amplify's
  *  per-Lambda scaling where start and exchange may hit different instances.
+ *  Single-use server state is intentionally omitted: replay requires possession
+ *  of BOTH the code and the in-memory verifier, i.e. TLS-MITM or local malware
+ *  on the desktop — which already subsumes outright session theft — so the
+ *  120 s + PKCE window is accepted rather than reintroducing per-exchange state.
  */
 import { createHmac, createHash, timingSafeEqual } from "crypto";
 
@@ -109,7 +113,11 @@ export function verifyHandoff(code: string, verifier: string): VerifyResult {
  *  desktop app via the custom scheme, with a manual fallback link. */
 export function renderHandoffReturnPage(deepLink: string): string {
   const safeJs = JSON.stringify(deepLink); // safe JS string literal
-  const safeHref = deepLink.replace(/"/g, "&quot;");
+  // Full HTML-attribute encode (robust regardless of the deep link charset).
+  const htmlEsc: Record<string, string> = {
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  };
+  const safeHref = deepLink.replace(/[&<>"']/g, (c) => htmlEsc[c]);
   return `<!doctype html>
 <html lang="en">
 <head>

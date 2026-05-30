@@ -8,7 +8,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_CONFIG } from "@/app/lib/auth/config";
-import { verifyHandoff } from "@/app/lib/auth/desktopHandoff";
+import { verifyHandoff, handoffConfigured } from "@/app/lib/auth/desktopHandoff";
 import { createSessionForUser, deleteAuthSession } from "@/app/lib/auth/dynamodb";
 import { logger } from "@/app/lib/logger";
 
@@ -16,6 +16,14 @@ const log = logger("auth/desktop-exchange");
 
 export async function GET(request: NextRequest) {
   const { appUrl, sessionCookieName, sessionMaxAgeSeconds } = AUTH_CONFIG;
+
+  // Fail loud (not silently) if the signing secret is missing in prod — otherwise
+  // every desktop login would just verify-fail with a generic error.
+  if (!handoffConfigured()) {
+    log.error("Desktop hand-off key not configured (set DESKTOP_HANDOFF_SECRET or GOOGLE_CLIENT_SECRET)");
+    return NextResponse.redirect(`${appUrl}/auth/login?error=desktop_handoff_failed`);
+  }
+
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code") || "";
   const verifier = searchParams.get("v") || "";

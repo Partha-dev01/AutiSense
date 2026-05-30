@@ -42,9 +42,12 @@ export async function GET(request: NextRequest) {
   const storedState = request.cookies.get(oauthStateCookieName)?.value;
   if (!storedState || storedState !== state) return loginError(appUrl, "invalid_state");
 
-  // Desktop hand-off challenge (set by /api/auth/desktop/start)
+  // Desktop hand-off challenge (set by /api/auth/desktop/start). Re-validate the
+  // shape before it enters a signed code (belt-and-suspenders).
   const handoffChallenge = request.cookies.get(DESKTOP_CH_COOKIE)?.value;
-  if (!handoffChallenge) return loginError(appUrl, "desktop_no_challenge");
+  if (!handoffChallenge || !/^[A-Za-z0-9_-]{20,128}$/.test(handoffChallenge)) {
+    return loginError(appUrl, "desktop_no_challenge");
+  }
   if (!handoffConfigured()) {
     log.error("Desktop hand-off key not configured");
     return loginError(appUrl, "server_error");
