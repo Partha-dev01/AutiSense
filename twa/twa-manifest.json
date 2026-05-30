@@ -1,0 +1,43 @@
+{
+  "packageId": "in.imaginaerium.autisense",
+  "host": "autisense.imaginaerium.in",
+  "name": "AutiSense — AI Autism Screening",
+  "launcherName": "AutiSense",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#4d8058",
+  "themeColorDark": "#000000",
+  "navigationColor": "#4d8058",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#00000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://autisense.imaginaerium.in/icon-512.png",
+  "maskableIconUrl": "https://autisense.imaginaerium.in/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "../android.keystore",
+    "alias": "autisense"
+  },
+  "appVersionName": "1.0.0",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://autisense.imaginaerium.in/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://autisense.imaginaerium.in/",
+  "minSdkVersion": 21,
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
