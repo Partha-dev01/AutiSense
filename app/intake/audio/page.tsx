@@ -8,6 +8,21 @@ import { getSession } from "../../lib/db/session.repository";
 import { useTheme } from "../../hooks/useTheme";
 import { INTAKE_STEPS, STEP_INDEX } from "../../lib/constants/intake";
 import ThemeToggle from "../../components/ThemeToggle";
+import { IS_FOSS_BUILD } from "../../lib/foss";
+
+/** Browser speechSynthesis playback (FOSS build + Polly fallback). */
+function browserTts(text: string): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (!("speechSynthesis" in window)) { resolve(); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.8;
+    utterance.pitch = 1.1;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    window.speechSynthesis.speak(utterance);
+  });
+}
 
 const STEPS = INTAKE_STEPS;
 const STEP_IDX = STEP_INDEX["audio"];
@@ -140,6 +155,8 @@ export default function AudioAssessmentPage() {
 
   // TTS
   const speakText = useCallback(async (text: string): Promise<void> => {
+    // FOSS build: no Polly route — use browser speechSynthesis directly.
+    if (IS_FOSS_BUILD) return browserTts(text);
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
