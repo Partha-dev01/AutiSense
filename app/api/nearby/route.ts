@@ -24,7 +24,41 @@ interface NearbyResult {
   website?: string;
 }
 
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+// Overpass mirrors, tried in order. A descriptive User-Agent is REQUIRED by the
+// OSM/Overpass usage policy — requests without one are rejected (this surfaced
+// in prod as a 502). Each attempt has its own abort timeout so a hung mirror
+// can't stall the Lambda; the budget (2 × 12s) stays under the function limit.
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+const OVERPASS_USER_AGENT = "AutiSense/1.0 (+https://autisense.imaginaerium.in)";
+
+async function fetchOverpass(query: string): Promise<Response | null> {
+  for (const url of OVERPASS_ENDPOINTS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": OVERPASS_USER_AGENT,
+          Accept: "application/json",
+        },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
+      if (res.ok) return res;
+      log.warn("Overpass endpoint returned non-OK", { url, status: res.status });
+    } catch (err) {
+      log.warn("Overpass endpoint failed", { url, error: (err as Error)?.message });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   // IP-based rate limiting (unauthenticated endpoint, proxies to Overpass)
@@ -55,7 +89,7 @@ export async function POST(req: NextRequest) {
 
   // Overpass QL query: hospitals, clinics, doctors, healthcare, social facilities
   const query = `
-    [out:json][timeout:15];
+    [out:json][timeout:10];
     (
       node["amenity"~"hospital|clinic|doctors"](around:${radius},${lat},${lng});
       node["healthcare"](around:${radius},${lat},${lng});
@@ -67,13 +101,8 @@ export async function POST(req: NextRequest) {
   `;
 
   try {
-    const res = await fetch(OVERPASS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (!res.ok) {
+    const res = await fetchOverpass(query);
+    if (!res) {
       return NextResponse.json(
         { error: "Overpass API error", results: [], source: "overpass" },
         { status: 502 },
