@@ -42,7 +42,11 @@ interface RateLimitResult {
   resetAt: number;
 }
 
-const RATE_LIMITS_TABLE = process.env.DYNAMODB_RATE_LIMITS_TABLE || "";
+// Read at call time (not module load) so tests can force the in-memory path by
+// stubbing the env; in production next.config inlines this to a string literal.
+function rateLimitsTable(): string {
+  return process.env.DYNAMODB_RATE_LIMITS_TABLE || "";
+}
 
 // Shared (lazy) DynamoDB doc client + a short failure cooldown so a DynamoDB
 // outage doesn't add latency to every request for more than 30 s.
@@ -66,7 +70,9 @@ async function getDocClient(): Promise<DynamoDBDocumentClient> {
 }
 
 function distributedEnabled(): boolean {
-  if (!RATE_LIMITS_TABLE) return false;
+  if (!rateLimitsTable()) return false;
+  // Never reach for real DynamoDB from inside the unit-test runner.
+  if (process.env.NODE_ENV === "test") return false;
   // Local dev without any AWS config → skip DynamoDB.
   if (
     process.env.NODE_ENV === "development" &&
@@ -124,7 +130,7 @@ export function createRateLimiter(options: RateLimiterOptions) {
     // (potentially) reserved words → always referenced via attribute names.
     const res = await docClient.send(
       new UpdateCommand({
-        TableName: RATE_LIMITS_TABLE,
+        TableName: rateLimitsTable(),
         Key: { rlkey },
         UpdateExpression: "SET #exp = if_not_exists(#exp, :exp) ADD #c :one",
         ExpressionAttributeNames: { "#c": "count", "#exp": "exp" },

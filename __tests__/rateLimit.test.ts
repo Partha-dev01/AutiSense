@@ -21,6 +21,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRateLimiter, aiRateLimiter, apiRateLimiter } from "../app/lib/rateLimit";
 
+// Unit tests must exercise the deterministic in-memory path only — never real
+// DynamoDB (which would hang under fake timers). Forcing the table env empty
+// disables the distributed path regardless of the Amplify build environment.
+beforeEach(() => {
+  vi.stubEnv("DYNAMODB_RATE_LIMITS_TABLE", "");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("createRateLimiter", () => {
   beforeEach(() => {
     vi.useFakeTimers();
