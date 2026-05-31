@@ -76,9 +76,10 @@ jobs:
         working-directory: ./twa
         run: |
           # The twa/ folder only holds twa-manifest.json (no generated Gradle project).
-          # `bubblewrap build` needs the Android project to already exist; generate it
-          # non-interactively from the manifest (init is interactive; update is not).
-          bubblewrap update --manifest="./twa-manifest.json"
+          # `bubblewrap build` needs the Android project to exist. `update` regenerates
+          # project files from the manifest; --skipVersionUpgrade suppresses its
+          # interactive "versionName for the new App version?" prompt (exit 130 in CI).
+          bubblewrap update --manifest="./twa-manifest.json" --skipVersionUpgrade
 
       - name: Build signed TWA (APK + AAB)
         working-directory: ./twa
@@ -96,6 +97,9 @@ jobs:
       - name: Publish artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          # Pin to the v1.1.0 release/draft so this works whether triggered by the
+          # v* tag push OR by workflow_dispatch (which has no tag ref of its own).
+          tag_name: v1.1.0
           files: |
             twa/app-release-signed.apk
             twa/app-release-bundle.aab
