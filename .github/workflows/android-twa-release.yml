@@ -97,9 +97,10 @@ jobs:
       - name: Publish artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Pin to the v1.1.0 release/draft so this works whether triggered by the
-          # v* tag push OR by workflow_dispatch (which has no tag ref of its own).
-          tag_name: v1.1.0
+          # Publish to the release for the pushed tag (e.g. v1.2.0), matching the
+          # desktop workflow. On a v* tag push github.ref_name is the tag name.
+          # (workflow_dispatch has no tag ref — cut releases via a tag push.)
+          tag_name: ${{ github.ref_name }}
           files: |
             twa/app-release-signed.apk
             twa/app-release-bundle.aab

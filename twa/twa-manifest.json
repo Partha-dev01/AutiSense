@@ -21,9 +21,9 @@
     "path": "../android.keystore",
     "alias": "autisense"
   },
-  "appVersionName": "1.1.0",
-  "appVersion": "1.1.0",
-  "appVersionCode": 2,
+  "appVersionName": "1.2.0",
+  "appVersion": "1.2.0",
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://autisense.imaginaerium.in/manifest.webmanifest",
