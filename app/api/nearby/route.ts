@@ -24,6 +24,21 @@ interface NearbyResult {
   website?: string;
 }
 
+// Short-lived in-memory cache (per Lambda instance), keyed by ROUNDED location.
+// Overpass rate-limits per IP and ALL users share the Lambda's egress IP, so
+// caching clustered area queries keeps call volume well under the limit.
+interface CacheEntry {
+  at: number;
+  results: NearbyResult[];
+}
+const RESULT_CACHE = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_MAX = 500;
+function cacheKey(lat: number, lng: number, radius: number): string {
+  // 2-decimal (~1.1 km) rounding so requests within the same area share a key.
+  return `${lat.toFixed(2)}:${lng.toFixed(2)}:${Math.round(radius / 1000)}`;
+}
+
 // Overpass mirrors, tried in order. A descriptive User-Agent is REQUIRED by the
 // OSM/Overpass usage policy — requests without one are rejected (this surfaced
 // in prod as a 502). Each attempt has its own abort timeout so a hung mirror
@@ -87,6 +102,16 @@ export async function POST(req: NextRequest) {
 
   const radius = Math.min(Math.max(Number(rawRadius) || 10000, 100), 50000);
 
+  // Serve a fresh cached area result without touching Overpass.
+  const key = cacheKey(lat, lng, radius);
+  const cached = RESULT_CACHE.get(key);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return NextResponse.json(
+      { results: cached.results, source: "cache" },
+      { headers: { "Cache-Control": "public, max-age=3600, s-maxage=3600" } },
+    );
+  }
+
   // Overpass QL query: hospitals, clinics, doctors, healthcare, social facilities
   const query = `
     [out:json][timeout:10];
@@ -144,6 +169,12 @@ export async function POST(req: NextRequest) {
             : {}),
         };
       });
+
+    if (RESULT_CACHE.size > CACHE_MAX) {
+      const oldest = RESULT_CACHE.keys().next().value;
+      if (oldest) RESULT_CACHE.delete(oldest);
+    }
+    RESULT_CACHE.set(key, { at: Date.now(), results });
 
     return NextResponse.json(
       { results, source: "overpass" },
