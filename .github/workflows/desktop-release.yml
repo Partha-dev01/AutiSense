@@ -80,6 +80,13 @@ jobs:
       # installers explicitly here. electron-builder still runs above to generate
       # the blockmaps + latest*.yml auto-update metadata. Tag pushes only
       # (workflow_dispatch has no release tag to upload to).
+      #
+      # NAMING: electron-builder produces files with SPACES ("AutiSense Setup
+      # 1.1.0.exe"); its publisher uploads them with spaces->HYPHENS, but `gh
+      # release upload` would use spaces->DOTS, creating a duplicate that
+      # --clobber can't match (and latest.yml points at the hyphen name). So we
+      # rename spaces->hyphens first, matching the publisher's convention, so
+      # --clobber truly overwrites. (.dmg/.deb have no spaces and are unaffected.)
       - name: Upload installers to the release
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
@@ -88,6 +95,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
+          for f in dist/*\ *; do [ -e "$f" ] && mv -- "$f" "${f// /-}"; done
           files=(dist/*.exe dist/*.exe.blockmap dist/*.dmg dist/*.dmg.blockmap dist/*.AppImage dist/*.deb dist/latest*.yml)
           if [ ${#files[@]} -eq 0 ]; then
             echo "No installer artifacts found in dist/ to upload" >&2
