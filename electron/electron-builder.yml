@@ -48,7 +48,13 @@ mac:
     - dmg
   category: public.app-category.education
   icon: build/icon.png
-  # Build UNSIGNED: skip macOS code-signing identity lookup. Combined with NOT
-  # passing an (empty) CSC_LINK env var in the workflow, this avoids the
-  # electron-builder 25.x "<dir> not a file" crash on empty cert paths.
-  identity: null
+  # No paid Apple Developer cert, so AD-HOC sign (identity "-") instead of leaving
+  # the app fully unsigned (identity null). A fully-unsigned app gets the hard
+  # "App is damaged and can't be opened" Gatekeeper block on Apple Silicon; an
+  # ad-hoc signature downgrades that to the bypassable "unidentified developer"
+  # (right-click -> Open). Still NOT notarized, so users may need:
+  #   xattr -cr /Applications/AutiSense.app   (documented in README + release notes)
+  # We're on electron-builder 25.x, so the v26.0.13+ ad-hoc camera/mic regression
+  # (#9529) does NOT apply. CSC_LINK is not passed by the workflow, so the empty-
+  # cert-path "<dir> not a file" crash is already avoided independently of this.
+  identity: "-"

@@ -1,307 +1,410 @@
+<div align="center">
+
 # AutiSense
 
-[![CI](https://github.com/Partha-dev01/AutiSense/actions/workflows/ci.yml/badge.svg)](https://github.com/Partha-dev01/AutiSense/actions/workflows/ci.yml)
-[![Next.js](https://img.shields.io/badge/Next.js-16.2-black?logo=next.js)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+### Privacy-first, in-browser AI screening for autism-related repetitive motor movements
+
+Your video never leaves your device. The pose and behavior analysis runs locally in your browser.
+
+[**Open the web app →**](https://autisense.imaginaerium.in) &nbsp;·&nbsp; [Download installers](#-download--install) &nbsp;·&nbsp; [Docs](docs/) &nbsp;·&nbsp; [By Imaginaerium](https://imaginaerium.in)
+
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-Web-blue)](https://onnxruntime.ai/)
-[![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Polly%20%7C%20DynamoDB-FF9900?logo=amazon-web-services&logoColor=white)](https://aws.amazon.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-blue)](#-download--install)
 
-> **Privacy-first, browser-based autism screening powered by on-device AI.**
-
-AutiSense is a web application that captures behavioral biomarkers using real-time on-device AI inference. Four ONNX models run entirely in the browser -- no video, audio, or inference data ever leaves the device during screening. Cloud services enrich the experience with generative AI reports, text-to-speech, and cross-device data sync, all with graceful offline fallbacks.
-
-**Live**: [https://autisense.imaginaerium.in](https://autisense.imaginaerium.in)
-
-![AutiSense Landing Page](public/home.png)
+</div>
 
 ---
 
-## Key Features
-
-- **10-step screening pipeline** -- Guided flow covering consent, speech, motor, reaction time, and full behavioral video analysis (~15 minutes)
-- **On-device AI inference** -- YOLO pose detection, body/face behavior classification, and emotion analysis run client-side via Web Workers and ONNX Runtime Web
-- **Multimodal fusion** -- Body pose (70%) and facial expression (30%) late fusion for ASD risk scoring
-- **AI-generated clinical reports** -- Amazon Bedrock (Nova Pro) produces DSM-5-aligned reports with severity mapping; downloadable as PDF
-- **Kids dashboard** -- 13 therapy games, AI chat with animated animal avatars, speech practice, progress tracking, weekly reports, and a nearby-institutes map
-- **Offline-first** -- IndexedDB (Dexie v4) stores all data locally; DynamoDB sync when connectivity is available
-- **Privacy-first** -- Zero data egress during screening; cloud sync is opt-in with explicit consent
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16.2.2 (App Router, React 19.2.4) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS v4 + CSS custom properties |
-| State | React useState (local) + React Context (auth) |
-| On-device AI | ONNX Runtime Web 1.24.2 (WebGPU/WASM) |
-| Face Analysis | @mediapipe/tasks-vision (478 landmarks, 52 blendshapes) |
-| Client Database | Dexie.js v4 (IndexedDB, 10 tables) |
-| Server Database | Amazon DynamoDB (7 tables) |
-| Generative AI | Amazon Bedrock (Nova Lite + Nova Pro) |
-| Text-to-Speech | Amazon Polly (Neural, Joanna voice) |
-| Auth | Custom Google OAuth 2.0 + DynamoDB sessions |
-| Charts | Recharts (dashboard + detector) |
-| PDF | pdf-lib (server-side generation) |
-| E2E Testing | Playwright 1.58.2 (~71 tests) |
-| Unit Testing | Vitest 3.2.4 (68 tests) |
-| Hosting | AWS Amplify (WEB_COMPUTE SSR) |
+> [!IMPORTANT]
+> ### ⚠️ Not a medical or diagnostic tool
+> AutiSense is a **screening and educational aid only**. It is **not** a diagnostic
+> device, and it has **not** been clinically validated. It cannot diagnose autism or
+> any other condition, and its results must never replace assessment by a qualified
+> clinician. The on-device models flag behavioral patterns that should be
+> interpreted by a professional. If you have concerns about a child's development,
+> please consult a healthcare provider. See [Ethics & privacy](#-ethics--privacy).
 
 ---
 
-## AI Models (On-Device)
+## 📑 Table of contents
 
-All inference runs in a Web Worker. No data is transmitted to any server.
-
-| Model | File | Size | Input | Output |
-|-------|------|------|-------|--------|
-| **YOLO26n-pose** | `yolo26n-pose-int8.onnx` | 13 MB | 320x240 RGB frame | 17 COCO keypoints + confidence |
-| **BodyTCN** | `pose-tcn-int8.onnx` | 274 KB | 86-dim feature sequence | 6 behavior classes |
-| **FER+** | `emotion-ferplus-8.onnx` | 34 MB | 48x48 grayscale face | 8 emotion probabilities |
-| **FaceTCN** | `face-tcn-int8.onnx` | 81 KB | 64-dim feature sequence | 4 expression classes |
-
-**Body behavior classes (6):** hand_flapping, body_rocking, head_banging, spinning, toe_walking, non_autistic
-
-**Face behavior classes (4):** typical_expression, flat_affect, atypical_expression, gaze_avoidance
-
-**Fusion:** `ASD Risk = 0.7 * bodyRisk + 0.3 * faceRisk`
-
----
-
-## 10-Step Screening Pipeline
-
-| Step | Page | Assessment | Biomarker Output |
-|------|------|-----------|-----------------|
-| 1 | `/intake/profile` | Parental consent | -- |
-| 2 | `/intake/child-profile` | Child info (name, DOB, language) | Session created |
-| 3 | `/intake/device-check` | Camera + microphone verification | -- |
-| 4 | `/intake/communication` | Word Echo (LLM-generated words + Polly TTS + speech recognition) | vocalizationScore |
-| 5 | `/intake/behavioral-observation` | Bubble Pop reaction time | motorScore, responseLatencyMs |
-| 6 | `/intake/preparation` | Action Challenge (YOLO motor verification, 6 actions) | motorScore, responseLatencyMs |
-| 7 | `/intake/motor` | Tap-the-target coordination | motorScore, responseLatencyMs |
-| 8 | `/intake/video-capture` | ONNX behavioral video analysis (30s) | gazeScore, motorScore, asdRiskScore, behavior classes |
-| 9 | `/intake/summary` | Aggregated domain scores | -- |
-| 10 | `/intake/report` | AI clinical report (Bedrock Nova Pro) + PDF download | PDF report |
+- [What it is](#-what-it-is)
+- [Key features](#-key-features)
+- [Screenshots](#-screenshots)
+- [Use the web app](#-use-the-web-app)
+- [Download & install](#-download--install)
+- [Tech stack](#-tech-stack)
+- [Architecture overview](#-architecture-overview)
+- [Local development](#-local-development)
+- [Build & release](#-build--release)
+- [Project structure](#-project-structure)
+- [Documentation](#-documentation)
+- [Contributing](#-contributing)
+- [Ethics & privacy](#-ethics--privacy)
+- [Credits](#-credits)
 
 ---
 
-## Kids Dashboard and Therapy Games
+## 🧩 What it is
 
-The kids dashboard (`/kid-dashboard`) provides 13 therapy games across two hubs, daily streak tracking, AI chat, speech practice, weekly reports, and a nearby-institutes map.
+AutiSense helps parents, caregivers, and educators **understand repetitive motor
+movements** (stereotypies) such as hand-flapping, body-rocking, spinning, and
+toe-walking. Using a device camera, the app runs an on-device computer-vision
+pipeline that estimates body pose and classifies the observed movement over a
+short time window, and pairs it with a guided activity flow.
 
-**Clinician-facing games (7):**
-Emotion Quiz, Category Sorting, Sequence Memory, Social Stories, Calm Breathing, Pattern Match, Color and Sound
+The defining trait of AutiSense is **privacy by architecture**: the screening
+inference — pose estimation and behavior classification — runs **fully
+client-side in the browser** using ONNX Runtime Web. Raw video frames are never
+uploaded. Cloud features (e.g. generating a written report, text-to-speech) are
+opt-in and have graceful offline/template fallbacks.
 
-**Kid-facing games (6):**
-Bubble Pop, Alphabet Pattern, Tracing, Match Numbers, Memory, Social Stories V2
-
-All games use an adaptive difficulty engine that adjusts based on recent score history. Game activity and daily streaks are tracked in IndexedDB.
-
-Additional features: AI chat with animal avatars (dog/cat/rabbit/parrot), speech practice with Polly TTS, weekly progress reports (kid and parent views), nearby autism institutes map (Leaflet + Overpass API, 50+ institutes across 12 Indian cities).
+The same web app is wrapped as installable apps for desktop and Android (see
+[Download & install](#-download--install)), all of which are **thin clients** that
+load the live site — so a single web deploy updates every platform at once.
 
 ---
 
-## Getting Started
+## ✨ Key features
 
-### Prerequisites
+- 🔒 **On-device screening inference** — pose + behavior models run in your browser
+  via ONNX Runtime Web (WebGPU with a WASM fallback), inside a Web Worker. Video
+  stays on your device.
+- 🕺 **Pose-based movement screening** — a YOLO pose model extracts COCO-17 body
+  keypoints; a Temporal Convolutional Network (TCN) classifies a 64-frame window
+  into movement categories.
+- 🧒 **Guided intake flow** — a multi-step activity sequence (consent, device
+  check, communication, motor/reaction tasks, and behavioral video capture).
+- 🎮 **Kids dashboard** — therapy-style games, a supportive AI chat with animal
+  avatars, speech practice, progress tracking, and a nearby-help map.
+- 📝 **Plain-language reports** — optionally generate a readable session summary
+  and a downloadable PDF (server-side, via AWS Bedrock; template fallback when
+  offline).
+- 🔊 **Text-to-speech** — AWS Polly with a browser `speechSynthesis` fallback.
+- 🗺️ **Nearby support lookup** — find relevant places via OpenStreetMap/Overpass.
+- 📱 **Installable everywhere** — Progressive Web App (PWA) plus packaged apps for
+  Windows, macOS, Linux, and Android.
+- 🗄️ **Local-first storage** — profiles, sessions, biomarkers, game progress, and
+  streaks live in IndexedDB (Dexie). Opt-in, anonymized cloud sync is available.
+- 🛡️ **Hardened security posture** — per-request nonce CSP, COOP/COEP cross-origin
+  isolation, HSTS, Google OAuth with PKCE, and self-hosted fonts + ONNX runtime.
 
-- Node.js 22+
-- npm
+---
 
-### Installation
+## 📸 Screenshots
+
+The landing page screenshot used in this README:
+
+![AutiSense landing page](public/home.png)
+
+> **TODO (maintainer):** add more screenshots / a short GIF. Suggested shots: the
+> live detection screen with the pose overlay, the intake flow, and a generated
+> report. Place new images under `docs/assets/` and reference them with relative
+> links, e.g. `![Detection](docs/assets/detection.png)`.
+
+---
+
+## 🌐 Use the web app
+
+No installation required — the app runs in any modern browser:
+
+**👉 https://autisense.imaginaerium.in**
+
+You can also **install it as a PWA**: open the site in Chrome/Edge (desktop or
+Android) or use *Add to Home Screen* on iOS Safari, and choose **Install**. The
+PWA runs full-screen with an offline app shell.
+
+> A camera is required for the screening features. The browser will ask for camera
+> permission; it is used only for on-device analysis.
+
+---
+
+## ⬇️ Download & install
+
+Native apps are published on the
+[**Releases**](https://github.com/Partha-dev01/AutiSense/releases) page. The
+latest is **[v1.1.0](https://github.com/Partha-dev01/AutiSense/releases/tag/v1.1.0)**.
+
+| Platform | File | Notes |
+|---|---|---|
+| 🪟 Windows | `AutiSense-Setup-1.1.0.exe` | NSIS installer |
+| 🐧 Linux | `AutiSense-1.1.0.AppImage` | Portable, no install |
+| 🐧 Linux | `autisense-desktop_1.1.0_amd64.deb` | Debian/Ubuntu package |
+| 🍎 macOS | `AutiSense-1.1.0-arm64.dmg` | **Apple Silicon (arm64) only** |
+| 🤖 Android | `app-release-signed.apk` | Sideload (`.aab` also available for Play) |
+
+> [!NOTE]
+> **All installers are currently unsigned** (no paid code-signing certificates
+> yet), so your OS will likely show a security warning on first open. The steps
+> below are safe and only needed once. Full troubleshooting lives in
+> [`docs/INSTALL.md`](docs/INSTALL.md).
+
+### 🪟 Windows
+1. Run `AutiSense-Setup-1.1.0.exe`.
+2. If **Windows SmartScreen** appears, click **More info → Run anyway**.
+3. Follow the installer.
+
+### 🍎 macOS (Apple Silicon)
+Because the app is unsigned and downloaded from the internet, macOS Gatekeeper
+puts it in *quarantine*, which on Apple Silicon often shows
+**"App is damaged and can't be opened."** This is expected for an unsigned
+download — not actual damage.
+
+1. Open the `.dmg` and drag **AutiSense** into **Applications**.
+2. Open **Terminal** and clear the quarantine attribute:
+   ```bash
+   xattr -cr /Applications/AutiSense.app
+   ```
+3. Launch AutiSense from Applications.
+4. If it still refuses to open, ad-hoc sign it locally:
+   ```bash
+   codesign --force --deep --sign - /Applications/AutiSense.app
+   ```
+
+> **Why:** Gatekeeper blocks unsigned, quarantined downloads. The proper future
+> fix is an Apple Developer ID certificate + notarization. See
+> [`docs/INSTALL.md`](docs/INSTALL.md#macos).
+
+### 🐧 Linux
+**AppImage** (portable):
+```bash
+chmod +x AutiSense-1.1.0.AppImage
+./AutiSense-1.1.0.AppImage
+```
+**Debian/Ubuntu (.deb):**
+```bash
+sudo dpkg -i autisense-desktop_1.1.0_amd64.deb
+```
+
+### 🤖 Android
+1. Download `app-release-signed.apk` to your device.
+2. Allow **install from unknown sources** for your browser/file manager when
+   prompted.
+3. Open the APK to install.
+
+> The Android app is a **Trusted Web Activity (TWA)** that opens the live PWA
+> full-screen via your device's Chrome engine. Digital Asset Links verify the
+> domain so there is no browser address bar (it falls back to a Custom Tab with a
+> URL bar if verification doesn't pass).
+
+---
+
+## 🛠️ Tech stack
+
+| Area | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript 5 |
+| Styling / UI | Tailwind CSS v4, lucide-react icons, Recharts, Leaflet |
+| On-device ML | ONNX Runtime Web 1.24 (WASM + WebGPU), YOLO pose model, TCN classifiers |
+| Face/pose tooling | `@mediapipe/tasks-vision` |
+| Local storage | Dexie (IndexedDB) |
+| Auth | Google OAuth 2.0 (PKCE, `S256`), HTTP-only session cookie |
+| Server (API routes) | AWS SDK v3 — DynamoDB, Bedrock, Polly |
+| Generative AI | AWS Bedrock (Amazon Nova Lite + Nova Pro) |
+| Text-to-speech | AWS Polly (Neural) |
+| PDF / sanitization | pdf-lib, DOMPurify |
+| Hosting | AWS Amplify (WEB_COMPUTE / SSR) |
+| Desktop clients | Electron + electron-builder + electron-updater (thin client) |
+| Android client | Trusted Web Activity (Bubblewrap) |
+| Testing | Vitest (unit), Playwright (E2E) |
+
+The ONNX runtime WASM assets and web fonts are **self-hosted** to satisfy a strict
+CSP and avoid third-party runtime requests.
+
+---
+
+## 🏗️ Architecture overview
+
+AutiSense is **one web app, many thin shells**. The Next.js app hosted on AWS
+Amplify is the single source of truth; the desktop and Android packages bundle
+no application code — they just load `https://autisense.imaginaerium.in`.
+
+```
+                    ┌─────────────────────────────────────────────┐
+                    │  AutiSense web app (Next.js on AWS Amplify)  │
+                    │                                              │
+   In browser:      │  • App Router pages + API routes             │
+   ONNX pipeline    │  • Client-side ONNX inference (pose + TCN)   │
+   (pose + TCN)     │  • IndexedDB (Dexie) local-first storage     │
+   runs on device   │  • API routes: Bedrock / Polly / DynamoDB    │
+                    └───────▲───────────────▲───────────────▲──────┘
+                            │               │               │
+                  loads the live site (no bundled app code)
+                            │               │               │
+            ┌───────────────┴──┐   ┌────────┴───────┐   ┌───┴────────────┐
+            │ Electron desktop │   │ Android TWA    │   │ Browser / PWA  │
+            │ (Win/macOS/Linux)│   │ (Chrome engine)│   │ (installable)  │
+            └──────────────────┘   └────────────────┘   └────────────────┘
+```
+
+**Why thin clients?** One deploy updates every platform, there are no stale
+bundles, the same hardened security headers apply everywhere, and the installers
+stay tiny. (The Electron and TWA wrappers add only shell concerns — camera
+permissions scoped to the app origin, external links to the system browser, a
+desktop Google-OAuth deep-link hand-off, and self-update.)
+
+**On-device inference pipeline:** a YOLO pose model produces COCO-17 keypoints
+per frame → an engineered per-frame feature vector → a 64-frame temporal buffer
+fed to a TCN that outputs movement-class probabilities. Backend selection prefers
+WebGPU and falls back to multi-threaded WASM (which is why COOP/COEP cross-origin
+isolation is enabled — it unlocks `SharedArrayBuffer`).
+
+For a deeper dive, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## 💻 Local development
+
+> Requires **Node.js 22+** (see `.nvmrc`) and npm.
 
 ```bash
 git clone https://github.com/Partha-dev01/AutiSense.git
 cd AutiSense
 npm install
+cp .env.local.example .env.local   # then fill in your own values
+npm run dev                         # http://localhost:3000
 ```
 
-### Environment Variables
+Environment variables are documented in
+[`.env.local.example`](.env.local.example) and explained in
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md). The AWS-backed features (reports,
+TTS, assistant, sign-in, sync) need their respective credentials/resources, but
+each API route has a graceful fallback — the app runs without AWS, and the
+on-device screening pipeline works regardless.
 
-Copy the example file and fill in your values:
+### Scripts
 
-```bash
-cp .env.local.example .env.local
-```
+| Script | What it does |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm run type-check` | TypeScript (`tsc --noEmit`) |
+| `npm run test:unit` | Vitest unit tests (see caveat below) |
+| `npm test` | Playwright E2E tests |
 
-Required variables:
-
-| Variable | Purpose |
-|----------|---------|
-| `AWS_REGION` | Primary AWS region (default: ap-south-1) |
-| `AWS_ACCESS_KEY_ID` | IAM access key for local development |
-| `AWS_SECRET_ACCESS_KEY` | IAM secret key for local development |
-| `BEDROCK_REGION` | Bedrock region (default: us-east-1) |
-| `POLLY_REGION` | Polly region (default: ap-south-1) |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `NEXT_PUBLIC_APP_URL` | App base URL (default: http://localhost:3000) |
-| `DYNAMODB_*` (7 tables) | DynamoDB table names (defaults provided) |
-
-See [`.env.local.example`](.env.local.example) for the full list.
-
-> The app works without AWS credentials -- all API routes have mock/template fallbacks.
-
-### Development
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-### Build and Test
-
-```bash
-npm run build
-npm run test:unit      # 68 Vitest unit tests
-npx playwright test    # ~71 Playwright E2E tests
-```
+> [!WARNING]
+> **Test-runner path caveat:** Vitest can fail to start if the project lives
+> under a directory whose path contains a `#` character (a known tooling issue).
+> If you hit this, move/clone the repo to a path without `#`, or rely on CI,
+> which checks out to a clean path. Details in
+> [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ---
 
-## Project Structure
+## 📦 Build & release
+
+The native apps are **thin clients** built from the `electron/` and `twa/`
+subfolders. They wrap the live site, so they don't depend on the Next.js build.
+GitHub Actions workflows under `.github/workflows/` drive CI and the desktop /
+Android release builds.
+
+- **Desktop (Electron):** `cd electron && npm install && npm run dist:win`
+  (or `dist:mac` / `dist:linux`). Each OS target must build on its own OS; CI uses
+  a Windows/Ubuntu/macOS matrix. App icons go in `electron/build/`.
+- **Android (TWA):** built with Bubblewrap from `twa/twa-manifest.json`
+  (`bubblewrap build`). Signed artifacts require the release keystore, which is
+  **not** in the repo, plus a matching SHA-256 fingerprint in
+  `public/.well-known/assetlinks.json`.
+
+Installers are currently unsigned. See [`docs/INSTALL.md`](docs/INSTALL.md) for
+why and what users must do, and the per-platform READMEs in
+[`electron/`](electron/README.md) and [`twa/`](twa/README.md).
+
+---
+
+## 🗂️ Project structure
 
 ```
 AutiSense/
-├── app/
-│   ├── api/               15 API routes (auth, chat, feed, health, nearby, report, sync, tts)
-│   ├── auth/              Login page
-│   ├── components/        11 shared UI components
-│   ├── contexts/          AuthContext (Google OAuth)
-│   ├── dashboard/         Clinician dashboard + child profiles
-│   ├── feed/              Community feed (posts, reactions)
-│   ├── games/             7 therapy games (clinician-facing)
-│   ├── hooks/             5 custom hooks (auth, camera, inference, theme)
-│   ├── intake/            10-step screening flow
-│   ├── kid-dashboard/     Kids hub (6 games, AI chat, progress, reports, map)
-│   ├── lib/               Business logic
-│   │   ├── actions/       Rule-based action detection from YOLO keypoints
-│   │   ├── audio/         Unified TTS helper (Polly -> browser fallback)
-│   │   ├── auth/          Google OAuth + DynamoDB sessions
-│   │   ├── aws/           Shared AWS credential helper
-│   │   ├── camera/        Progressive getUserMedia with HTTPS check
-│   │   ├── db/            Dexie repositories (8 modules)
-│   │   ├── inference/     ONNX pipeline (YOLO, TCN, FER+, fusion, orchestrators)
-│   │   └── scoring/       Age-normalized biomarker scoring (4 brackets)
-│   └── types/             6 type modules
-├── public/models/         4 ONNX models (~47 MB total)
-├── server/                Lambda handler + DynamoDB setup script
-├── __tests__/             7 Vitest unit test files (68 tests)
-├── tests/                 4 Playwright E2E spec files (~71 tests)
-├── workers/               ONNX inference Web Worker
-└── docs/                  DOCS.md, SETUP_GUIDE.md, Amazon_usage.md
+├── app/                      # Next.js App Router
+│   ├── api/                  # Server routes: auth, chat, feed, health, nearby, report, sync, tts
+│   ├── components/           # Shared UI components
+│   ├── contexts/ · hooks/    # Auth context + React hooks (camera, inference, theme, auth)
+│   ├── lib/                  # Auth, AWS, Dexie repos, scoring, utilities
+│   │   └── inference/        # ONNX pipeline: YOLO + TCN(s), feature encoders, orchestrators
+│   ├── dashboard/            # Clinician dashboard + child profiles
+│   ├── kid-dashboard/        # Kids hub: games, chat, speech, progress, reports, nearby-help
+│   ├── intake/               # Guided multi-step screening flow
+│   ├── games/                # Therapy-style games
+│   └── feed/ · auth/         # Community feed + login
+├── workers/                  # ONNX inference Web Worker
+├── public/
+│   ├── models/               # Self-hosted ONNX models
+│   ├── ort/                  # Self-hosted ONNX Runtime Web WASM assets
+│   └── .well-known/          # assetlinks.json (Android TWA verification)
+├── electron/                 # Desktop thin client (Electron)
+├── twa/                      # Android thin client (Trusted Web Activity)
+├── server/                   # Lambda handler + DynamoDB setup script
+├── docs/                     # Documentation
+├── middleware.ts             # Per-request nonce CSP
+├── next.config.ts            # Security headers, caching, build config
+└── amplify.yml               # AWS Amplify build spec
 ```
 
 ---
 
-## Data Architecture
-
-### What's stored where
-
-| Data | Storage | Syncs to Cloud? | Cross-Device? |
-|------|---------|-----------------|---------------|
-| **Screening sessions** | IndexedDB → DynamoDB | Yes (opt-in, anonymized) | Yes (after sync) |
-| **Biomarker scores** | IndexedDB → DynamoDB | Yes (opt-in, anonymized) | Yes (after sync) |
-| **User account** | DynamoDB | Always (Google OAuth) | Yes |
-| **Game progress & scores** | IndexedDB only | No | No |
-| **Daily streaks** | IndexedDB only | No | No |
-| **Weekly reports** | IndexedDB only | No | No |
-| **Chat history** | IndexedDB only | No | No |
-| **Child profiles** | IndexedDB only | No | No |
-| **Difficulty levels** | localStorage only | No | No |
-
-> **Note**: Game progress, streaks, and weekly reports are stored locally in the browser only. Switching devices or clearing browser data will reset this data. This is by design -- game activity data never leaves the device.
-
-### Privacy architecture
-
-AutiSense follows a **zero-egress screening** model:
-
-1. **On-device inference** -- All 4 AI models (YOLO, BodyTCN, FER+, FaceTCN) run in a Web Worker via ONNX Runtime Web. No video frames, keypoints, or inference results are transmitted to any server.
-2. **Local-first storage** -- All game and screening data lives in IndexedDB (Dexie). The app works fully offline.
-3. **Opt-in cloud sync** -- Only anonymized screening sessions and biomarker scores are synced to DynamoDB. Child names are stripped before upload. Game activity stays local.
-4. **Cloud AI enrichment** -- Only aggregated biomarker scores (not raw data) are sent to Amazon Bedrock for report generation. This step is optional and has template-based fallbacks.
-5. **Data expiry** -- DynamoDB records have a 365-day TTL and auto-expire.
-
----
-
-## AWS Services
-
-| Service | Purpose | Region |
-|---------|---------|--------|
-| **Amazon Bedrock** | Nova Lite (chat, word generation, summaries) + Nova Pro (DSM-5 clinical reports) | us-east-1 |
-| **Amazon Polly** | Neural TTS voice prompts (Joanna) | ap-south-1 |
-| **Amazon DynamoDB** | 7 tables -- users, auth sessions, screening sessions, biomarkers, feed posts, child profiles, session summaries | ap-south-1 |
-| **AWS Amplify** | WEB_COMPUTE SSR hosting with auto-deploy from GitHub | ap-south-1 |
-| **Amazon S3** | ONNX model storage (models currently served from `public/` via CDN) | ap-south-1 |
-| **AWS IAM** | 1 user + 1 role + scoped Bedrock/Polly/DynamoDB policies | Global |
-| **AWS Budgets** | $10/month alarm with email alerts at 80% | Global |
-
-All AWS-dependent API routes have **graceful fallbacks** -- the app is fully functional without AWS credentials.
-
-See [`docs/Amazon_usage.md`](docs/Amazon_usage.md) for the complete AWS architecture reference.
-
----
-
-## API Routes
-
-| Route | Method | AWS Service | Fallback |
-|-------|--------|------------|----------|
-| `/api/auth/google` | GET | -- | -- |
-| `/api/auth/callback/google` | GET | DynamoDB | In-memory auth |
-| `/api/auth/session` | GET | DynamoDB | In-memory auth |
-| `/api/auth/logout` | POST | DynamoDB | In-memory auth |
-| `/api/chat/conversation` | POST | Bedrock (Nova Lite) | Pre-defined conversation pool |
-| `/api/chat/generate-words` | POST | Bedrock (Nova Lite) | Curated age-stratified word pools |
-| `/api/report/summary` | POST | Bedrock (Nova Lite) | Template mock summary |
-| `/api/report/clinical` | POST | Bedrock (Nova Pro) | Deterministic template report |
-| `/api/report/pdf` | POST | -- | -- |
-| `/api/report/weekly` | GET/POST | -- | -- |
-| `/api/tts` | POST | Polly | Client falls back to browser speechSynthesis |
-| `/api/feed` | GET/POST | DynamoDB | In-memory store |
-| `/api/sync` | POST | DynamoDB | Error response |
-| `/api/nearby` | POST | -- (Overpass API) | -- |
-| `/api/health` | GET | DynamoDB | Degraded status |
-
----
-
-## Deployment
-
-AutiSense is deployed on **AWS Amplify** (WEB_COMPUTE) with auto-deploy from the `main` branch.
-
-```bash
-# Manual trigger
-aws amplify start-job --app-id d2n7pu2vtgi8yc --branch-name main --job-type RELEASE --region ap-south-1
-```
-
-### Amplify SSR Environment Variables
-
-Amplify WEB_COMPUTE injects env vars into the build container but **not** into the Lambda runtime. All non-AWS env vars are listed in `next.config.ts` under the `env` property for build-time inlining. AWS credentials use `APP_*` prefix (Amplify reserves the `AWS_*` prefix).
-
-See [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md) for full deployment configuration, troubleshooting, and the list of all 16 required Amplify environment variables.
-
----
-
-## Documentation
+## 📚 Documentation
 
 | Document | Contents |
-|----------|----------|
-| [`docs/DOCS.md`](docs/DOCS.md) | Full project documentation -- architecture, feature map, intake flow, AI/ML pipeline, data layer, games, API endpoints, testing, changelog |
-| [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md) | Deployment reference -- AWS resources, environment variables, credential handling, troubleshooting, critical warnings |
-| [`docs/Amazon_usage.md`](docs/Amazon_usage.md) | Complete AWS architecture -- Bedrock, Polly, DynamoDB, Amplify, S3, IAM, credentials strategy, API route matrix, data flow diagrams, cost analysis |
+|---|---|
+| [`docs/INSTALL.md`](docs/INSTALL.md) | Full per-platform install + unsigned-app troubleshooting |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Web app, on-device pipeline, thin clients, data flow |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local setup, scripts, env vars, the `#`-path test caveat |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | CSP/headers/privacy posture + how to report issues |
+| [`docs/DOCS.md`](docs/DOCS.md) | In-depth project reference (features, pipeline, data, APIs) |
+| [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md) | Deployment reference (AWS resources, env vars) |
+| [`docs/Amazon_usage.md`](docs/Amazon_usage.md) | AWS architecture (Bedrock, Polly, DynamoDB, Amplify, IAM) |
 
 ---
 
-## Disclaimer
+## 🤝 Contributing
 
-AutiSense is a **screening tool**, not a diagnostic instrument. Results are intended to support -- not replace -- professional clinical evaluation. The AI models provide behavioral pattern indicators that should be interpreted by qualified healthcare professionals. Always consult a licensed clinician for autism spectrum disorder diagnosis.
+Contributions are welcome! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+the workflow, coding standards, and the test-path caveat. A few ground rules:
+
+- Keep changes accurate and honest — this is a medical-adjacent project; never
+  overstate capabilities.
+- Don't commit secrets. `.env*` files are gitignored.
+- Run `npm run lint` and `npm run type-check` before opening a PR.
 
 ---
 
-## License
+## 🔐 Ethics & privacy
 
-[MIT](LICENSE)
+AutiSense is built privacy-first and is deliberately conservative about claims:
+
+- **Not a diagnosis.** AutiSense is a screening/educational aid. It is not a
+  medical device and has not been clinically validated. It must never be used as
+  a substitute for professional assessment.
+- **No accuracy claims.** We do not advertise model accuracy as a selling point.
+  Movement classification is imperfect and can be wrong; treat output as a prompt
+  for further observation, not a verdict.
+- **Your video stays on your device.** Screening pose estimation and behavior
+  classification run entirely in your browser. Frames are not uploaded.
+- **Local-first data.** Profiles, sessions, biomarkers, and game progress are
+  stored in your browser's IndexedDB. Server interaction happens only for features
+  you opt into (e.g., report generation or anonymized cloud sync). A "delete my
+  data" control is provided.
+- **Hardened by default.** Strict CSP with per-request nonces, cross-origin
+  isolation (COOP/COEP), HSTS, OAuth with PKCE, and self-hosted assets.
+
+Read more in [`docs/SECURITY.md`](docs/SECURITY.md) and the in-app legal pages.
+To report a security or privacy issue, see
+[`docs/SECURITY.md`](docs/SECURITY.md#reporting-a-vulnerability).
+
+---
+
+## 🙏 Credits
+
+Built by **[Imaginaerium](https://imaginaerium.in)**.
+
+- Live app: https://autisense.imaginaerium.in
+- Repository: https://github.com/Partha-dev01/AutiSense
+- About the team: https://imaginaerium.in
+
+> **License:** see the [`LICENSE`](LICENSE) file in the repository root.
