@@ -3,7 +3,11 @@
   "version": "1.1.0",
   "description": "AutiSense desktop wrapper — a thin client over https://autisense.imaginaerium.in (bundles nothing; the web app + models are served live).",
   "main": "main.js",
-  "author": "AutiSense",
+  "homepage": "https://autisense.imaginaerium.in",
+  "author": {
+    "name": "Imaginaerium",
+    "email": "autisense@imaginaerium.in"
+  },
   "license": "UNLICENSED",
   "private": true,
   "scripts": {

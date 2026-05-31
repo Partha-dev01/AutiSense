@@ -64,10 +64,11 @@ jobs:
         env:
           # electron-builder reads GH_TOKEN to create/upload the GitHub Release.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional code-signing (Windows + macOS). Empty when secret unset -> signing skipped.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # Optional macOS notarization. Empty when unset -> notarization skipped.
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Code-signing / notarization secrets (CSC_LINK, CSC_KEY_PASSWORD, APPLE_*)
+          # are intentionally NOT passed. When the secrets are unset, GitHub injects an
+          # EMPTY STRING, and electron-builder 25.x treats an empty CSC_LINK as a real
+          # cert path -> resolves to the project dir -> crashes the macOS build with
+          # "<dir> not a file" (upstream fix PR #8185 is not in v25.1.8). Omitting them
+          # leaves CSC_LINK truly unset -> signing skipped -> unsigned .dmg builds fine.
+          # To enable signing later: add the secrets AND re-add the env vars here.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"

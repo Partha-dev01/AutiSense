@@ -48,3 +48,7 @@ mac:
     - dmg
   category: public.app-category.education
   icon: build/icon.png
+  # Build UNSIGNED: skip macOS code-signing identity lookup. Combined with NOT
+  # passing an (empty) CSC_LINK env var in the workflow, this avoids the
+  # electron-builder 25.x "<dir> not a file" crash on empty cert paths.
+  identity: null

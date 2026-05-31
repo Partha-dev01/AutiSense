@@ -48,12 +48,21 @@ jobs:
           node-version: 20
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
+        uses: android-actions/setup-android@v4
 
       - name: Install Bubblewrap CLI
         run: npm i -g @bubblewrap/cli
+
+      - name: Configure Bubblewrap (non-interactive JDK + SDK)
+        run: |
+          # Bubblewrap's loadOrCreateConfig() runs before every command and PROMPTS
+          # ("install the JDK? (Y/n)") when jdkPath/androidSdkPath are unset -> exit 130
+          # on a runner with no TTY. Pre-write the config with the runner's own JDK 17
+          # (from setup-java) and Android SDK (from setup-android) so it never prompts.
+          mkdir -p "$HOME/.bubblewrap"
+          cat > "$HOME/.bubblewrap/config.json" <<EOF
+          {"jdkPath":"$JAVA_HOME","androidSdkPath":"$ANDROID_SDK_ROOT"}
+          EOF
 
       - name: Restore signing keystore
         env:
@@ -62,6 +71,14 @@ jobs:
           # twa-manifest.json signingKey.path is "../android.keystore" (relative to twa/),
           # which resolves to the repo root. Decode the keystore there so it matches.
           echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/android.keystore"
+
+      - name: Generate Android project from manifest
+        working-directory: ./twa
+        run: |
+          # The twa/ folder only holds twa-manifest.json (no generated Gradle project).
+          # `bubblewrap build` needs the Android project to already exist; generate it
+          # non-interactively from the manifest (init is interactive; update is not).
+          bubblewrap update --manifest="./twa-manifest.json"
 
       - name: Build signed TWA (APK + AAB)
         working-directory: ./twa
