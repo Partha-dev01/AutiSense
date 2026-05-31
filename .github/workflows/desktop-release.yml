@@ -72,3 +72,26 @@ jobs:
           # leaves CSC_LINK truly unset -> signing skipped -> unsigned .dmg builds fine.
           # To enable signing later: add the secrets AND re-add the env vars here.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      # electron-builder's GitHub publisher SKIPS uploading to an already-PUBLISHED
+      # release: the first run created + published v1.1.0, so every later re-run
+      # silently no-ops the upload (the job still reports success). `gh release
+      # upload --clobber` CAN write to a published release, so we upload the built
+      # installers explicitly here. electron-builder still runs above to generate
+      # the blockmaps + latest*.yml auto-update metadata. Tag pushes only
+      # (workflow_dispatch has no release tag to upload to).
+      - name: Upload installers to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        working-directory: ./electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          files=(dist/*.exe dist/*.exe.blockmap dist/*.dmg dist/*.dmg.blockmap dist/*.AppImage dist/*.deb dist/latest*.yml)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No installer artifacts found in dist/ to upload" >&2
+            exit 1
+          fi
+          echo "Uploading to ${GITHUB_REF_NAME}: ${files[*]}"
+          gh release upload "${GITHUB_REF_NAME}" "${files[@]}" --clobber --repo "${GITHUB_REPOSITORY}"
