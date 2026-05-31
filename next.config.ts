@@ -38,6 +38,7 @@ const nextConfig: NextConfig = {
     DYNAMODB_CHILD_PROFILES_TABLE: process.env.DYNAMODB_CHILD_PROFILES_TABLE ?? "",
     DYNAMODB_SESSION_SUMMARIES_TABLE: process.env.DYNAMODB_SESSION_SUMMARIES_TABLE ?? "",
     DYNAMODB_FEED_POSTS_TABLE: process.env.DYNAMODB_FEED_POSTS_TABLE ?? "",
+    DYNAMODB_RATE_LIMITS_TABLE: process.env.DYNAMODB_RATE_LIMITS_TABLE ?? "",
     APP_REGION: process.env.APP_REGION ?? "",
     // Amplify WEB_COMPUTE does not reliably inject env vars into the Lambda
     // runtime — all vars needed at request time must be baked at build time.

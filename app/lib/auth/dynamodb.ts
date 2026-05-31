@@ -326,11 +326,25 @@ export async function upsertGoogleUser(profile: {
 }
 
 /**
+ * Generate a 256-bit, URL-safe session token from a CSPRNG.
+ * Replaces the prior 122-bit UUID: a session identifier is a bearer secret,
+ * so we want a comfortable margin over the OWASP ≥128-bit guidance. Old
+ * UUID-format tokens already issued remain valid (looked up by string).
+ */
+function generateSessionToken(): string {
+  const bytes = new Uint8Array(32); // 256 bits
+  crypto.getRandomValues(bytes);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
  * Create a new auth session for a user.
  * Returns the session token (to be stored in a cookie).
  */
 export async function createSessionForUser(userId: string): Promise<string> {
-  const token = crypto.randomUUID();
+  const token = generateSessionToken();
   const now = new Date();
   const expiresAt = Math.floor((now.getTime() + AUTH_CONFIG.sessionMaxAge) / 1000);
 

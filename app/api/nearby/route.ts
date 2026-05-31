@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   // IP-based rate limiting (unauthenticated endpoint, proxies to Overpass)
   const { apiRateLimiter } = await import("@/app/lib/rateLimit");
   const ip = getClientIp(req);
-  const rl = apiRateLimiter.check(`nearby:${ip}`);
+  const rl = await apiRateLimiter.check(`nearby:${ip}`);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -108,7 +108,11 @@ export async function POST(req: NextRequest) {
           lng: elLng,
           type: amenity,
           ...(tags.phone ? { phone: tags.phone } : {}),
-          ...(tags.website ? { website: tags.website } : {}),
+          // OSM `website` is third-party data — only surface http(s) URLs so a
+          // crafted javascript:/data: tag can never become a clickable link.
+          ...(typeof tags.website === "string" && /^https?:\/\//i.test(tags.website.trim())
+            ? { website: tags.website.trim() }
+            : {}),
         };
       });
 

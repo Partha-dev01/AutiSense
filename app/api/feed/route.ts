@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
   // IP-based rate limiting for unauthenticated endpoint
   const { apiRateLimiter } = await import("@/app/lib/rateLimit");
   const ip = getClientIp(request);
-  const rl = apiRateLimiter.check(`feed-get:${ip}`);
+  const rl = await apiRateLimiter.check(`feed-get:${ip}`);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { apiRateLimiter } = await import("@/app/lib/rateLimit");
-  const rl = apiRateLimiter.check(`feed-post:${user.id}`);
+  const rl = await apiRateLimiter.check(`feed-post:${user.id}`);
   if (!rl.allowed) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
 
   try {

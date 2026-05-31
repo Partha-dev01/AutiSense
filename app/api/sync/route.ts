@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   const { apiRateLimiter } = await import("../../lib/rateLimit");
-  const rl = apiRateLimiter.check(`sync:${authResult.id}`);
+  const rl = await apiRateLimiter.check(`sync:${authResult.id}`);
   if (!rl.allowed) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
 
   let body: SyncRequestBody;
@@ -125,7 +125,11 @@ export async function POST(req: NextRequest) {
   if (biomarkers && biomarkersTable) {
     // Allowlist biomarker fields — prevent mass assignment
     const biomarkerItem = {
-      sessionId: biomarkers.sessionId || session.id,
+      // Bind to the just-written, ownership-tagged session — NEVER the
+      // client-supplied biomarkers.sessionId, so one user cannot target
+      // another user's biomarker row. userId mirrors the session's owner.
+      sessionId: session.id,
+      userId: session.userId,
       avgGazeScore: biomarkers.avgGazeScore,
       avgMotorScore: biomarkers.avgMotorScore,
       avgVocalizationScore: biomarkers.avgVocalizationScore,
@@ -145,10 +149,17 @@ export async function POST(req: NextRequest) {
         new PutCommand({
           TableName: biomarkersTable,
           Item: biomarkerItem,
+          // Idempotent: first write wins. Blocks a blind overwrite of an
+          // existing biomarker aggregate (defense-in-depth on top of binding
+          // sessionId to the owned session above).
+          ConditionExpression: "attribute_not_exists(sessionId)",
         }),
       );
     } catch (err) {
-      log.error("DynamoDB biomarkers write failed", { error: err });
+      // Already-synced (same sessionId) → benign no-op, not an error.
+      if (!isAlreadyExistsError(err)) {
+        log.error("DynamoDB biomarkers write failed", { error: err });
+      }
     }
   }
 

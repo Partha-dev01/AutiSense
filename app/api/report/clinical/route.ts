@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
 
   // Rate limit
   const { aiRateLimiter } = await import("../../../lib/rateLimit");
-  const rl = aiRateLimiter.check(authResult.id);
+  const rl = await aiRateLimiter.check(authResult.id);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
