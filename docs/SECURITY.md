@@ -125,14 +125,9 @@ To keep the CSP tight and avoid third-party runtime dependencies:
 If you discover a security or privacy vulnerability, please **report it
 privately** rather than opening a public issue:
 
-- Use GitHub's **private vulnerability reporting** on the
-  [repository](https://github.com/Partha-dev01/AutiSense) (Security → *Report a
-  vulnerability*), if enabled; or
+- **Preferred:** use GitHub's [private vulnerability reporting](https://github.com/Partha-dev01/AutiSense/security/advisories/new)
+  (the repository's **Security → Report a vulnerability** tab); or
 - Contact **[Imaginaerium](https://imaginaerium.in)** directly.
 
 Please include steps to reproduce and the potential impact, and give us a
 reasonable chance to investigate and remediate before any public disclosure.
-
-> **TODO (maintainer):** confirm the preferred private security contact
-> (e.g. a dedicated security email or GitHub private advisories) and list it
-> explicitly here.

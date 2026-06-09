@@ -102,12 +102,9 @@ load the live site — so a single web deploy updates every platform at once.
 
 ## 📸 Screenshots
 
-The landing page is shown at the top of this README.
-
-> **TODO (maintainer):** add more screenshots / a short GIF. Suggested shots: the
-> live detection screen with the pose overlay, the intake flow, and a generated
-> report. Place new images under `docs/assets/` and reference them with relative
-> links, e.g. `![Detection](docs/assets/detection.png)`.
+The landing page is shown at the top of this README. For the full experience — the
+guided intake flow, live detection with the pose overlay, the kids dashboard, and a
+generated report — try the **[live web app](https://autisense.imaginaerium.in)**.
 
 ---
 

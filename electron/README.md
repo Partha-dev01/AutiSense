@@ -39,7 +39,8 @@ npm run dist:mac     # .dmg               — run on macOS (signing+notarization
 `npm run publish` builds + uploads to the GitHub Release (used by CI). Each OS
 target must build on its own OS — CI uses a windows/ubuntu/macos matrix.
 
-## TODO before public release
-- Add icons under `electron/build/` (`icon.ico` / `icon.png` / `icon.icns`).
-- Code-signing: Windows Authenticode cert; Apple Developer ID + notarization
-  (unsigned builds trigger SmartScreen / Gatekeeper warnings).
+## Known limitations
+- **Unsigned installers** — no code-signing certificates yet (Windows
+  Authenticode; Apple Developer ID + notarization), so first run triggers
+  SmartScreen / Gatekeeper warnings. One-time workaround steps are in
+  [`../docs/INSTALL.md`](../docs/INSTALL.md).
