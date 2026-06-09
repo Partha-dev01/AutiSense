@@ -1,6 +1,6 @@
 {
   "name": "autisense-desktop",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "AutiSense desktop wrapper — a thin client over https://autisense.imaginaerium.in (bundles nothing; the web app + models are served live).",
   "main": "main.js",
   "homepage": "https://autisense.imaginaerium.in",
@@ -22,7 +22,10 @@
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
+    "electron": "^39.8.5",
     "electron-builder": "^25.1.8"
+  },
+  "overrides": {
+    "tar": "^7.5.11"
   }
 }
