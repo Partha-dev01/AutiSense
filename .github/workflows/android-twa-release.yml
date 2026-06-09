@@ -34,21 +34,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
 
       - name: Install Bubblewrap CLI
         run: npm i -g @bubblewrap/cli
@@ -87,15 +87,18 @@ jobs:
           # Bubblewrap reads these for non-interactive signing.
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Pass the alias via env (not inline ${{ }}) so the secret is never
+          # interpolated into the shell script before the shell parses it.
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           bubblewrap build \
             --manifest="./twa-manifest.json" \
             --signingKeyPath="$GITHUB_WORKSPACE/android.keystore" \
-            --signingKeyAlias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            --signingKeyAlias="$ANDROID_KEY_ALIAS" \
             --skipPwaValidation
 
       - name: Publish artifacts to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           # Publish to the release for the pushed tag (e.g. v1.2.0), matching the
           # desktop workflow. On a v* tag push github.ref_name is the tag name.

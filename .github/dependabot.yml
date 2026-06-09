@@ -1,0 +1,9 @@
+# Keep the SHA-pinned GitHub Actions current. Dependabot opens a weekly PR that
+# bumps each pinned commit SHA to the latest release and updates the # vX.Y.Z
+# comment, so pinning to a SHA (supply-chain safety) doesn't mean going stale.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

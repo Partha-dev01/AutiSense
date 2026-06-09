@@ -26,6 +26,12 @@
 *.key
 *.p12
 
+# signing material (never commit — keystore is delivered via CI secret only)
+*.keystore
+*.jks
+android.keystore
+*.b64
+
 # debug
 npm-debug.log*
 yarn-debug.log*
