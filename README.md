@@ -130,14 +130,14 @@ PWA runs full-screen with an offline app shell.
 
 Native apps are published on the
 [**Releases**](https://github.com/Partha-dev01/AutiSense/releases) page. The
-latest is **[v1.1.0](https://github.com/Partha-dev01/AutiSense/releases/tag/v1.1.0)**.
+latest is **[v1.2.2](https://github.com/Partha-dev01/AutiSense/releases/tag/v1.2.2)**.
 
 | Platform | File | Notes |
 |---|---|---|
-| 🪟 Windows | `AutiSense-Setup-1.1.0.exe` | NSIS installer |
-| 🐧 Linux | `AutiSense-1.1.0.AppImage` | Portable, no install |
-| 🐧 Linux | `autisense-desktop_1.1.0_amd64.deb` | Debian/Ubuntu package |
-| 🍎 macOS | `AutiSense-1.1.0-arm64.dmg` | **Apple Silicon (arm64) only** |
+| 🪟 Windows | `AutiSense-Setup-1.2.2.exe` | NSIS installer |
+| 🐧 Linux | `AutiSense-1.2.2.AppImage` | Portable, no install |
+| 🐧 Linux | `autisense-desktop_1.2.2_amd64.deb` | Debian/Ubuntu package |
+| 🍎 macOS | `AutiSense-1.2.2-arm64.dmg` | **Apple Silicon (arm64) only** |
 | 🤖 Android | `app-release-signed.apk` | Sideload (`.aab` also available for Play) |
 
 > [!NOTE]
@@ -147,7 +147,7 @@ latest is **[v1.1.0](https://github.com/Partha-dev01/AutiSense/releases/tag/v1.1
 > [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ### 🪟 Windows
-1. Run `AutiSense-Setup-1.1.0.exe`.
+1. Run `AutiSense-Setup-1.2.2.exe`.
 2. If **Windows SmartScreen** appears, click **More info → Run anyway**.
 3. Follow the installer.
 
@@ -175,12 +175,12 @@ download — not actual damage.
 ### 🐧 Linux
 **AppImage** (portable):
 ```bash
-chmod +x AutiSense-1.1.0.AppImage
-./AutiSense-1.1.0.AppImage
+chmod +x AutiSense-1.2.2.AppImage
+./AutiSense-1.2.2.AppImage
 ```
 **Debian/Ubuntu (.deb):**
 ```bash
-sudo dpkg -i autisense-desktop_1.1.0_amd64.deb
+sudo dpkg -i autisense-desktop_1.2.2_amd64.deb
 ```
 
 ### 🤖 Android
