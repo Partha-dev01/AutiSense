@@ -1,5 +1,10 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/logo-dark.jpeg" />
+  <img src="public/logo.jpeg" alt="AutiSense logo" width="116" align="left" />
+</picture>
+
 # AutiSense
 
 ### Privacy-first, in-browser AI screening for autism-related repetitive motor movements
@@ -13,6 +18,10 @@ Your video never leaves your device. The pose and behavior analysis runs locally
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-Web-blue)](https://onnxruntime.ai/)
 [![Platforms](https://img.shields.io/badge/platforms-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-blue)](#-download--install)
+
+<br clear="left" />
+
+![AutiSense landing page](public/home.png)
 
 </div>
 
@@ -96,9 +105,7 @@ load the live site — so a single web deploy updates every platform at once.
 
 ## 📸 Screenshots
 
-The landing page screenshot used in this README:
-
-![AutiSense landing page](public/home.png)
+The landing page is shown at the top of this README.
 
 > **TODO (maintainer):** add more screenshots / a short GIF. Suggested shots: the
 > live detection screen with the pose overlay, the intake flow, and a generated
