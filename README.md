@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="public/logo-dark.jpeg" />
-  <img src="public/logo.jpeg" alt="AutiSense logo" width="116" align="left" />
-</picture>
+<img src="public/logo.jpeg" alt="AutiSense logo" width="116" align="left" />
 
 # AutiSense
 
