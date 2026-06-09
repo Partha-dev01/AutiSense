@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/logo.jpeg" alt="AutiSense logo" width="116" align="left" />
+<img src="public/logo-circle.png" alt="AutiSense logo" width="116" align="left" />
 
 # AutiSense
 
@@ -8,7 +8,7 @@
 
 Your video never leaves your device. The pose and behavior analysis runs locally in your browser.
 
-[**Open the web app →**](https://autisense.imaginaerium.in) &nbsp;·&nbsp; [Download installers](#-download--install) &nbsp;·&nbsp; [Docs](docs/) &nbsp;·&nbsp; [By Imaginaerium](https://imaginaerium.in)
+[**Open the web app →**](https://autisense.imaginaerium.in) &nbsp;·&nbsp; [Download installers](https://github.com/Partha-dev01/AutiSense/releases) &nbsp;·&nbsp; [Docs](docs/) &nbsp;·&nbsp; [By Imaginaerium](https://imaginaerium.in)
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
