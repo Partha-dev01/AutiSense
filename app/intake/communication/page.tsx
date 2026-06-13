@@ -55,6 +55,12 @@ export default function CommunicationPage() {
   const [taskComplete, setTaskComplete] = useState(false);
   const [forceComplete, setForceComplete] = useState(false);
   const [micAvailable, setMicAvailable] = useState(true);
+  // How the current word was accepted: "word" = transcript matched, "speech" =
+  // child clearly spoke but didn't match (hybrid accept). Drives the success copy.
+  const [matchKind, setMatchKind] = useState<"word" | "speech" | null>(null);
+  // True while the recognizer is actually hearing sound — drives the listening
+  // bars so they only move on real audio (no live getUserMedia meter).
+  const [soundActive, setSoundActive] = useState(false);
 
   // Shared mic stream — acquired once on start, used by visualizer + kept alive
   const [micStream, setMicStream] = useState<MediaStream | null>(null);
@@ -209,11 +215,13 @@ export default function CommunicationPage() {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
-    recognition.maxAlternatives = 3;
+    recognition.maxAlternatives = 6;
     recognitionRef.current = recognition;
 
     let settled = false;
     let restartAttempts = 0;
+    let heardSpeech = false; // child produced clear speech (even if it didn't match the word)
+    let speechAcceptTimer: ReturnType<typeof setTimeout> | null = null;
     const expected = expectedWord.toLowerCase().trim();
     addDebug(`Recognition created — expecting "${expected}"`);
 
@@ -274,13 +282,42 @@ export default function CommunicationPage() {
       if (!w || !t) return false;
       if (w === t) return true;
       if (w.includes(t) || t.includes(w)) return true;
-      // Allow ~1 error per 3 characters (min 1) — scales with word length.
-      const tol = Math.max(1, Math.floor(t.length / 3));
+      // Looser: allow ~1 error per 2.5 characters (min 1) — scales with word length.
+      const tol = Math.max(1, Math.round(t.length / 2.5));
       if (editDistance(w, t) <= tol) return true;
       // Shared prefix: first 3 chars (or the first half for short words).
       const pfx = Math.min(3, Math.ceil(t.length / 2));
       if (t.length >= 3 && w.length >= pfx && w.startsWith(t.substring(0, pfx))) return true;
       return false;
+    };
+
+    const clearSpeechTimer = () => {
+      if (speechAcceptTimer) { clearTimeout(speechAcceptTimer); speechAcceptTimer = null; }
+    };
+    const settleMatched = (kind: "word" | "speech") => {
+      if (settled) return;
+      settled = true;
+      clearSpeechTimer();
+      stopRecognition();
+      setSoundActive(false);
+      setMatchKind(kind);
+      setWordState("matched");
+      setTimeout(() => advance("matched"), 1100);
+    };
+    const settleMissed = () => {
+      if (settled) return;
+      settled = true;
+      clearSpeechTimer();
+      stopRecognition();
+      setSoundActive(false);
+      setWordState("missed");
+    };
+    // Hybrid accept: once the child has clearly spoken, accept the echo shortly
+    // after they pause — a real word-match still wins if it arrives first.
+    const scheduleHeardAccept = () => {
+      if (settled || !heardSpeech) return;
+      clearSpeechTimer();
+      speechAcceptTimer = setTimeout(() => settleMatched("speech"), 1400);
     };
 
     recognition.onresult = (event: any) => {
@@ -289,6 +326,7 @@ export default function CommunicationPage() {
         full += event.results[i][0].transcript;
       }
       setTranscript(full);
+      if (full.trim()) { heardSpeech = true; setSoundActive(true); }
 
       const latest = event.results[event.results.length - 1];
       const isFinal = latest?.isFinal;
@@ -302,10 +340,7 @@ export default function CommunicationPage() {
           const alt = event.results[i][j].transcript;
           if (isMatch(alt)) {
             addDebug(`MATCH via alt[${i}][${j}]: "${alt}"`);
-            settled = true;
-            stopRecognition();
-            setWordState("matched");
-            setTimeout(() => advance("matched"), 1200);
+            settleMatched("word");
             return;
           }
         }
@@ -313,18 +348,18 @@ export default function CommunicationPage() {
       // Also check full accumulated transcript
       if (isMatch(full)) {
         addDebug(`MATCH via full transcript: "${full}"`);
-        settled = true;
-        stopRecognition();
-        setWordState("matched");
-        setTimeout(() => advance("matched"), 1200);
+        settleMatched("word");
+        return;
       }
+      // No exact match yet — but the child spoke, so accept shortly after they pause.
+      scheduleHeardAccept();
     };
 
     recognition.onerror = (e: any) => {
       addDebug(`onerror: ${e.error} (settled=${settled})`);
       if (settled) return;
       if (e.error === "not-allowed") {
-        settled = true; stopRecognition(); setWordState("missed");
+        settleMissed();
       }
     };
 
@@ -349,10 +384,16 @@ export default function CommunicationPage() {
             fresh.continuous = true;
             fresh.interimResults = true;
             fresh.lang = "en-US";
-            fresh.maxAlternatives = 3;
+            fresh.maxAlternatives = 6;
             fresh.onresult = recognition.onresult;
             fresh.onerror = recognition.onerror;
             fresh.onend = recognition.onend;
+            fresh.onstart = recognition.onstart;
+            fresh.onaudiostart = recognition.onaudiostart;
+            fresh.onsoundstart = recognition.onsoundstart;
+            fresh.onsoundend = recognition.onsoundend;
+            fresh.onspeechstart = recognition.onspeechstart;
+            fresh.onspeechend = recognition.onspeechend;
             recognitionRef.current = fresh;
             fresh.start();
             addDebug("restarted recognition (fresh instance)");
@@ -375,10 +416,19 @@ export default function CommunicationPage() {
       addDebug("onsoundstart: sound detected");
       // Mic is clearly live — drop the backoff so restarts stay snappy mid-attempt.
       restartAttempts = 0;
+      setSoundActive(true);
     };
+    recognition.onsoundend = () => { setSoundActive(false); };
 
     recognition.onspeechstart = () => {
       addDebug("onspeechstart: speech detected");
+      heardSpeech = true;
+      setSoundActive(true);
+    };
+    recognition.onspeechend = () => {
+      addDebug("onspeechend: speech ended");
+      setSoundActive(false);
+      scheduleHeardAccept();
     };
 
     // Start recognition
@@ -396,11 +446,16 @@ export default function CommunicationPage() {
     };
     tryStart(300, 0);
 
-    // Hard timeout: ONLY way to mark missed — 10 seconds
+    // Hard timeout (10s). If the child clearly spoke at any point, accept it
+    // (hybrid); only mark missed when nothing was heard at all.
     timerRef.current = setTimeout(() => {
-      if (!settled) {
-        addDebug("HARD TIMEOUT (10s) — marking missed");
-        settled = true; stopRecognition(); setWordState("missed");
+      if (settled) return;
+      if (heardSpeech) {
+        addDebug("HARD TIMEOUT (10s) — heard speech, accepting");
+        settleMatched("speech");
+      } else {
+        addDebug("HARD TIMEOUT (10s) — nothing heard, marking missed");
+        settleMissed();
       }
     }, 10000);
   }, [advance, stopRecognition, addDebug]);
@@ -410,6 +465,8 @@ export default function CommunicationPage() {
     if (!word) return;
     setWordState("playing");
     setTranscript("");
+    setMatchKind(null);
+    setSoundActive(false);
     await speakWord(word.text);
     // Release any mic stream BEFORE starting recognition. A held getUserMedia +
     // AudioContext monopolizes the mic on Chrome, so SpeechRecognition receives
@@ -451,6 +508,8 @@ export default function CommunicationPage() {
     setTaskComplete(false);
     setForceComplete(false);
     setStarted(false);
+    setMatchKind(null);
+    setSoundActive(false);
   }, []);
 
   const handleSkipStage = useCallback(async () => {
@@ -610,18 +669,21 @@ export default function CommunicationPage() {
                   Your turn! Say &ldquo;{word.text}&rdquo;
                 </p>
 
-                {/* CSS-animated listening bars — deliberately NOT a live getUserMedia
-                    visualizer: holding a mic stream here starves SpeechRecognition
-                    (see playAndListen comment / DOCS R57+R59). */}
+                {/* Listening bars driven by the recognizer's own sound/speech events
+                    (soundActive) — they only move when it actually hears the child.
+                    Deliberately NOT a live getUserMedia meter: holding a mic stream
+                    here starves SpeechRecognition (see playAndListen / DOCS R57+R59). */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, height: 48, marginBottom: 16 }}>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
                       style={{
                         width: 8,
+                        height: soundActive ? undefined : 8,
                         borderRadius: 4,
-                        background: "#e53e3e",
-                        animation: `vizBar 0.5s ease-in-out ${i * 0.08}s infinite alternate`,
+                        background: soundActive ? "#e53e3e" : "var(--sage-200)",
+                        transition: "background 150ms ease, height 150ms ease",
+                        animation: soundActive ? `vizBar 0.5s ease-in-out ${i * 0.08}s infinite alternate` : "none",
                       }}
                     />
                   ))}
@@ -653,7 +715,7 @@ export default function CommunicationPage() {
                   {"\u2713"}
                 </div>
                 <p style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--sage-600)" }}>
-                  Great match!
+                  {matchKind === "speech" ? "Nice try \u2014 heard you!" : "Great match!"}
                 </p>
               </div>
             )}
