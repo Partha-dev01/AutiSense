@@ -34,93 +34,10 @@ interface WordItem { text: string; emoji: string }
 
 type WordState = "idle" | "playing" | "listening" | "matched" | "missed";
 
-/* ── Mic Visualizer — receives an existing stream, no getUserMedia call ── */
-function MicVisualizer({ stream }: { stream: MediaStream | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ctxRef = useRef<{ audioCtx: AudioContext; analyser: AnalyserNode; raf: number } | null>(null);
-
-  useEffect(() => {
-    if (!stream) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx2d = canvas.getContext("2d");
-    if (!ctx2d) return;
-
-    const audioCtx = new AudioContext();
-    const source = audioCtx.createMediaStreamSource(stream);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 128;
-    analyser.smoothingTimeConstant = 0.6;
-    source.connect(analyser);
-
-    const bufLen = analyser.frequencyBinCount;
-    const data = new Uint8Array(bufLen);
-
-    const BAR_COUNT = 5;
-    const BAR_WIDTH = 8;
-    const GAP = 6;
-    const W = BAR_COUNT * BAR_WIDTH + (BAR_COUNT - 1) * GAP;
-    const H = 48;
-    canvas.width = W * 2; // 2x for retina
-    canvas.height = H * 2;
-    canvas.style.width = `${W}px`;
-    canvas.style.height = `${H}px`;
-    ctx2d.scale(2, 2);
-
-    const color = getComputedStyle(document.documentElement).getPropertyValue("--sage-500").trim() || "#4d8058";
-
-    const draw = () => {
-      analyser.getByteFrequencyData(data);
-      ctx2d.clearRect(0, 0, W, H);
-
-      for (let i = 0; i < BAR_COUNT; i++) {
-        // Sample spread across low-mid frequencies where voice lives
-        const bin = Math.min(Math.floor(((i + 1) / (BAR_COUNT + 1)) * bufLen * 0.5), bufLen - 1);
-        const val = data[bin] / 255;
-        const minH = 6;
-        const barH = minH + val * (H - minH - 4);
-        const x = i * (BAR_WIDTH + GAP);
-        const y = (H - barH) / 2;
-
-        ctx2d.fillStyle = color;
-        ctx2d.beginPath();
-        // roundRect fallback for older browsers
-        const r = 3;
-        ctx2d.moveTo(x + r, y);
-        ctx2d.lineTo(x + BAR_WIDTH - r, y);
-        ctx2d.quadraticCurveTo(x + BAR_WIDTH, y, x + BAR_WIDTH, y + r);
-        ctx2d.lineTo(x + BAR_WIDTH, y + barH - r);
-        ctx2d.quadraticCurveTo(x + BAR_WIDTH, y + barH, x + BAR_WIDTH - r, y + barH);
-        ctx2d.lineTo(x + r, y + barH);
-        ctx2d.quadraticCurveTo(x, y + barH, x, y + barH - r);
-        ctx2d.lineTo(x, y + r);
-        ctx2d.quadraticCurveTo(x, y, x + r, y);
-        ctx2d.fill();
-      }
-
-      const raf = requestAnimationFrame(draw);
-      if (ctxRef.current) ctxRef.current.raf = raf;
-    };
-
-    const raf = requestAnimationFrame(draw);
-    ctxRef.current = { audioCtx, analyser, raf };
-
-    return () => {
-      if (ctxRef.current) {
-        cancelAnimationFrame(ctxRef.current.raf);
-        ctxRef.current.audioCtx.close().catch(() => {});
-        ctxRef.current = null;
-      }
-    };
-  }, [stream]);
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-      <canvas ref={canvasRef} />
-    </div>
-  );
-}
+/* NOTE: a live getUserMedia + AnalyserNode "MicVisualizer" used to live here, but
+   holding that mic stream starved SpeechRecognition (no transcript → no match).
+   It was removed in favour of CSS-animated listening bars. See DOCS R57+R59 and the
+   playAndListen comment before re-introducing any real-time mic visualizer here. */
 
 export default function CommunicationPage() {
   const { theme, toggle: toggleTheme } = useTheme();
@@ -202,17 +119,10 @@ export default function CommunicationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Acquire mic stream for visualizer — SpeechRecognition uses its own internal mic
-  const acquireMic = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setMicStream(stream);
-      addDebug("getUserMedia: mic acquired OK");
-    } catch (err) {
-      addDebug(`getUserMedia FAILED: ${err instanceof Error ? err.message : String(err)}`);
-      setMicAvailable(false);
-    }
-  }, [addDebug]);
+  // acquireMic / getUserMedia removed deliberately — a held mic stream monopolizes
+  // the hardware on Chrome and starves SpeechRecognition (no transcript). Recognition
+  // manages its own mic access internally; mic-permission denial is surfaced via the
+  // recognition "not-allowed" error path instead.
 
   const stopRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -501,12 +411,20 @@ export default function CommunicationPage() {
     setWordState("playing");
     setTranscript("");
     await speakWord(word.text);
-    // Acquire mic for visualizer (SpeechRecognition uses its own internal mic)
-    if (!micStream) await acquireMic();
-    await new Promise((r) => setTimeout(r, 300));
+    // Release any mic stream BEFORE starting recognition. A held getUserMedia +
+    // AudioContext monopolizes the mic on Chrome, so SpeechRecognition receives
+    // zero audio (visualizer bars move but "Heard:" stays empty → no match).
+    // Regression history: fixed in cacb1b2 (R57), re-broken by 8367dbe (R58
+    // "restore mic visualizer"). DO NOT re-add a live getUserMedia visualizer here.
+    if (micStream) {
+      micStream.getTracks().forEach((t) => t.stop());
+      setMicStream(null);
+    }
+    // Let the audio hardware fully release before recognition grabs the mic.
+    await new Promise((r) => setTimeout(r, 500));
     setWordState("listening");
     startListening(word.text);
-  }, [currentIdx, words, speakWord, startListening, micStream, acquireMic]);
+  }, [currentIdx, words, speakWord, startListening, micStream]);
 
   // Start the test
   const beginTest = useCallback(async () => {
@@ -692,8 +610,22 @@ export default function CommunicationPage() {
                   Your turn! Say &ldquo;{word.text}&rdquo;
                 </p>
 
-                {/* Real mic visualizer using getUserMedia + AnalyserNode */}
-                <MicVisualizer stream={micStream} />
+                {/* CSS-animated listening bars — deliberately NOT a live getUserMedia
+                    visualizer: holding a mic stream here starves SpeechRecognition
+                    (see playAndListen comment / DOCS R57+R59). */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, height: 48, marginBottom: 16 }}>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 8,
+                        borderRadius: 4,
+                        background: "#e53e3e",
+                        animation: `vizBar 0.5s ease-in-out ${i * 0.08}s infinite alternate`,
+                      }}
+                    />
+                  ))}
+                </div>
 
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
