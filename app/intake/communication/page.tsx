@@ -303,6 +303,7 @@ export default function CommunicationPage() {
     recognitionRef.current = recognition;
 
     let settled = false;
+    let restartAttempts = 0;
     const expected = expectedWord.toLowerCase().trim();
     addDebug(`Recognition created — expecting "${expected}"`);
 
@@ -337,23 +338,38 @@ export default function CommunicationPage() {
       return false;
     };
 
-    const fuzzyWordMatch = (word: string, target: string): boolean => {
-      if (word === target) return true;
-      if (word.includes(target) || target.includes(word)) return true;
-      // Edit distance 1 for words > 2 chars
-      if (target.length > 2 && word.length > 2 && Math.abs(word.length - target.length) <= 1) {
-        let diff = 0;
-        const longer = word.length >= target.length ? word : target;
-        const shorter = word.length >= target.length ? target : word;
-        let si = 0;
-        for (let li = 0; li < longer.length && si < shorter.length; li++) {
-          if (longer[li] !== shorter[si]) { diff++; } else { si++; }
+    // Full Levenshtein edit distance (handles insertions/deletions/substitutions).
+    const editDistance = (a: string, b: string): number => {
+      const m = a.length, n = b.length;
+      if (m === 0) return n;
+      if (n === 0) return m;
+      let prev = Array.from({ length: n + 1 }, (_, i) => i);
+      let curr = new Array<number>(n + 1).fill(0);
+      for (let i = 1; i <= m; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
         }
-        diff += shorter.length - si;
-        if (diff <= 1) return true;
+        [prev, curr] = [curr, prev];
       }
-      // Prefix match for words >= 3 chars
-      if (target.length >= 3 && word.startsWith(target.substring(0, 3))) return true;
+      return prev[n];
+    };
+
+    // Relaxed matching: a young child's echo is rarely transcribed cleanly, so we
+    // accept loose phonetic-ish matches rather than demanding an exact word.
+    const fuzzyWordMatch = (word: string, target: string): boolean => {
+      const w = word.replace(/[^a-z]/g, "");
+      const t = target.replace(/[^a-z]/g, "");
+      if (!w || !t) return false;
+      if (w === t) return true;
+      if (w.includes(t) || t.includes(w)) return true;
+      // Allow ~1 error per 3 characters (min 1) — scales with word length.
+      const tol = Math.max(1, Math.floor(t.length / 3));
+      if (editDistance(w, t) <= tol) return true;
+      // Shared prefix: first 3 chars (or the first half for short words).
+      const pfx = Math.min(3, Math.ceil(t.length / 2));
+      if (t.length >= 3 && w.length >= pfx && w.startsWith(t.substring(0, pfx))) return true;
       return false;
     };
 
@@ -405,6 +421,11 @@ export default function CommunicationPage() {
     recognition.onend = () => {
       addDebug(`onend fired (settled=${settled})`);
       if (settled) return;
+      // Gentle backoff: a quick first restart minimises the dead window where the
+      // child's echo would be missed, but if recognition keeps ending immediately
+      // (e.g. mic contention) we ease off so the mic doesn't visibly thrash.
+      restartAttempts++;
+      const delay = Math.min(150 + restartAttempts * 75, 600);
       setTimeout(() => {
         if (settled) return;
         try {
@@ -429,7 +450,7 @@ export default function CommunicationPage() {
             addDebug(`restart FAILED: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
-      }, 250);
+      }, delay);
     };
 
     recognition.onstart = () => {
@@ -442,6 +463,8 @@ export default function CommunicationPage() {
 
     recognition.onsoundstart = () => {
       addDebug("onsoundstart: sound detected");
+      // Mic is clearly live — drop the backoff so restarts stay snappy mid-attempt.
+      restartAttempts = 0;
     };
 
     recognition.onspeechstart = () => {
