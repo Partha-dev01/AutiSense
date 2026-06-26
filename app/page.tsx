@@ -153,6 +153,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
+      <main style={{ display: "contents" }}>
       {/* Hero */}
       <section
         style={{
@@ -629,6 +630,7 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer

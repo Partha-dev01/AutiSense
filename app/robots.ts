@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/intake/", "/kid-dashboard/"],
+      disallow: ["/api/", "/intake/", "/kid-dashboard/", "/dashboard/", "/auth/"],
     },
     sitemap: "https://autisense.imaginaerium.in/sitemap.xml",
   };
